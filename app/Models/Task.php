@@ -15,6 +15,7 @@ class Task extends Model
         'done' => 'boolean',
         'is_project' => 'boolean',
         'week' => 'date',
+        'origin' => 'date',
         'completed_at' => 'datetime',
     ];
 
