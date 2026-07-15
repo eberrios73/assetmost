@@ -3,6 +3,10 @@ import { Head } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import DocEditor from '@/Components/DocEditor';
+import TemplateMenu from '@/Components/TemplateMenu';
+import { buildDocBody, templateIcon } from '@/docTemplates';
+
+const NEW_TITLES = { sop: 'New SOP', troubleshooting: 'New troubleshooting guide', freeform: 'Untitled' };
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
@@ -20,13 +24,21 @@ export default function Index() {
 
     const loadTree = () => api('/data/docs').then(setTree);
     useEffect(() => { loadTree(); }, []);
+    // deep-link: /docs?page=ID (e.g. after "Make doc" from a task) opens that page
+    useEffect(() => {
+        const p = new URLSearchParams(window.location.search).get('page');
+        if (p) setSelectedId(Number(p));
+    }, []);
     useEffect(() => {
         if (!selectedId) { setPage(null); return; }
         api(`/data/docs/${selectedId}`).then(setPage);
     }, [selectedId]);
 
-    const newPage = async (parentId = null) => {
-        const { id } = await api('/data/docs', 'POST', { parent_id: parentId, title: 'Untitled' });
+    const newPage = async (parentId = null, templateKey = 'freeform') => {
+        const { id } = await api('/data/docs', 'POST', {
+            parent_id: parentId, title: NEW_TITLES[templateKey] || 'Untitled',
+            body: buildDocBody(templateKey), icon: templateIcon(templateKey),
+        });
         await loadTree();
         setSelectedId(id);
     };
@@ -51,7 +63,8 @@ export default function Index() {
         <div className="flex flex-col h-full">
             <div className="p-3 border-b border-gray-100 flex items-center justify-between">
                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Pages</span>
-                <button onClick={() => newPage(null)} className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1"><PlusIcon /> New</button>
+                <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(null, k)}
+                    className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
             </div>
             <div className="flex-1 overflow-y-auto py-1">
                 {tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={setSelectedId} onAddChild={newPage} />

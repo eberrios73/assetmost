@@ -45,10 +45,14 @@ class DocController extends Controller
         $data = $request->validate([
             'title' => 'nullable|string|max:255',
             'parent_id' => 'nullable|integer|exists:doc_pages,id',
+            'body' => 'nullable|string',
+            'icon' => 'nullable|string|max:16',
         ]);
         $page = DocPage::create([
             'title' => $data['title'] ?: 'Untitled',
             'parent_id' => $data['parent_id'] ?? null,
+            'body' => $data['body'] ?? null,
+            'icon' => $data['icon'] ?? null,
             'updated_by' => auth()->id(),
         ]);
         return response()->json(['id' => $page->id], 201);

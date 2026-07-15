@@ -111,6 +111,7 @@ class TaskController extends Controller
             'needs' => 'sometimes|nullable|string',
             'challenges' => 'sometimes|nullable|string',
             'workarounds' => 'sometimes|nullable|string',
+            'notes' => 'sometimes|nullable|string',
         ];
         $data = $request->validate($rules);
         if ($creating && empty($data['week'])) $data['week'] = $this->monday();
@@ -127,6 +128,10 @@ class TaskController extends Controller
             'completed_at' => $t->completed_at?->toDateString(),
             'assigned_to' => $t->assigned_to,
             'assignee' => $t->assignee ? trim("{$t->assignee->name} {$t->assignee->last}") : null,
+            // long text (used by the task/project detail panels)
+            'notes' => $t->notes,
+            'details' => $t->details, 'impact' => $t->impact, 'needs' => $t->needs,
+            'challenges' => $t->challenges, 'workarounds' => $t->workarounds,
         ];
     }
 }

@@ -1,7 +1,9 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import { TrashIcon } from '@/Components/Icons';
+import { buildDocBody, templateIcon } from '@/docTemplates';
+import TemplateMenu from '@/Components/TemplateMenu';
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
@@ -54,6 +56,7 @@ export default function Index() {
     const [mode, setMode] = useState('tasks');       // 'tasks' | 'projects'
     const [view, setView] = useState(ymd(mondayOf(new Date())));
     const [openProj, setOpenProj] = useState(null);
+    const [expandedId, setExpandedId] = useState(null);
     const [status, setStatus] = useState('');
     const timers = useRef({});
 
@@ -77,6 +80,16 @@ export default function Index() {
     };
     const remove = async (id, title) => { if (confirm(`Delete "${title}"?`)) { await api(`/data/tasks/${id}`, 'DELETE'); load(); } };
     const setProject = (id, on) => patch(id, { is_project: on }, { reload: true });
+
+    // Turn a task/project into a doc: create a page from a template (seeded with
+    // its notes/details) and open it in the Docs wiki.
+    const makeDoc = async (rec, templateKey) => {
+        const background = rec.notes || rec.details || '';
+        const { id } = await api('/data/docs', 'POST', {
+            title: rec.title, body: buildDocBody(templateKey, background), icon: templateIcon(templateKey),
+        });
+        router.visit(`/docs?page=${id}`);
+    };
 
     // ---- weekly grid data ----
     const nonProjects = useMemo(() => tasks.filter((t) => !t.is_project), [tasks]);
@@ -134,21 +147,25 @@ export default function Index() {
                             <tr className="bg-gray-100 dark:bg-gray-800/70 text-xs uppercase tracking-wide text-gray-400">
                                 <Th className="w-9" /><Th>Task</Th><Th className="w-44">Assignee</Th>
                                 <Th className="w-16 text-center">Pri</Th><Th className="w-40">%</Th>
-                                <Th className="w-12 text-center">Prj</Th><Th className="w-32">Completed</Th><Th className="w-10" />
+                                <Th className="w-32">Completed</Th><Th className="w-8" /><Th className="w-10" />
                             </tr>
                         </thead>
                         <tbody>
                             <SectionRow label="Current" right={weekTasks.length ? `${avg}% complete` : ''} />
                             {open.length === 0 && <EmptyRow>{weekTasks.length ? 'All clear for this week.' : 'No tasks yet — add one above.'}</EmptyRow>}
                             {open.map((t) => (
-                                <TaskRow key={t.id} t={t} people={people} patch={patch} onProject={setProject} onDelete={remove} />
+                                <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses}
+                                    expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
+                                    onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                             ))}
                             {completedGroups.length > 0 && <SectionRow label="Completed" />}
                             {completedGroups.map((g) => (
                                 <FragmentRows key={g.wk}>
                                     <SubRow label={weekLabel(g.wk, currentWeek)} right={`${g.items.length} done`} />
                                     {g.items.map((t) => (
-                                        <TaskRow key={t.id} t={t} people={people} patch={patch} onProject={setProject} onDelete={remove} />
+                                        <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses}
+                                            expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
+                                            onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                                     ))}
                                 </FragmentRows>
                             ))}
@@ -173,7 +190,7 @@ export default function Index() {
                                 <FragmentRows key={p.id}>
                                     <ProjectRow p={p} open={openProj === p.id} patch={patch} onToggle={() => setOpenProj(openProj === p.id ? null : p.id)} />
                                     {openProj === p.id && (
-                                        <ProjectDetailRow p={p} statuses={statuses} people={people} patch={patch}
+                                        <ProjectDetailRow p={p} statuses={statuses} people={people} patch={patch} onMakeDoc={makeDoc}
                                             onMoveToTasks={() => { setProject(p.id, false); setOpenProj(null); }}
                                             onDelete={() => { remove(p.id, p.title); setOpenProj(null); }} />
                                     )}
@@ -245,41 +262,64 @@ function SubRow({ label, right }) {
 }
 function EmptyRow({ children }) { return <tr><td colSpan={8} className="px-3 py-3 text-gray-400">{children}</td></tr>; }
 
-function TaskRow({ t, people, patch, onProject, onDelete }) {
+function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, onDelete }) {
     const carried = t.origin && t.origin < t.week && !t.done;
     return (
-        <tr className={`group border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 relative before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] ${PRI_BAR[t.pri] || ''}`}>
-            <td className="px-3 py-1.5 text-center">
-                <input type="checkbox" checked={t.done} onChange={(e) => patch(t.id, { done: e.target.checked }, { reload: true })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-            </td>
-            <td className="px-3 py-1.5">
-                <div className="flex items-center gap-2">
-                    <InlineText value={t.title} done={t.done} onCommit={(v) => patch(t.id, { title: v }, { debounce: true })} />
-                    {carried && <span className="text-blue-500 shrink-0" title="carried over from an earlier week">↻</span>}
-                </div>
-            </td>
-            <td className="px-3 py-1.5"><AssigneeSelect value={t.assigned_to} people={people} onChange={(id) => patch(t.id, { assigned_to: id })} /></td>
-            <td className="px-3 py-1.5 text-center">
-                <button onClick={() => patch(t.id, { pri: ((t.pri || 0) + 1) % 4 })} title="click to cycle priority"
-                    className={`inline-block min-w-[42px] px-2 py-0.5 rounded-full text-[11px] font-semibold ${PRI_PILL[t.pri] || PRI_PILL[0]}`}>{PRI[t.pri]}</button>
-            </td>
-            <td className="px-3 py-1.5"><PctCell t={t} onCommit={(v) => patch(t.id, { pct: v }, { reload: true })} /></td>
-            <td className="px-3 py-1.5 text-center">
-                <button onClick={() => onProject(t.id, true)} title="flag as project"
-                    className="text-gray-300 dark:text-gray-600 hover:text-indigo-500"><Wrench /></button>
-            </td>
-            <td className="px-3 py-1.5">
-                {t.done && (
-                    <input type="date" value={t.completed_at || ''} onChange={(e) => patch(t.id, { completed_at: e.target.value || null })}
-                        className="border-0 bg-transparent p-0 text-xs text-gray-500 dark:text-gray-400 focus:ring-0" />
-                )}
-            </td>
-            <td className="px-3 py-1.5 text-center">
-                <button onClick={() => onDelete(t.id, t.title)} title="delete"
-                    className="text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-600"><TrashIcon /></button>
-            </td>
-        </tr>
+        <>
+            <tr className={`group border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 relative before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] ${PRI_BAR[t.pri] || ''}`}>
+                <td className="px-3 py-1.5 text-center">
+                    <input type="checkbox" checked={t.done} onChange={(e) => patch(t.id, { done: e.target.checked }, { reload: true })}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                </td>
+                <td className="px-3 py-1.5">
+                    <div className="flex items-center gap-2">
+                        <InlineText value={t.title} done={t.done} onCommit={(v) => patch(t.id, { title: v }, { debounce: true })} />
+                        {t.notes ? <span className="text-gray-300 dark:text-gray-600 shrink-0" title="has notes"><NoteGlyph /></span> : null}
+                        {carried && <span className="text-blue-500 shrink-0" title="carried over from an earlier week">↻</span>}
+                    </div>
+                </td>
+                <td className="px-3 py-1.5"><AssigneeSelect value={t.assigned_to} people={people} onChange={(id) => patch(t.id, { assigned_to: id })} /></td>
+                <td className="px-3 py-1.5 text-center">
+                    <button onClick={() => patch(t.id, { pri: ((t.pri || 0) + 1) % 4 })} title="click to cycle priority"
+                        className={`inline-block min-w-[42px] px-2 py-0.5 rounded-full text-[11px] font-semibold ${PRI_PILL[t.pri] || PRI_PILL[0]}`}>{PRI[t.pri]}</button>
+                </td>
+                <td className="px-3 py-1.5"><PctCell t={t} onCommit={(v) => patch(t.id, { pct: v }, { reload: true })} /></td>
+                <td className="px-3 py-1.5">
+                    {t.done && (
+                        <input type="date" value={t.completed_at || ''} onChange={(e) => patch(t.id, { completed_at: e.target.value || null })}
+                            className="border-0 bg-transparent p-0 text-xs text-gray-500 dark:text-gray-400 focus:ring-0" />
+                    )}
+                </td>
+                <td className="px-1 py-1.5 text-center">
+                    <button onClick={onToggle} title="details & notes"
+                        className={`px-1 ${expanded ? 'text-blue-600' : 'text-gray-300 dark:text-gray-600 hover:text-gray-500'}`}>{expanded ? '▾' : '▸'}</button>
+                </td>
+                <td className="px-3 py-1.5 text-center">
+                    <button onClick={() => onDelete(t.id, t.title)} title="delete"
+                        className="text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-600"><TrashIcon /></button>
+                </td>
+            </tr>
+            {expanded && (
+                <tr>
+                    <td colSpan={8} className="p-0 border-b border-gray-200 dark:border-gray-800">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4">
+                            <div className="flex items-start gap-3">
+                                <div className="flex-1">
+                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>
+                                    <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
+                                </div>
+                                <div className="flex flex-col gap-2 pt-5 w-40 shrink-0">
+                                    <button onClick={() => onProject(t.id, true)}
+                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400 hover:text-indigo-600"><Wrench /> Make project</button>
+                                    <TemplateMenu label="Make doc" glyph={<DocGlyph />} onPick={(k) => onMakeDoc(t, k)}
+                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm w-full rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600" />
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            )}
+        </>
     );
 }
 
@@ -304,7 +344,7 @@ function ProjectRow({ p, open, patch, onToggle }) {
     );
 }
 
-function ProjectDetailRow({ p, statuses, people, patch, onMoveToTasks, onDelete }) {
+function ProjectDetailRow({ p, statuses, people, patch, onMakeDoc, onMoveToTasks, onDelete }) {
     const set = (changes, opts) => patch(p.id, changes, opts);
     return (
         <tr>
@@ -324,7 +364,8 @@ function ProjectDetailRow({ p, statuses, people, patch, onMoveToTasks, onDelete 
                         <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">Progress
                             <PctCell t={p} onCommit={(v) => set({ pct: v })} />
                         </div>
-                        <div className="ml-auto flex gap-2">
+                        <div className="ml-auto flex items-center gap-2">
+                            <TemplateMenu label="Make doc" glyph={<DocGlyph />} compact onPick={(k) => onMakeDoc(p, k)} />
                             <button onClick={onMoveToTasks} className="px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600">↩ To tasks</button>
                             <button onClick={onDelete} className="px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-red-600">× Delete</button>
                         </div>
@@ -387,6 +428,22 @@ function PctCell({ t, onCommit }) {
     );
 }
 
+function NotesArea({ value, onCommit }) {
+    const [v, setV] = useState(value || '');
+    useEffect(() => { setV(value || ''); }, [value]);
+    return (
+        <textarea rows={3} value={v} onChange={(e) => { setV(e.target.value); onCommit(e.target.value); }}
+            placeholder="Working notes — what you did, gotchas, commands… (the raw material for a doc)"
+            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
+    );
+}
+
 function Wrench() {
     return (<svg className="h-4 w-4 inline-block align-middle" viewBox="0 0 24 24" fill="currentColor"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>);
+}
+function DocGlyph() {
+    return (<svg className="h-4 w-4 inline-block align-middle" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6"><path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M14 3v4h4M8 13h8M8 17h6" /></svg>);
+}
+function NoteGlyph() {
+    return (<svg className="h-3.5 w-3.5 inline-block align-middle" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h10" /></svg>);
 }
