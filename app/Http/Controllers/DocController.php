@@ -3,18 +3,67 @@
 namespace App\Http\Controllers;
 
 use App\Models\DocPage;
+use App\Models\Space;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * Docs wiki. All queries auto-scoped to the active company via the model scope.
+ * Pages live inside Spaces; the tree is requested one space at a time.
  */
 class DocController extends Controller
 {
-    /** Full page tree for the current company. */
-    public function tree(): JsonResponse
+    /** Spaces for the current company, with page counts. */
+    public function spaces(): JsonResponse
     {
-        $pages = DocPage::query()->orderBy('position')->orderBy('title')
+        $counts = DocPage::query()->selectRaw('space_id, COUNT(*) c')->groupBy('space_id')
+            ->pluck('c', 'space_id');
+
+        return response()->json(
+            Space::query()->orderBy('position')->orderBy('name')->get()
+                ->map(fn ($s) => [
+                    'id' => $s->id, 'name' => $s->name, 'icon' => $s->icon,
+                    'color' => $s->color, 'pages' => (int) ($counts[$s->id] ?? 0),
+                ])
+        );
+    }
+
+    public function storeSpace(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'icon' => 'nullable|string|max:16',
+            'color' => 'nullable|string|max:16',
+        ]);
+        $space = Space::create($data + ['position' => (int) (Space::query()->max('position') + 1)]);
+        return response()->json(['id' => $space->id], 201);
+    }
+
+    public function updateSpace(Request $request, Space $space): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $space->update($request->validate([
+            'name' => 'sometimes|string|max:255',
+            'icon' => 'sometimes|nullable|string|max:16',
+            'color' => 'sometimes|nullable|string|max:16',
+        ]));
+        return response()->json(['ok' => true]);
+    }
+
+    public function destroySpace(Space $space): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $space->delete(); // pages' space_id set null (nullOnDelete)
+        return response()->json(['ok' => true]);
+    }
+
+    /** Page tree for one space (or all pages if no space given). */
+    public function tree(Request $request): JsonResponse
+    {
+        $pages = DocPage::query()
+            ->when($request->filled('space'), fn ($q) => $q->where('space_id', (int) $request->query('space')))
+            ->orderBy('position')->orderBy('title')
             ->get(['id', 'parent_id', 'title', 'icon', 'category']);
 
         $byParent = $pages->groupBy(fn ($p) => $p->parent_id ?? 0);
@@ -46,6 +95,7 @@ class DocController extends Controller
         $data = $request->validate([
             'title' => 'nullable|string|max:255',
             'parent_id' => 'nullable|integer|exists:doc_pages,id',
+            'space_id' => 'nullable|integer|exists:spaces,id',
             'body' => 'nullable|string',
             'icon' => 'nullable|string|max:16',
             'category' => 'nullable|string|max:40',
@@ -53,6 +103,7 @@ class DocController extends Controller
         $page = DocPage::create([
             'title' => $data['title'] ?: 'Untitled',
             'parent_id' => $data['parent_id'] ?? null,
+            'space_id' => $data['space_id'] ?? null,
             'body' => $data['body'] ?? null,
             'icon' => $data['icon'] ?? null,
             'category' => $data['category'] ?? null,

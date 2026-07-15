@@ -26,7 +26,9 @@ class ImportFromDocmost extends Command
         {--company= : company_id all imported pages belong to}
         {--dry-run : report what would be imported without writing}';
 
-    protected $description = 'Import Docmost pages (Postgres) into AssetMost Docs — spaces as top-level folders.';
+    protected $description = 'Import Docmost pages (Postgres) into AssetMost Docs — one Space per Docmost space.';
+
+    private const SPACE_COLORS = ['#7c3aed', '#2563eb', '#b91c1c', '#0d9488', '#b45309', '#16a34a', '#db2777'];
 
     public function handle(): int
     {
@@ -71,6 +73,7 @@ class ImportFromDocmost extends Command
         $bySpace = $pages->groupBy('space_id');
         $created = 0;
         $images = 0;
+        $spaceIx = 0;
 
         foreach ($spaces as $space) {
             $spacePages = $bySpace->get($space->id, collect());
@@ -96,19 +99,20 @@ class ImportFromDocmost extends Command
                 continue;
             }
 
-            $root = DocPage::create([
-                'company_id' => $companyId, 'parent_id' => null,
-                'title' => $name, 'icon' => '📁', 'body' => null, 'updated_by' => null,
+            // each Docmost space becomes an AssetMost Space; pages hang off it (space_id), not a folder-page
+            $ourSpace = \App\Models\Space::create([
+                'company_id' => $companyId, 'name' => $name, 'icon' => '📁',
+                'color' => self::SPACE_COLORS[$spaceIx++ % count(self::SPACE_COLORS)],
+                'position' => $spaceIx,
             ]);
-            $created++;
 
-            $insert = function ($docmostParent, $ourParentId) use (&$insert, $childrenOf, $companyId, &$created, &$images) {
+            $insert = function ($docmostParent, $ourParentId) use (&$insert, $childrenOf, $companyId, $ourSpace, &$created, &$images) {
                 foreach ($childrenOf->get($docmostParent, collect()) as $p) {
                     $html = ProseMirrorToHtml::convert($p->content ?? '');
                     $images += substr_count($html, '<img ');
                     $icon = ($p->icon ?? null) && mb_strlen($p->icon) <= 8 ? $p->icon : null;
                     $page = DocPage::create([
-                        'company_id' => $companyId, 'parent_id' => $ourParentId,
+                        'company_id' => $companyId, 'space_id' => $ourSpace->id, 'parent_id' => $ourParentId,
                         'title' => $p->title ?: 'Untitled', 'icon' => $icon,
                         'body' => $html, 'updated_by' => null,
                     ]);
@@ -116,7 +120,7 @@ class ImportFromDocmost extends Command
                     $insert($p->id, $page->id);
                 }
             };
-            $insert('__root__', $root->id);
+            $insert('__root__', null);   // space's top-level pages have no parent
         }
 
         $this->newLine();

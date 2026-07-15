@@ -9,6 +9,7 @@ import { getLast, setLast } from '@/lib/lastView';
 
 const NEW_TITLES = { sop: 'New SOP', troubleshooting: 'New troubleshooting guide', incident: 'New incident report', freeform: 'Untitled' };
 
+const SPACE_COLORS = ['#7c3aed', '#2563eb', '#b91c1c', '#0d9488', '#b45309', '#16a34a', '#db2777'];
 const COLLAPSE_KEY = 'assetmost:docs:collapsed';
 const readCollapsed = () => { try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY)) || []; } catch { return []; } };
 const folderIds = (nodes, acc = []) => { (nodes || []).forEach((n) => { if (n.children?.length) { acc.push(n.id); folderIds(n.children, acc); } }); return acc; };
@@ -22,7 +23,11 @@ const api = (url, method = 'GET', body) => fetch(url, {
 
 export default function Index() {
     const { tenant } = usePage().props;
-    const scope = `sel:docs:${tenant?.activeId ?? 'all'}`;
+    const activeId = tenant?.activeId ?? 'all';
+    const scope = `sel:docs:${activeId}`;
+    const spaceScope = `docs:space:${activeId}`;
+    const [spaces, setSpaces] = useState([]);
+    const [spaceId, setSpaceId] = useState(() => getLast(spaceScope));
     const [tree, setTree] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
     const [page, setPage] = useState(null);
@@ -32,13 +37,22 @@ export default function Index() {
     const collapseInit = useRef(localStorage.getItem(COLLAPSE_KEY) !== null);
     const titleTimer = useRef(null);
 
+    const space = spaces.find((s) => s.id === spaceId) || null;
     const persistCollapsed = (set) => { try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...set])); } catch { /* ignore */ } };
     const toggleCollapse = (id) => setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); persistCollapsed(n); return n; });
     const setAllCollapsed = (on) => { const s = on ? new Set(folderIds(tree)) : new Set(); setCollapsed(s); persistCollapsed(s); };
 
     const openPage = (id) => { setSelectedId(id); setLast(scope, id); };
-    const loadTree = () => api('/data/docs').then(setTree);
-    useEffect(() => { loadTree(); }, []);
+    const chooseSpace = (id) => { setSpaceId(id); setLast(spaceScope, id); setSelectedId(null); collapseInit.current = false; };
+    const loadSpaces = () => api('/data/spaces').then(setSpaces);
+    const loadTree = () => api(`/data/docs${spaceId ? `?space=${spaceId}` : ''}`).then(setTree);
+
+    useEffect(() => { loadSpaces(); }, []);
+    // default to the first space once spaces load (if none remembered / stale)
+    useEffect(() => {
+        if (spaces.length && !spaces.some((s) => s.id === spaceId)) chooseSpace(spaces[0].id);
+    }, [spaces]);
+    useEffect(() => { if (spaceId) loadTree(); }, [spaceId]);
     // first visit (no saved state): start with folders collapsed so you land on the top level
     useEffect(() => {
         if (!collapseInit.current && tree.length) {
@@ -59,11 +73,18 @@ export default function Index() {
 
     const newPage = async (parentId = null, templateKey = 'freeform') => {
         const { id } = await api('/data/docs', 'POST', {
-            parent_id: parentId, title: NEW_TITLES[templateKey] || 'Untitled',
+            parent_id: parentId, space_id: spaceId, title: NEW_TITLES[templateKey] || 'Untitled',
             body: buildDocBody(templateKey), icon: templateIcon(templateKey), category: templateCategory(templateKey),
         });
         await loadTree();
         openPage(id);
+    };
+    const newSpace = async () => {
+        const name = prompt('New space name');
+        if (!name?.trim()) return;
+        const { id } = await api('/data/spaces', 'POST', { name: name.trim(), icon: '📁', color: SPACE_COLORS[spaces.length % SPACE_COLORS.length] });
+        await loadSpaces();
+        chooseSpace(id);
     };
     const saveCategory = async (category) => {
         setPage((p) => ({ ...p, category }));
@@ -91,8 +112,11 @@ export default function Index() {
 
     const nav = (
         <div className="flex flex-col h-full">
-            <div className="p-3 border-b border-gray-100 flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Pages</span>
+            <div className="p-2 border-b border-gray-100 dark:border-gray-800">
+                <SpaceSwitcher spaces={spaces} space={space} onPick={chooseSpace} onNew={newSpace} />
+            </div>
+            <div className="px-3 py-2 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pages</span>
                 <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(null, k)}
                     className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
             </div>
@@ -152,7 +176,7 @@ export default function Index() {
         <>
             <Head title="Docs" />
             <AppShell active="docs" nav={nav} detail={detail}
-                footer={<div className="flex w-full justify-between"><span>Docs — {countPages(tree)} pages</span><span className="text-gray-400">{status}</span></div>} />
+                footer={<div className="flex w-full justify-between"><span>{space?.name || 'Docs'} — {countPages(tree)} pages · {spaces.length} spaces</span><span className="text-gray-400">{status}</span></div>} />
         </>
     );
 }
@@ -184,6 +208,51 @@ function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onTog
     );
 }
 function countPages(nodes) { return (nodes || []).reduce((s, n) => s + 1 + countPages(n.children), 0); }
+
+function spaceInitials(name) {
+    return ((name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('') || '?').toUpperCase();
+}
+function SpaceAvatar({ space, size = 'h-6 w-6 text-[10px]' }) {
+    return (
+        <span className={`inline-flex ${size} items-center justify-center rounded-md font-semibold text-white shrink-0`}
+            style={{ background: space?.color || '#64748b' }}>{spaceInitials(space?.name)}</span>
+    );
+}
+function SpaceSwitcher({ spaces, space, onPick, onNew }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+    return (
+        <div className="relative" ref={ref}>
+            <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
+                <SpaceAvatar space={space} />
+                <span className="flex-1 min-w-0 truncate text-left text-sm font-semibold text-gray-800 dark:text-gray-100">{space?.name || 'Spaces'}</span>
+                <span className="text-gray-400 text-xs">▾</span>
+            </button>
+            {open && (
+                <div className="absolute z-20 mt-1 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1 max-h-80 overflow-y-auto">
+                    <div className="px-3 py-1 text-[11px] uppercase tracking-wide text-gray-400">Spaces</div>
+                    {spaces.map((s) => (
+                        <button key={s.id} onClick={() => { onPick(s.id); setOpen(false); }}
+                            className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${s.id === space?.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}>
+                            <SpaceAvatar space={s} />
+                            <span className="flex-1 min-w-0 truncate text-gray-700 dark:text-gray-200">{s.name}</span>
+                            <span className="text-xs text-gray-400">{s.pages}</span>
+                        </button>
+                    ))}
+                    <button onClick={() => { setOpen(false); onNew(); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 mt-1 text-left text-sm text-blue-600 hover:bg-gray-50 dark:hover:bg-gray-700 border-t border-gray-100 dark:border-gray-700">
+                        <PlusIcon /> New space
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
 function flatten(nodes) { return (nodes || []).flatMap((n) => [{ id: n.id, title: n.title, icon: n.icon, category: n.category }, ...flatten(n.children)]); }
 
 function CategoryBadge({ category }) {

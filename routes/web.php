@@ -34,6 +34,10 @@ Route::middleware('auth')->group(function () {
 
     // Docs wiki data
     $doc = \App\Http\Controllers\DocController::class;
+    Route::get('/data/spaces', [$doc, 'spaces']);
+    Route::post('/data/spaces', [$doc, 'storeSpace']);
+    Route::patch('/data/spaces/{space}', [$doc, 'updateSpace']);
+    Route::delete('/data/spaces/{space}', [$doc, 'destroySpace']);
     Route::get('/data/docs', [$doc, 'tree']);
     Route::post('/data/docs', [$doc, 'store']);
     Route::get('/data/docs/{page}', [$doc, 'show']);
