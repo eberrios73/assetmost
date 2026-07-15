@@ -15,12 +15,12 @@ class DocController extends Controller
     public function tree(): JsonResponse
     {
         $pages = DocPage::query()->orderBy('position')->orderBy('title')
-            ->get(['id', 'parent_id', 'title', 'icon']);
+            ->get(['id', 'parent_id', 'title', 'icon', 'category']);
 
         $byParent = $pages->groupBy(fn ($p) => $p->parent_id ?? 0);
         $build = function ($parentId) use (&$build, $byParent) {
             return ($byParent[$parentId ?? 0] ?? collect())->map(fn ($p) => [
-                'id' => $p->id, 'title' => $p->title, 'icon' => $p->icon,
+                'id' => $p->id, 'title' => $p->title, 'icon' => $p->icon, 'category' => $p->category,
                 'children' => $build($p->id),
             ])->values();
         };
@@ -34,6 +34,7 @@ class DocController extends Controller
         return response()->json([
             'id' => $page->id, 'parent_id' => $page->parent_id,
             'title' => $page->title, 'body' => $page->body, 'icon' => $page->icon,
+            'category' => $page->category,
             'updated_at' => $page->updated_at,
             'editor' => $page->editor ? trim("{$page->editor->name} {$page->editor->last}") : null,
         ]);
@@ -47,12 +48,14 @@ class DocController extends Controller
             'parent_id' => 'nullable|integer|exists:doc_pages,id',
             'body' => 'nullable|string',
             'icon' => 'nullable|string|max:16',
+            'category' => 'nullable|string|max:40',
         ]);
         $page = DocPage::create([
             'title' => $data['title'] ?: 'Untitled',
             'parent_id' => $data['parent_id'] ?? null,
             'body' => $data['body'] ?? null,
             'icon' => $data['icon'] ?? null,
+            'category' => $data['category'] ?? null,
             'updated_by' => auth()->id(),
         ]);
         return response()->json(['id' => $page->id], 201);
@@ -65,6 +68,7 @@ class DocController extends Controller
             'title' => 'sometimes|string|max:255',
             'body' => 'sometimes|nullable|string',
             'icon' => 'sometimes|nullable|string|max:16',
+            'category' => 'sometimes|nullable|string|max:40',
         ]);
         $page->update($data + ['updated_by' => auth()->id()]);
         return response()->json(['ok' => true]);
