@@ -46,6 +46,14 @@ export function EditIcon() {
 export function PlusIcon({ className = sm }) {
     return (<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>);
 }
+export function EyeIcon() {
+    return (<svg className={sm} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+        <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z" /><circle cx="12" cy="12" r="2.8" /></svg>);
+}
+export function EyeOffIcon() {
+    return (<svg className={sm} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
+        <path d="M2 12s3.5-6.5 10-6.5c2 0 3.8.6 5.2 1.5M22 12s-3.5 6.5-10 6.5c-2 0-3.8-.6-5.2-1.5M4 20 20 4" /></svg>);
+}
 export function PrintIcon() {
     return (<svg className={sm} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
         <path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a2 2 0 012-2h14a2 2 0 012 2v5a1 1 0 01-1 1h-2M6 14h12v7H6z" /></svg>);

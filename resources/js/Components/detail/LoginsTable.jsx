@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useJson } from '@/Components/detail/Field';
 import RecordModal from '@/Components/RecordModal';
-import { CopyIcon, KeyIcon, ChatIcon, TrashIcon, PlusIcon } from '@/Components/Icons';
+import { CopyIcon, KeyIcon, ChatIcon, TrashIcon, PlusIcon, EyeIcon, EyeOffIcon } from '@/Components/Icons';
 
 const LOGIN_FIELDS = [
     { key: 'vendor_id', label: 'Vendor', type: 'select-search', optionsEndpoint: '/data/vendor-options' },
@@ -29,11 +29,17 @@ export default function LoginsTable({ endpoint, showUser = false, createEndpoint
     };
 
     const [flash, setFlash] = useState(null); // id of row that just copied
+    const [shown, setShown] = useState(null); // { id, password } — one revealed at a time
 
     const toast = (id, msg) => { setFlash({ id, msg }); setTimeout(() => setFlash(null), 1200); };
     const copy = async (text, id, msg) => { try { await navigator.clipboard.writeText(text ?? ''); toast(id, msg); } catch { /* ignore */ } };
     const reveal = async (id) => (await (await fetch(`/data/logins/${id}/secret`, { headers: { Accept: 'application/json' } })).json());
     const copyPassword = async (id) => copy((await reveal(id)).password, id, 'Password copied');
+    // Show the password inline (same gated + audited endpoint as copy).
+    const toggleShow = async (id) => {
+        if (shown?.id === id) return setShown(null);
+        setShown({ id, password: (await reveal(id)).password ?? '' });
+    };
     // Share = text the credentials to the user's cell. On macOS/iOS an sms: link opens Messages.
     const share = async (l) => {
         const s = await reveal(l.id);
@@ -89,15 +95,21 @@ export default function LoginsTable({ endpoint, showUser = false, createEndpoint
                             <td className="py-2 pr-4 text-gray-800 dark:text-gray-200">
                                 <span className="inline-flex items-center gap-1">{l.login_name}{l.is_restricted && <Lock />}</span>
                             </td>
-                            <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.login_id}</td>
+                            <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">
+                                {l.login_id}
+                                {shown?.id === l.id && (
+                                    <span className="block font-mono text-xs text-amber-600 dark:text-amber-400">{shown.password || '(no password)'}</span>
+                                )}
+                            </td>
                             <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.type || <span className="text-gray-300">—</span>}</td>
                             {!showUser && <td className="py-2 pr-4">{l.url ? <a href={l.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 hover:underline">link</a> : <span className="text-gray-300">—</span>}</td>}
                             <td className="py-2 pr-2 text-right whitespace-nowrap">
                                 {flash?.id === l.id
                                     ? <span className="text-xs text-green-600">{flash.msg}</span>
                                     : (
-                                        <span className="inline-flex items-center gap-2 opacity-0 group-hover:opacity-100 text-gray-400">
+                                        <span className={`inline-flex items-center gap-2 text-gray-400 ${shown?.id === l.id ? '' : 'opacity-0 group-hover:opacity-100'}`}>
                                             <Act onClick={(e) => { e.stopPropagation(); copy(l.login_id, l.id, 'Username copied'); }} title="Copy username"><CopyIcon /></Act>
+                                            <Act onClick={(e) => { e.stopPropagation(); toggleShow(l.id); }} title={shown?.id === l.id ? 'Hide password' : 'Show password'}>{shown?.id === l.id ? <EyeOffIcon /> : <EyeIcon />}</Act>
                                             <Act onClick={(e) => { e.stopPropagation(); copyPassword(l.id); }} title="Copy password"><KeyIcon /></Act>
                                             <Act onClick={(e) => { e.stopPropagation(); share(l); }} title="Text credentials to their cell"><ChatIcon /></Act>
                                             <Act onClick={(e) => { e.stopPropagation(); remove(l.id, l.login_name); }} title="Delete login" hover="hover:text-red-600"><TrashIcon /></Act>
