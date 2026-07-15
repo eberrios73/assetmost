@@ -56,6 +56,7 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
                                     className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
                             ) : f.type === 'select-search' ? (
                                 <SearchSelect value={values[f.key]} endpoint={f.optionsEndpoint}
+                                    fallbackLabel={f.labelField ? (initial[f.labelField] ?? '') : ''}
                                     onChange={(id) => setValues((v) => ({ ...v, [f.key]: id }))} placeholder={`Search ${f.label.toLowerCase()}…`} />
                             ) : (
                                 <input type={f.type || 'text'} maxLength={f.maxLength}

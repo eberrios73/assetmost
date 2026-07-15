@@ -384,11 +384,21 @@ class DataController extends Controller
     /** Full subscription detail for the edit drawer. */
     public function subscription(\App\Models\Subscription $subscription): JsonResponse
     {
+        // Effective owner = direct user, else the linked login's user. Include
+        // inactive users so an offboarded person still holding a license shows
+        // (flagged) instead of looking unassigned — the whole point of tracking.
+        $subscription->loadMissing(['user:id,name,last,active', 'login.user:id,name,last,active']);
+        $owner = $subscription->user ?: $subscription->login?->user;
+        $ownerLabel = $owner
+            ? trim("{$owner->name} {$owner->last}").($owner->active ? '' : ' (inactive)')
+            : null;
+
         return response()->json([
             'id' => $subscription->id,
             'subscription_name' => $subscription->subscription_name,
             'vendor_id' => $subscription->vendor_id,
-            'user_id' => $subscription->user_id,
+            'user_id' => $owner?->id,
+            'user_label' => $ownerLabel,
             'account_number' => $subscription->account_number,
             'serial_number' => $subscription->serial_number,
             'amount' => $subscription->amount,

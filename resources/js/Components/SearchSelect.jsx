@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
-/** Searchable dropdown backed by `endpoint` returning [{ id, label }]. */
-export default function SearchSelect({ value, onChange, endpoint, placeholder = 'Search…' }) {
+/** Searchable dropdown backed by `endpoint` returning [{ id, label }].
+ *  `fallbackLabel` shows the current selection's name when it isn't in the
+ *  fetched options (e.g. an inactive user who is still the assignee). */
+export default function SearchSelect({ value, onChange, endpoint, placeholder = 'Search…', fallbackLabel = '' }) {
     const [options, setOptions] = useState([]);
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -18,13 +20,14 @@ export default function SearchSelect({ value, onChange, endpoint, placeholder = 
     }, []);
 
     const selected = options.find((o) => String(o.id) === String(value));
+    const displayLabel = selected?.label ?? (value ? fallbackLabel : '');
     const filtered = options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
 
     return (
         <div className="relative" ref={boxRef}>
             <div className="flex items-center">
                 <input
-                    value={open ? query : (selected?.label ?? '')}
+                    value={open ? query : displayLabel}
                     onFocus={() => { setOpen(true); setQuery(''); }}
                     onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
                     placeholder={placeholder}

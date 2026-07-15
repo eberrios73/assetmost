@@ -5,7 +5,7 @@ import RecordModal from '@/Components/RecordModal';
 const SUB_FIELDS = [
     { key: 'subscription_name', label: 'Name', required: true },
     { key: 'vendor_id', label: 'Vendor', type: 'select-search', optionsEndpoint: '/data/vendor-options' },
-    { key: 'user_id', label: 'Assigned to', type: 'select-search', optionsEndpoint: '/data/people-options' },
+    { key: 'user_id', label: 'Assigned to', type: 'select-search', optionsEndpoint: '/data/people-options', labelField: 'user_label' },
     { key: 'account_number', label: 'Account #' },
     { key: 'serial_number', label: 'Serial #' },
     { key: 'amount', label: 'Amount ($)' },
