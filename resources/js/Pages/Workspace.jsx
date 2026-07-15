@@ -6,6 +6,7 @@ import EntityList from '@/Components/EntityList';
 import RecordModal from '@/Components/RecordModal';
 import AssetOnboard from '@/Components/AssetOnboard';
 import { ENTITIES, GROUPS } from '@/entities';
+import { getLast, setLast } from '@/lib/lastView';
 
 const ONB_STEPS = ['User info', 'Services', 'Active Directory', 'Hardware', 'Software', 'Security'];
 
@@ -31,8 +32,20 @@ export default function Workspace({ group }) {
 
     const activeCompany = tenant?.companies?.find((c) => c.id === tenant?.activeId)?.name;
     const reloadKey = `${group}:${tabKey}:${tenant?.activeId ?? 'all'}:${listVersion}`;
+    const selScope = `sel:${group}:${tabKey}:${tenant?.activeId ?? 'all'}`;
 
-    useEffect(() => { setSelectedId(null); setDetail(null); }, [tabKey, tenant?.activeId, group]);
+    // select a record and remember it for this tab/company
+    const chooseId = (id) => { setSelectedId(id); setLast(selScope, id); };
+    const chooseTab = (key) => { setTabKey(key); setLast(`tab:${group}`, key); };
+
+    // returning to a section restores its last sub-tab…
+    useEffect(() => {
+        const saved = getLast(`tab:${group}`);
+        setTabKey(g.tabs.some((t) => t.key === saved) ? saved : g.tabs[0].key);
+    }, [group]);
+
+    // …and the last record you were viewing in it
+    useEffect(() => { setDetail(null); setSelectedId(getLast(selScope)); }, [selScope]);
 
     useEffect(() => {
         if (!entity?.filter?.optionsEndpoint) { setFilterOptions([]); return; }
@@ -42,13 +55,15 @@ export default function Workspace({ group }) {
     useEffect(() => {
         if (!entity || !selectedId) { setDetail(null); return; }
         setDetail(null);
-        fetch(entity.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setDetail);
+        fetch(entity.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => { if (d) setDetail(d); else { setSelectedId(null); setLast(selScope, null); } }); // remembered record was deleted
     }, [selectedId]);
 
     const subTabs = (
         <div className="flex border-b border-gray-200 dark:border-gray-800 px-2 pt-1">
             {g.tabs.map((t) => (
-                <button key={t.key} onClick={() => setTabKey(t.key)}
+                <button key={t.key} onClick={() => chooseTab(t.key)}
                     className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${tabKey === t.key ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     {t.label}
                 </button>
@@ -61,7 +76,7 @@ export default function Workspace({ group }) {
         listContent = (
             <EntityList endpoint={entity.listEndpoint} icon={entity.icon}
                 filter={entity.filter ? { key: entity.filter.key, label: entity.filter.label, options: filterOptions } : null}
-                sortOptions={entity.sort || []} selectedId={selectedId} onSelect={setSelectedId} onStats={setStats} reloadKey={reloadKey} />
+                sortOptions={entity.sort || []} selectedId={selectedId} onSelect={chooseId} onStats={setStats} reloadKey={reloadKey} />
         );
         detailContent = detail ? entity.render(detail) : <Center>Select {entity.noun} on the left</Center>;
         footerLeft = `Records Displayed: ${stats.shown} of ${stats.total}`;
@@ -124,7 +139,7 @@ export default function Workspace({ group }) {
             {adding && entity?.add && (
                 <RecordModal title={entity.add.title} endpoint={entity.add.endpoint} method="POST" fields={entity.add.fields}
                     onClose={() => setAdding(false)}
-                    onSaved={(c) => { setAdding(false); setListVersion((v) => v + 1); if (c?.id) setSelectedId(c.id); }} />
+                    onSaved={(c) => { setAdding(false); setListVersion((v) => v + 1); if (c?.id) chooseId(c.id); }} />
             )}
             {editing && entity?.edit && detail && (
                 <RecordModal title={`Edit ${tab.label}`} endpoint={entity.detailEndpoint(selectedId)} method="PATCH"

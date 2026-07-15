@@ -1,10 +1,11 @@
 import { PlusIcon } from "@/Components/Icons";
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import DocEditor from '@/Components/DocEditor';
 import TemplateMenu from '@/Components/TemplateMenu';
 import { buildDocBody, templateIcon } from '@/docTemplates';
+import { getLast, setLast } from '@/lib/lastView';
 
 const NEW_TITLES = { sop: 'New SOP', troubleshooting: 'New troubleshooting guide', freeform: 'Untitled' };
 
@@ -16,22 +17,26 @@ const api = (url, method = 'GET', body) => fetch(url, {
 }).then((r) => (r.status === 204 ? {} : r.json()));
 
 export default function Index() {
+    const { tenant } = usePage().props;
+    const scope = `sel:docs:${tenant?.activeId ?? 'all'}`;
     const [tree, setTree] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
     const [page, setPage] = useState(null);
     const [status, setStatus] = useState('');
     const titleTimer = useRef(null);
 
+    const openPage = (id) => { setSelectedId(id); setLast(scope, id); };
     const loadTree = () => api('/data/docs').then(setTree);
     useEffect(() => { loadTree(); }, []);
-    // deep-link: /docs?page=ID (e.g. after "Make doc" from a task) opens that page
+    // open ?page=ID (deep-link, e.g. after "Make doc"); otherwise restore the last page viewed
     useEffect(() => {
         const p = new URLSearchParams(window.location.search).get('page');
-        if (p) setSelectedId(Number(p));
-    }, []);
+        setSelectedId(p ? Number(p) : getLast(scope));
+    }, [scope]);
     useEffect(() => {
         if (!selectedId) { setPage(null); return; }
-        api(`/data/docs/${selectedId}`).then(setPage);
+        api(`/data/docs/${selectedId}`)
+            .then((p) => { if (p && p.id) setPage(p); else { setSelectedId(null); setLast(scope, null); } });
     }, [selectedId]);
 
     const newPage = async (parentId = null, templateKey = 'freeform') => {
@@ -40,7 +45,7 @@ export default function Index() {
             body: buildDocBody(templateKey), icon: templateIcon(templateKey),
         });
         await loadTree();
-        setSelectedId(id);
+        openPage(id);
     };
     const saveBody = async (html) => {
         setStatus('Saving…');
@@ -56,7 +61,7 @@ export default function Index() {
     const del = async () => {
         if (!confirm('Delete this page?')) return;
         await api(`/data/docs/${selectedId}`, 'DELETE');
-        setSelectedId(null); loadTree();
+        openPage(null); loadTree();
     };
 
     const nav = (
@@ -67,7 +72,7 @@ export default function Index() {
                     className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
             </div>
             <div className="flex-1 overflow-y-auto py-1">
-                {tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={setSelectedId} onAddChild={newPage} />
+                {tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} />
                     : <div className="p-4 text-sm text-gray-400">No pages yet. Create one.</div>}
             </div>
         </div>

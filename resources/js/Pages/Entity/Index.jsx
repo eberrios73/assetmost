@@ -5,6 +5,7 @@ import AppShell from '@/Layouts/AppShell';
 import EntityList from '@/Components/EntityList';
 import RecordModal from '@/Components/RecordModal';
 import { ENTITIES } from '@/entities';
+import { getLast, setLast } from '@/lib/lastView';
 
 /** Standalone single-entity page (used by Companies). Groups use Workspace. */
 export default function Index({ entity, title }) {
@@ -19,9 +20,12 @@ export default function Index({ entity, title }) {
     const [listVersion, setListVersion] = useState(0);
 
     const reloadKey = `${entity}:${tenant?.activeId ?? 'all'}:${listVersion}`;
+    const selScope = `sel:${entity}:${tenant?.activeId ?? 'all'}`;
+    const chooseId = (id) => { setSelectedId(id); setLast(selScope, id); };
     const refetchDetail = () => { if (selectedId) fetch(cfg.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setDetail); };
 
-    useEffect(() => { setSelectedId(null); setDetail(null); }, [entity, tenant?.activeId]);
+    // restore the last record viewed for this entity/company
+    useEffect(() => { setDetail(null); setSelectedId(getLast(selScope)); }, [selScope]);
     useEffect(() => {
         if (!cfg.filter?.optionsEndpoint) { setFilterOptions([]); return; }
         fetch(cfg.filter.optionsEndpoint, { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setFilterOptions);
@@ -29,13 +33,15 @@ export default function Index({ entity, title }) {
     useEffect(() => {
         if (!selectedId) { setDetail(null); return; }
         setDetail(null);
-        fetch(cfg.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setDetail);
+        fetch(cfg.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => { if (d) setDetail(d); else { setSelectedId(null); setLast(selScope, null); } });
     }, [selectedId]);
 
     const nav = (
         <EntityList endpoint={cfg.listEndpoint} icon={cfg.icon}
             filter={cfg.filter ? { key: cfg.filter.key, label: cfg.filter.label, options: filterOptions } : null}
-            sortOptions={cfg.sort || []} selectedId={selectedId} onSelect={setSelectedId} onStats={setStats} reloadKey={reloadKey} />
+            sortOptions={cfg.sort || []} selectedId={selectedId} onSelect={chooseId} onStats={setStats} reloadKey={reloadKey} />
     );
 
     // Tenant cap (companies only). Use the live list total for the current count.
@@ -94,7 +100,7 @@ export default function Index({ entity, title }) {
             {adding && cfg.add && (
                 <RecordModal title={cfg.add.title} endpoint={cfg.add.endpoint} method="POST" fields={cfg.add.fields}
                     onClose={() => setAdding(false)}
-                    onSaved={(c) => { setAdding(false); setListVersion((v) => v + 1); if (c?.id) setSelectedId(c.id); if (isTenants) router.reload({ only: ['tenant'] }); }} />
+                    onSaved={(c) => { setAdding(false); setListVersion((v) => v + 1); if (c?.id) chooseId(c.id); if (isTenants) router.reload({ only: ['tenant'] }); }} />
             )}
             {editing && cfg.edit && detail && (
                 <RecordModal title={`Edit ${title}`} endpoint={cfg.detailEndpoint(selectedId)} method="PATCH"
