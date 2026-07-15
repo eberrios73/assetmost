@@ -1,10 +1,10 @@
-import { PlusIcon } from "@/Components/Icons";
+import { PlusIcon, DocIcon } from "@/Components/Icons";
 import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import DocEditor from '@/Components/DocEditor';
 import TemplateMenu from '@/Components/TemplateMenu';
-import { buildDocBody, templateIcon, templateCategory, DOC_CATEGORIES, CATEGORY_STYLE } from '@/docTemplates';
+import { buildDocBody, templateCategory, DOC_CATEGORIES, CATEGORY_STYLE } from '@/docTemplates';
 import { getLast, setLast } from '@/lib/lastView';
 
 const NEW_TITLES = { sop: 'New SOP', troubleshooting: 'New troubleshooting guide', incident: 'New incident report', freeform: 'Untitled' };
@@ -74,7 +74,7 @@ export default function Index() {
     const newPage = async (parentId = null, templateKey = 'freeform') => {
         const { id } = await api('/data/docs', 'POST', {
             parent_id: parentId, space_id: spaceId, title: NEW_TITLES[templateKey] || 'Untitled',
-            body: buildDocBody(templateKey), icon: templateIcon(templateKey), category: templateCategory(templateKey),
+            body: buildDocBody(templateKey), category: templateCategory(templateKey),
         });
         await loadTree();
         openPage(id);
@@ -82,7 +82,7 @@ export default function Index() {
     const newSpace = async () => {
         const name = prompt('New space name');
         if (!name?.trim()) return;
-        const { id } = await api('/data/spaces', 'POST', { name: name.trim(), icon: '📁', color: SPACE_COLORS[spaces.length % SPACE_COLORS.length] });
+        const { id } = await api('/data/spaces', 'POST', { name: name.trim(), color: SPACE_COLORS[spaces.length % SPACE_COLORS.length] });
         await loadSpaces();
         chooseSpace(id);
     };
@@ -139,7 +139,7 @@ export default function Index() {
                     flat.length ? flat.map((n) => (
                         <button key={n.id} onClick={() => openPage(n.id)}
                             className={`group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}>
-                            <span>{n.icon || '📄'}</span>
+                            <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
                             <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{n.title}</span>
                             <CategoryBadge category={n.category} />
                         </button>
@@ -194,8 +194,8 @@ function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onTog
                                 <button onClick={() => onToggle(n.id)} title={isCollapsed ? 'Expand' : 'Collapse'}
                                     className="w-4 shrink-0 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">{isCollapsed ? '▸' : '▾'}</button>
                             ) : <span className="w-4 shrink-0" />}
-                            <button onClick={() => onSelect(n.id)} className="flex-1 min-w-0 text-left py-1.5 text-sm text-gray-700 dark:text-gray-300 truncate">
-                                <span className="mr-1">{n.icon || '📄'}</span>{n.title}
+                            <button onClick={() => onSelect(n.id)} className="flex-1 min-w-0 flex items-center gap-1.5 text-left py-1.5 text-sm text-gray-700 dark:text-gray-300">
+                                <DocIcon className="h-4 w-4 shrink-0 text-gray-400" /><span className="truncate">{n.title}</span>
                             </button>
                             <CategoryBadge category={n.category} />
                             <button onClick={() => onAddChild(n.id)} title="Add sub-page" className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 px-1"><PlusIcon /></button>

@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import { TrashIcon } from '@/Components/Icons';
-import { buildDocBody, templateIcon, templateCategory } from '@/docTemplates';
+import { buildDocBody, templateCategory } from '@/docTemplates';
 import TemplateMenu from '@/Components/TemplateMenu';
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
@@ -86,7 +86,7 @@ export default function Index() {
     const makeDoc = async (rec, templateKey) => {
         const background = rec.notes || rec.details || '';
         const { id } = await api('/data/docs', 'POST', {
-            title: rec.title, body: buildDocBody(templateKey, background), icon: templateIcon(templateKey), category: templateCategory(templateKey),
+            title: rec.title, body: buildDocBody(templateKey, background), category: templateCategory(templateKey),
         });
         router.visit(`/docs?page=${id}`);
     };

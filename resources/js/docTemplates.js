@@ -64,10 +64,10 @@ const INCIDENT = `
 `.trim();
 
 export const DOC_TEMPLATES = [
-    { key: 'sop', label: 'SOP', hint: 'Standard operating procedure', icon: '📋', category: 'SOP', body: SOP },
-    { key: 'troubleshooting', label: 'Troubleshooting guide', hint: 'Symptom → diagnosis → fix', icon: '🔧', category: 'Troubleshooting', body: TROUBLESHOOTING },
-    { key: 'incident', label: 'Incident report', hint: 'What happened, impact, root cause, follow-up', icon: '🚨', category: 'Incident', body: INCIDENT },
-    { key: 'freeform', label: 'Free form', hint: 'Blank page', icon: '📄', category: '', body: '' },
+    { key: 'sop', label: 'SOP', hint: 'Standard operating procedure', iconKey: 'clipboard', category: 'SOP', body: SOP },
+    { key: 'troubleshooting', label: 'Troubleshooting guide', hint: 'Symptom → diagnosis → fix', iconKey: 'wrench', category: 'Troubleshooting', body: TROUBLESHOOTING },
+    { key: 'incident', label: 'Incident report', hint: 'What happened, impact, root cause, follow-up', iconKey: 'alert', category: 'Incident', body: INCIDENT },
+    { key: 'freeform', label: 'Free form', hint: 'Blank page', iconKey: 'doc', category: '', body: '' },
 ];
 
 // Selectable doc categories (badge + filter). Templates set one automatically.
@@ -82,10 +82,6 @@ export const CATEGORY_STYLE = {
     Reference: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
 };
 
-export function templateCategory(templateKey) {
-    return (DOC_TEMPLATES.find((t) => t.key === templateKey) || {}).category || '';
-}
-
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const toParas = (text) => esc(text).split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
 
@@ -98,6 +94,6 @@ export function buildDocBody(templateKey, background = '') {
     return (bg + tpl.body) || '<p></p>';
 }
 
-export function templateIcon(templateKey) {
-    return (DOC_TEMPLATES.find((t) => t.key === templateKey) || FREEFORM).icon;
+export function templateCategory(templateKey) {
+    return (DOC_TEMPLATES.find((t) => t.key === templateKey) || {}).category || '';
 }

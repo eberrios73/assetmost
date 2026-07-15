@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { DOC_TEMPLATES } from '@/docTemplates';
+import { DocIcon, ClipboardIcon, WrenchIcon, AlertIcon } from '@/Components/Icons';
+
+const TPL_ICON = { clipboard: ClipboardIcon, wrench: WrenchIcon, alert: AlertIcon, doc: DocIcon };
+function TplIcon({ iconKey }) {
+    const Ic = TPL_ICON[iconKey] || DocIcon;
+    return <Ic className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
+}
 
 /** Dropdown that picks a doc template. onPick(templateKey). */
 export default function TemplateMenu({ label = 'New', glyph = null, onPick, compact = false, className = '' }) {
@@ -22,7 +29,7 @@ export default function TemplateMenu({ label = 'New', glyph = null, onPick, comp
                     {DOC_TEMPLATES.map((tpl) => (
                         <button key={tpl.key} onClick={() => { setOpen(false); onPick(tpl.key); }}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-                            <span>{tpl.icon}</span>
+                            <TplIcon iconKey={tpl.iconKey} />
                             <span><span className="block">{tpl.label}</span><span className="block text-xs text-gray-400">{tpl.hint}</span></span>
                         </button>
                     ))}

@@ -58,7 +58,19 @@ export function PrintIcon() {
     return (<svg className={sm} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
         <path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a2 2 0 012-2h14a2 2 0 012 2v5a1 1 0 01-1 1h-2M6 14h12v7H6z" /></svg>);
 }
-export function DocIcon() {
-    return (<svg className={sm} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+export function DocIcon({ className = sm }) {
+    return (<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
         <path d="M6 3h8l4 4v14a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" /><path d="M14 3v4h4M8 13h8M8 17h6" /></svg>);
+}
+// template glyphs (Tabler-ish), replacing emoji
+export function ClipboardIcon({ className = sm }) {
+    return (<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="1" /><path d="M9 12h6M9 16h4" /></svg>);
+}
+export function WrenchIcon({ className = sm }) {
+    return (<svg className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" /></svg>);
+}
+export function AlertIcon({ className = sm }) {
+    return (<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+        <path d="M12 4l9 15.5H3z" /><path d="M12 10v4M12 17.5v.01" /></svg>);
 }
