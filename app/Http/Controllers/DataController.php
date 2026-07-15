@@ -518,10 +518,20 @@ class DataController extends Controller
         return response()->json($company);
     }
 
-    /** Create a company. Only SuperAdmin / IT Admin may add. */
+    /** Create a company. Only SuperAdmin / IT Admin may add. Enforces the plan tenant cap. */
     public function storeCompany(Request $request): JsonResponse
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
+
+        if (\App\Support\Plan::atTenantCap()) {
+            $cap = \App\Support\Plan::maxTenants();
+            $price = \App\Support\Plan::extraTenantPrice();
+            return response()->json([
+                'message' => "You're at the {$cap}-tenant limit for this plan.",
+                'errors' => ['_' => ["Tenant limit reached ({$cap}). Beyond {$cap} is Enterprise — additional tenants are \${$price}/year each. Contact sales to raise the limit."]],
+            ], 422);
+        }
+
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'domain' => 'nullable|string|max:255',

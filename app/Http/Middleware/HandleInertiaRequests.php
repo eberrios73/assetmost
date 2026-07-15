@@ -40,6 +40,9 @@ class HandleInertiaRequests extends Middleware
                 'edition' => config('assetmost.edition'),
                 'companies' => $ctx->options(),
                 'activeId' => $ctx->activeId(),
+                'maxTenants' => \App\Support\Plan::maxTenants(),
+                'tenantCount' => \App\Support\Plan::tenantCount(),
+                'extraTenantPrice' => \App\Support\Plan::extraTenantPrice(),
             ] : null,
         ];
     }
