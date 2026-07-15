@@ -9,6 +9,10 @@ import { getLast, setLast } from '@/lib/lastView';
 
 const NEW_TITLES = { sop: 'New SOP', troubleshooting: 'New troubleshooting guide', incident: 'New incident report', freeform: 'Untitled' };
 
+const COLLAPSE_KEY = 'assetmost:docs:collapsed';
+const readCollapsed = () => { try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY)) || []; } catch { return []; } };
+const folderIds = (nodes, acc = []) => { (nodes || []).forEach((n) => { if (n.children?.length) { acc.push(n.id); folderIds(n.children, acc); } }); return acc; };
+
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
     method, credentials: 'same-origin',
@@ -24,11 +28,24 @@ export default function Index() {
     const [page, setPage] = useState(null);
     const [status, setStatus] = useState('');
     const [filter, setFilter] = useState('');   // category filter; '' = all (tree view)
+    const [collapsed, setCollapsed] = useState(() => new Set(readCollapsed()));
+    const collapseInit = useRef(localStorage.getItem(COLLAPSE_KEY) !== null);
     const titleTimer = useRef(null);
+
+    const persistCollapsed = (set) => { try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...set])); } catch { /* ignore */ } };
+    const toggleCollapse = (id) => setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); persistCollapsed(n); return n; });
+    const setAllCollapsed = (on) => { const s = on ? new Set(folderIds(tree)) : new Set(); setCollapsed(s); persistCollapsed(s); };
 
     const openPage = (id) => { setSelectedId(id); setLast(scope, id); };
     const loadTree = () => api('/data/docs').then(setTree);
     useEffect(() => { loadTree(); }, []);
+    // first visit (no saved state): start with folders collapsed so you land on the top level
+    useEffect(() => {
+        if (!collapseInit.current && tree.length) {
+            const s = new Set(folderIds(tree));
+            setCollapsed(s); persistCollapsed(s); collapseInit.current = true;
+        }
+    }, [tree]);
     // open ?page=ID (deep-link, e.g. after "Make doc"); otherwise restore the last page viewed
     useEffect(() => {
         const p = new URLSearchParams(window.location.search).get('page');
@@ -79,12 +96,19 @@ export default function Index() {
                 <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(null, k)}
                     className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
             </div>
-            <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
                 <select value={filter} onChange={(e) => setFilter(e.target.value)}
-                    className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                    className="flex-1 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
                     <option value="">All pages</option>
                     {DOC_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
+                {!filter && (
+                    <button onClick={() => setAllCollapsed(collapsed.size === 0)}
+                        title={collapsed.size === 0 ? 'Collapse all' : 'Expand all'}
+                        className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-1">
+                        {collapsed.size === 0 ? '⊟' : '⊞'}
+                    </button>
+                )}
             </div>
             <div className="flex-1 overflow-y-auto py-1">
                 {filter ? (
@@ -97,7 +121,7 @@ export default function Index() {
                         </button>
                     )) : <div className="p-4 text-sm text-gray-400">No {filter} pages.</div>
                 ) : (
-                    tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} />
+                    tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} collapsed={collapsed} onToggle={toggleCollapse} />
                         : <div className="p-4 text-sm text-gray-400">No pages yet. Create one.</div>
                 )}
             </div>
@@ -133,21 +157,29 @@ export default function Index() {
     );
 }
 
-function Tree({ nodes, depth, selectedId, onSelect, onAddChild }) {
+function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onToggle }) {
     return (
         <ul>
-            {nodes.map((n) => (
-                <li key={n.id}>
-                    <div className={`group flex items-center gap-1 pr-2 hover:bg-blue-50/60 ${selectedId === n.id ? 'bg-blue-50' : ''}`} style={{ paddingLeft: `${12 + depth * 14}px` }}>
-                        <button onClick={() => onSelect(n.id)} className="flex-1 min-w-0 text-left py-1.5 text-sm text-gray-700 dark:text-gray-300 truncate">
-                            <span className="mr-1">{n.icon || '📄'}</span>{n.title}
-                        </button>
-                        <CategoryBadge category={n.category} />
-                        <button onClick={() => onAddChild(n.id)} title="Add sub-page" className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 px-1"><PlusIcon /></button>
-                    </div>
-                    {n.children?.length > 0 && <Tree nodes={n.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onAddChild={onAddChild} />}
-                </li>
-            ))}
+            {nodes.map((n) => {
+                const hasKids = n.children?.length > 0;
+                const isCollapsed = collapsed.has(n.id);
+                return (
+                    <li key={n.id}>
+                        <div className={`group flex items-center pr-2 hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} style={{ paddingLeft: `${6 + depth * 14}px` }}>
+                            {hasKids ? (
+                                <button onClick={() => onToggle(n.id)} title={isCollapsed ? 'Expand' : 'Collapse'}
+                                    className="w-4 shrink-0 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">{isCollapsed ? '▸' : '▾'}</button>
+                            ) : <span className="w-4 shrink-0" />}
+                            <button onClick={() => onSelect(n.id)} className="flex-1 min-w-0 text-left py-1.5 text-sm text-gray-700 dark:text-gray-300 truncate">
+                                <span className="mr-1">{n.icon || '📄'}</span>{n.title}
+                            </button>
+                            <CategoryBadge category={n.category} />
+                            <button onClick={() => onAddChild(n.id)} title="Add sub-page" className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 px-1"><PlusIcon /></button>
+                        </div>
+                        {hasKids && !isCollapsed && <Tree nodes={n.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onAddChild={onAddChild} collapsed={collapsed} onToggle={onToggle} />}
+                    </li>
+                );
+            })}
         </ul>
     );
 }
