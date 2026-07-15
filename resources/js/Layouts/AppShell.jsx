@@ -43,11 +43,13 @@ export default function AppShell({ nav = null, detail = null, active = null, foo
                 </div>
             </header>
 
-            {/* Row 2 — two columns: list = very light gray, detail = white */}
+            {/* Row 2 — two columns (list + detail), or full-width when there's no nav */}
             <div className="flex-1 flex overflow-hidden">
-                <aside className="w-96 shrink-0 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 overflow-hidden">
-                    {nav}
-                </aside>
+                {nav && (
+                    <aside className="w-96 shrink-0 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 overflow-hidden">
+                        {nav}
+                    </aside>
+                )}
                 <main className="flex-1 overflow-y-auto bg-white dark:bg-gray-950 p-6">
                     {detail}
                 </main>

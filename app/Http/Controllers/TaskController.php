@@ -104,6 +104,7 @@ class TaskController extends Controller
             'pri' => 'sometimes|integer|min:0|max:3',
             'is_project' => 'sometimes|boolean',
             'ord' => 'sometimes|integer',
+            'completed_at' => 'sometimes|nullable|date',
             'status' => 'sometimes|nullable|string|max:40',
             'details' => 'sometimes|nullable|string',
             'impact' => 'sometimes|nullable|string',
