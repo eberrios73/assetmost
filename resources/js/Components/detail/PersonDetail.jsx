@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Tabs from '@/Components/Tabs';
 import Field, { useJson } from '@/Components/detail/Field';
 import LoginsTable from '@/Components/detail/LoginsTable';
+import SubscriptionsTable from '@/Components/detail/SubscriptionsTable';
 import SearchSelect from '@/Components/SearchSelect';
 import { DeviceIcon, PlusIcon } from '@/Components/Icons';
 
@@ -31,9 +32,9 @@ export default function PersonDetail({ u }) {
                 <Tabs
                     tabs={[
                         { key: 'logins', label: 'Logins', count: u.logins_count, render: () => <LoginsTable endpoint={`/data/people/${u.id}/logins`} createEndpoint={`/data/people/${u.id}/logins`} /> },
-                        { key: 'licenses', label: 'Licenses', count: u.subscriptions_count, render: () => <SubsTab id={u.id} /> },
+                        { key: 'licenses', label: 'Licenses', count: u.subscriptions_count, render: () => <SubscriptionsTable endpoint={`/data/people/${u.id}/subscriptions`} /> },
                         { key: 'devices', label: 'Devices', count: u.devices_count, render: () => <DevicesTab id={u.id} /> },
-                        { key: 'subs', label: 'Subscriptions', count: u.subscriptions_count, render: () => <SubsTab id={u.id} /> },
+                        { key: 'subs', label: 'Subscriptions', count: u.subscriptions_count, render: () => <SubscriptionsTable endpoint={`/data/people/${u.id}/subscriptions`} /> },
                     ]}
                 />
             </div>
@@ -98,25 +99,3 @@ function DevicesTab({ id }) {
     );
 }
 
-function SubsTab({ id }) {
-    const { loading, data } = useJson(`/data/people/${id}/subscriptions`);
-    if (loading) return <Empty>Loading…</Empty>;
-    if (!data?.length) return <Empty>Nothing here.</Empty>;
-    return (
-        <table className="w-full text-sm">
-            <thead><Tr head cols={['Name', 'Vendor', 'Account #', 'Amount', 'Renews']} /></thead>
-            <tbody>{data.map((s) => (
-                <Tr key={s.id} cols={[s.name, s.vendor, s.account_number, s.amount ? `$${s.amount}` : '', s.renewal_date]} />
-            ))}</tbody>
-        </table>
-    );
-}
-
-function Tr({ cols, head }) {
-    const Cell = head ? 'th' : 'td';
-    return (
-        <tr className={head ? 'text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-200' : 'border-b border-gray-50 dark:border-gray-800'}>
-            {cols.map((c, i) => <Cell key={i} className="py-2 pr-4 font-normal text-gray-700">{c || <span className="text-gray-300">—</span>}</Cell>)}
-        </tr>
-    );
-}

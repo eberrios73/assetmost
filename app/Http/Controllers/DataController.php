@@ -381,6 +381,40 @@ class DataController extends Controller
         );
     }
 
+    /** Full subscription detail for the edit drawer. */
+    public function subscription(\App\Models\Subscription $subscription): JsonResponse
+    {
+        return response()->json([
+            'id' => $subscription->id,
+            'subscription_name' => $subscription->subscription_name,
+            'vendor_id' => $subscription->vendor_id,
+            'user_id' => $subscription->user_id,
+            'account_number' => $subscription->account_number,
+            'serial_number' => $subscription->serial_number,
+            'amount' => $subscription->amount,
+            'renewal_date' => $subscription->renewal_date?->toDateString(),
+            'renewalfrequency' => $subscription->renewalfrequency,
+            'is_active' => $subscription->is_active,
+            'notes' => $subscription->notes,
+        ]);
+    }
+
+    public function updateSubscription(Request $request, \App\Models\Subscription $subscription): JsonResponse
+    {
+        return $this->applyUpdate($subscription, $request, [
+            'subscription_name' => 'required|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'user_id' => 'nullable|integer|exists:users,id',
+            'account_number' => 'nullable|string|max:255',
+            'serial_number' => 'nullable|string|max:255',
+            'amount' => 'nullable|numeric',
+            'renewal_date' => 'nullable|date',
+            'renewalfrequency' => 'nullable|string|max:50',
+            'is_active' => 'boolean',
+            'notes' => 'nullable|string',
+        ]);
+    }
+
     public function login(\App\Models\Login $login): JsonResponse
     {
         // never return the decrypted password

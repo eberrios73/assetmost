@@ -96,6 +96,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/vendors/{vendor}', [$dc, 'vendor']);
     Route::get('/data/vendors/{vendor}/logins', [$dc, 'vendorLogins']);
     Route::get('/data/vendors/{vendor}/subscriptions', [$dc, 'vendorSubscriptions']);
+    Route::get('/data/subscriptions/{subscription}', [$dc, 'subscription']);
+    Route::patch('/data/subscriptions/{subscription}', [$dc, 'updateSubscription']);
     Route::get('/data/rooms', [$dc, 'rooms']);
     Route::get('/data/rooms/{room}', [$dc, 'room']);
     Route::get('/data/locations', [$dc, 'locations']);
