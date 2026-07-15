@@ -7,7 +7,7 @@ import TemplateMenu from '@/Components/TemplateMenu';
 import { buildDocBody, templateIcon } from '@/docTemplates';
 import { getLast, setLast } from '@/lib/lastView';
 
-const NEW_TITLES = { sop: 'New SOP', troubleshooting: 'New troubleshooting guide', freeform: 'Untitled' };
+const NEW_TITLES = { sop: 'New SOP', troubleshooting: 'New troubleshooting guide', incident: 'New incident report', freeform: 'Untitled' };
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
