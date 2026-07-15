@@ -29,7 +29,7 @@ Route::middleware('auth')->group(function () {
     $group = fn ($g) => fn () => \Inertia\Inertia::render('Workspace', ['group' => $g]);
     Route::get('/people', $group('people'))->name('people.index');
     Route::get('/assets', $group('assets'))->name('assets.index');
-    Route::get('/tasks', $group('tasks'))->name('tasks.index');
+    Route::get('/tasks', fn () => \Inertia\Inertia::render('Tasks/Index'))->name('tasks.index');
     Route::get('/docs', fn () => \Inertia\Inertia::render('Docs/Index'))->name('docs.index');
 
     // Docs wiki data
@@ -39,6 +39,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/docs/{page}', [$doc, 'show']);
     Route::patch('/data/docs/{page}', [$doc, 'update']);
     Route::delete('/data/docs/{page}', [$doc, 'destroy']);
+
+    // Tasks
+    $task = \App\Http\Controllers\TaskController::class;
+    Route::get('/data/tasks', [$task, 'index']);
+    Route::post('/data/tasks', [$task, 'store']);
+    Route::get('/data/tasks/{task}', [$task, 'show']);
+    Route::patch('/data/tasks/{task}', [$task, 'update']);
+    Route::delete('/data/tasks/{task}', [$task, 'destroy']);
 
     // Legacy single-entity paths -> their new group
     foreach (['devices' => 'assets', 'rooms' => 'assets', 'locations' => 'assets',
@@ -66,6 +74,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/people/{person}/logins', [$dc, 'personLogins']);
     Route::post('/data/people/{person}/logins', [$dc, 'storePersonLogin']);
     Route::get('/data/device-options', [$dc, 'deviceOptions']);
+    Route::get('/data/people-options', [$dc, 'peopleOptions']);
     Route::get('/data/people/{person}/devices', [$dc, 'personDevices']);
     Route::post('/data/people/{person}/devices', [$dc, 'attachPersonDevice']);
     Route::delete('/data/people/{person}/devices/{device}', [$dc, 'detachPersonDevice']);

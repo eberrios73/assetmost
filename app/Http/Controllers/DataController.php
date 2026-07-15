@@ -234,6 +234,20 @@ class DataController extends Controller
         );
     }
 
+    /** Company-scoped active people as {id,label} for assignment pickers. */
+    public function peopleOptions(): JsonResponse
+    {
+        $q = User::query()->where('active', true)->orderBy('name')->orderBy('last');
+        $q->tap(fn ($qq) => app(\App\Support\Contracts\TenantResolver::class)->scopeIds() !== null
+            ? $qq->whereIn('company_id', app(\App\Support\Contracts\TenantResolver::class)->scopeIds())
+            : $qq);
+
+        return response()->json(
+            $q->get(['id', 'name', 'last'])
+                ->map(fn ($u) => ['id' => $u->id, 'label' => trim("{$u->name} {$u->last}") ?: "#{$u->id}"])
+        );
+    }
+
     /** Company-scoped active devices as {id,label} for the assign picker. */
     public function deviceOptions(): JsonResponse
     {
