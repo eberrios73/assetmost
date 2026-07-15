@@ -2,21 +2,40 @@
 // Bodies are TipTap-compatible HTML.
 
 const SOP = `
+<table><tbody>
+<tr><th>Owner</th><td></td><th>Version</th><td>1.0</td></tr>
+<tr><th>Effective</th><td></td><th>Review by</th><td></td></tr>
+<tr><th>Approver</th><td></td><th>Status</th><td>Draft</td></tr>
+</tbody></table>
 <h2>Purpose</h2><p></p>
 <h2>Scope</h2><p></p>
 <h2>Prerequisites</h2><ul><li></li></ul>
-<h2>Procedure</h2><ol><li></li><li></li></ol>
+<h2>Procedure</h2>
+<table><tbody>
+<tr><th>#</th><th>Action</th><th>Responsible</th><th>Notes</th></tr>
+<tr><td>1</td><td></td><td></td><td></td></tr>
+<tr><td>2</td><td></td><td></td><td></td></tr>
+<tr><td>3</td><td></td><td></td><td></td></tr>
+</tbody></table>
 <h2>Verification</h2><p></p>
 <h2>Rollback / recovery</h2><p></p>
-<h2>Owner &amp; review</h2><p>Owner: <br>Last reviewed: </p>
+<h2>Revision history</h2>
+<table><tbody>
+<tr><th>Date</th><th>Version</th><th>Change</th><th>By</th></tr>
+<tr><td></td><td>1.0</td><td>Initial version</td><td></td></tr>
+</tbody></table>
 `.trim();
 
 const TROUBLESHOOTING = `
 <h2>Symptom</h2><p></p>
 <h2>Affected systems</h2><p></p>
-<h2>Diagnosis</h2><ol><li></li></ol>
-<h2>Common causes</h2><ul><li></li></ul>
-<h2>Resolution</h2><ol><li></li></ol>
+<h2>Diagnosis &amp; fixes</h2>
+<table><tbody>
+<tr><th>Symptom</th><th>Likely cause</th><th>Check</th><th>Resolution</th></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+<tr><td></td><td></td><td></td><td></td></tr>
+</tbody></table>
 <h2>Escalation</h2><p></p>
 `.trim();
 

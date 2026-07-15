@@ -1,3 +1,51 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* --- Doc editor tables (TipTap) --- */
+.ProseMirror table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    overflow: hidden;
+    table-layout: fixed;
+}
+.ProseMirror td,
+.ProseMirror th {
+    border: 1px solid #d1d5db;            /* gray-300 */
+    padding: 6px 10px;
+    vertical-align: top;
+    position: relative;
+    min-width: 3rem;
+}
+.ProseMirror th {
+    background: #f3f4f6;                   /* gray-100 */
+    font-weight: 600;
+    text-align: left;
+}
+.dark .ProseMirror td,
+.dark .ProseMirror th {
+    border-color: #374151;                /* gray-700 */
+}
+.dark .ProseMirror th {
+    background: #1f2937;                   /* gray-800 */
+}
+.ProseMirror .selectedCell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(37, 99, 235, 0.12);  /* blue-600/12 */
+    pointer-events: none;
+}
+.ProseMirror .column-resize-handle {
+    position: absolute;
+    right: -2px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #2563eb;                   /* blue-600 */
+    cursor: col-resize;
+}
+.ProseMirror.resize-cursor {
+    cursor: col-resize;
+}
