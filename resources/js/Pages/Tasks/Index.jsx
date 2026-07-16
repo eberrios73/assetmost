@@ -4,6 +4,7 @@ import AppShell from '@/Layouts/AppShell';
 import { TrashIcon } from '@/Components/Icons';
 import { buildDocBody, templateCategory } from '@/docTemplates';
 import TemplateMenu from '@/Components/TemplateMenu';
+import SearchSelect from '@/Components/SearchSelect';
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
@@ -405,12 +406,17 @@ function InlineText({ value, onCommit, done, bold }) {
 }
 
 function AssigneeSelect({ value, people, onChange }) {
+    // Searchable typeahead (same component as the rest of the app). `people` is
+    // already loaded once by the page, so pass it as options instead of refetching
+    // per row; `portal` keeps the menu from being clipped by the table's overflow.
     return (
-        <select value={value ?? ''} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-            className="w-full max-w-[10rem] truncate border-0 bg-transparent p-0 text-sm text-gray-600 dark:text-gray-300 focus:ring-0">
-            <option value="">—</option>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-        </select>
+        <SearchSelect
+            value={value ?? null}
+            options={people}
+            onChange={(id) => onChange(id ? Number(id) : null)}
+            placeholder="Unassigned"
+            portal
+        />
     );
 }
 
