@@ -98,7 +98,13 @@ export default function EntityList({
                             className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs py-1 text-gray-600 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">All {filter.label}</option>
-                            {filter.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                            {/* Options arrive either as plain strings (/data/departments) or as
+                                records (/data/device-types -> {id, code, name}). */}
+                            {filter.options.map((o) => {
+                                const value = typeof o === 'string' ? o : (o.value ?? o.code ?? o.id);
+                                const label = typeof o === 'string' ? o : (o.label ?? o.name ?? value);
+                                return <option key={value} value={value}>{label}</option>;
+                            })}
                         </select>
                     )}
                     <label className="flex items-center gap-1.5 cursor-pointer ml-auto">

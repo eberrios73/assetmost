@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Tabs from '@/Components/Tabs';
 import Field, { useJson } from '@/Components/detail/Field';
 import LoginsTable from '@/Components/detail/LoginsTable';
-import SubscriptionsTable from '@/Components/detail/SubscriptionsTable';
+import LicensesTable from '@/Components/detail/LicensesTable';
 import SearchSelect from '@/Components/SearchSelect';
 import { DeviceIcon, PlusIcon } from '@/Components/Icons';
 
@@ -32,9 +32,10 @@ export default function PersonDetail({ u }) {
                 <Tabs
                     tabs={[
                         { key: 'logins', label: 'Logins', count: u.logins_count, render: () => <LoginsTable endpoint={`/data/people/${u.id}/logins`} createEndpoint={`/data/people/${u.id}/logins`} /> },
-                        { key: 'licenses', label: 'Licenses', count: u.subscriptions_count, render: () => <SubscriptionsTable endpoint={`/data/people/${u.id}/subscriptions`} /> },
+                        // One tab, not two — "Licenses" and "Subscriptions" were the same
+                        // endpoint rendered twice under different names.
+                        { key: 'licenses', label: 'Licenses', count: u.licenses_count, render: () => <LicensesTable endpoint={`/data/people/${u.id}/licenses`} /> },
                         { key: 'devices', label: 'Devices', count: u.devices_count, render: () => <DevicesTab id={u.id} /> },
-                        { key: 'subs', label: 'Subscriptions', count: u.subscriptions_count, render: () => <SubscriptionsTable endpoint={`/data/people/${u.id}/subscriptions`} /> },
                     ]}
                 />
             </div>

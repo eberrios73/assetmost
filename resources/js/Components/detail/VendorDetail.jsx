@@ -1,7 +1,7 @@
 import Tabs from '@/Components/Tabs';
 import Field from '@/Components/detail/Field';
 import LoginsTable from '@/Components/detail/LoginsTable';
-import SubscriptionsTable from '@/Components/detail/SubscriptionsTable';
+import LicensesTable from '@/Components/detail/LicensesTable';
 
 export default function VendorDetail({ v }) {
     return (
@@ -22,7 +22,7 @@ export default function VendorDetail({ v }) {
                         </dl>
                     ) },
                     { key: 'logins', label: 'Logins', count: v.logins_count, render: () => <LoginsTable endpoint={`/data/vendors/${v.id}/logins`} showUser /> },
-                    { key: 'subs', label: 'Subscriptions', count: v.subscriptions_count, render: () => <SubscriptionsTable endpoint={`/data/vendors/${v.id}/subscriptions`} showUser /> },
+                    { key: 'licenses', label: 'Licenses', count: v.licenses_count, render: () => <LicensesTable endpoint={`/data/vendors/${v.id}/licenses`} showHolders /> },
                 ]} />
             </div>
         </div>

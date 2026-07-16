@@ -81,7 +81,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/people/{person}/devices', [$dc, 'personDevices']);
     Route::post('/data/people/{person}/devices', [$dc, 'attachPersonDevice']);
     Route::delete('/data/people/{person}/devices/{device}', [$dc, 'detachPersonDevice']);
-    Route::get('/data/people/{person}/subscriptions', [$dc, 'personSubscriptions']);
+    Route::get('/data/people/{person}/licenses', [$dc, 'personLicenses']);
     Route::patch('/data/people/{person}', [$dc, 'updatePerson']);
     Route::patch('/data/devices/{device}', [$dc, 'updateDevice']);
     Route::patch('/data/vendors/{vendor}', [$dc, 'updateVendor']);
@@ -98,9 +98,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/vendors', [$dc, 'vendors']);
     Route::get('/data/vendors/{vendor}', [$dc, 'vendor']);
     Route::get('/data/vendors/{vendor}/logins', [$dc, 'vendorLogins']);
-    Route::get('/data/vendors/{vendor}/subscriptions', [$dc, 'vendorSubscriptions']);
-    Route::get('/data/subscriptions/{subscription}', [$dc, 'subscription']);
-    Route::patch('/data/subscriptions/{subscription}', [$dc, 'updateSubscription']);
+    Route::get('/data/vendors/{vendor}/licenses', [$dc, 'vendorLicenses']);
+    Route::get('/data/licenses/{license}', [$dc, 'license']);
+    Route::patch('/data/licenses/{license}', [$dc, 'updateLicense']);
     Route::get('/data/rooms', [$dc, 'rooms']);
     Route::get('/data/rooms/{room}', [$dc, 'room']);
     Route::get('/data/locations', [$dc, 'locations']);

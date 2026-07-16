@@ -6,7 +6,7 @@ const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)
 /** Self-contained wizard to onboard a new device into inventory. */
 export default function AssetOnboard({ onDone }) {
     const [step, setStep] = useState(0);
-    const [form, setForm] = useState({ asset_tag: '', type: '', brand: '', model: '', serial_num: '', location_id: '', room_id: '' });
+    const [form, setForm] = useState({ asset_tag: '', device_type_id: '', brand: '', model: '', serial_num: '', location_id: '', room_id: '' });
     const [types, setTypes] = useState([]);
     const [locations, setLocations] = useState([]);
     const [rooms, setRooms] = useState([]);
@@ -48,10 +48,14 @@ export default function AssetOnboard({ onDone }) {
 
             {step === 0 && (
                 <Grid>
-                    <Field label="Asset tag"><input className={inp} value={form.asset_tag} onChange={(e) => set('asset_tag', e.target.value)} /></Field>
+                    <Field label="Asset tag">
+                        <input className={inp} value={form.asset_tag} onChange={(e) => set('asset_tag', e.target.value)}
+                            placeholder="leave blank to auto-issue" />
+                    </Field>
                     <Field label="Type">
-                        <select className={inp} value={form.type} onChange={(e) => set('type', e.target.value)}>
-                            <option value="">—</option>{types.map((t) => <option key={t} value={t}>{t}</option>)}
+                        <select className={inp} value={form.device_type_id} onChange={(e) => set('device_type_id', e.target.value)}>
+                            <option value="">—</option>
+                            {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </Field>
                     <Field label="Brand"><input className={inp} value={form.brand} onChange={(e) => set('brand', e.target.value)} /></Field>
@@ -76,7 +80,7 @@ export default function AssetOnboard({ onDone }) {
             {step === 2 && (
                 <div className="rounded-lg border border-gray-200 p-4 text-sm">
                     <Row k="Asset tag" v={form.asset_tag} />
-                    <Row k="Type" v={form.type} />
+                    <Row k="Type" v={types.find((t) => String(t.id) === String(form.device_type_id))?.name} />
                     <Row k="Brand / Model" v={[form.brand, form.model].filter(Boolean).join(' ')} />
                     <Row k="Serial" v={form.serial_num} />
                     <Row k="Location" v={locations.find((l) => String(l.id) === String(form.location_id))?.primary} />

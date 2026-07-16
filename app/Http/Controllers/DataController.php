@@ -98,7 +98,7 @@ class DataController extends Controller
     // ---- Devices ----
     public function devices(Request $request): JsonResponse
     {
-        $q = Device::query()->with(['location:id,name', 'room:id,name']);
+        $q = Device::query()->with(['location:id,name', 'room:id,name', 'deviceType:id,name,code']);
         $this->sort($q, $request, ['asset_tag', 'computer_name', 'type'], 'asset_tag');
 
         if ($s = $request->string('search')->toString()) {
@@ -106,15 +106,9 @@ class DataController extends Controller
                 ->orWhere('computer_name', 'like', "%{$s}%")
                 ->orWhere('serial_num', 'like', "%{$s}%"));
         }
-        if ($category = $request->string('type')->toString()) {
-            // param carries a clean category; match all raw types mapped to it
-            $raw = \App\Support\DeviceCategory::rawTypesFor($category);
-            if ($raw) {
-                $ph = implode(',', array_fill(0, count($raw), '?'));
-                $q->whereRaw(self::NORM_TYPE . " IN ($ph)", $raw);
-            } else {
-                $q->whereRaw('1=0'); // unknown category -> no rows
-            }
+        // Filter on the controlled type (by code), not on the legacy free-text column.
+        if ($code = $request->string('type')->toString()) {
+            $q->whereHas('deviceType', fn ($t) => $t->where('code', $code));
         }
         if ($request->boolean('active_only', true)) {
             $q->where('active', true);
@@ -123,21 +117,21 @@ class DataController extends Controller
         return $this->page($q, $request, fn ($d) => [
             'id' => $d->id,
             'primary' => $d->asset_tag ?: ($d->computer_name ?: "#{$d->id}"),
-            'secondary' => trim(($d->type ? $d->type . ' · ' : '') . trim("{$d->brand} {$d->model}")),
+            'secondary' => trim((($d->deviceType?->name ?: $d->type) ? ($d->deviceType?->name ?: $d->type) . ' · ' : '') . trim("{$d->brand} {$d->model}")),
             'badge' => $d->computer_name,
         ]);
     }
-
-    /** Normalizes the messy type column (strip newlines, trim, lowercase). */
-    private const NORM_TYPE = "LOWER(TRIM(REPLACE(REPLACE(type, '\\n', ''), '\\r', '')))";
 
     /** Onboard (create) a device. Company derives from the chosen location or the active company. */
     public function storeDevice(Request $request): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            // asset_tag is optional: leave it blank and the company's counter issues one
+            // (PG-WS-1001). Supplying one keeps it — that's how legacy gear stays as-is.
             'asset_tag' => 'nullable|string|max:25', 'computer_name' => 'nullable|string|max:255',
-            'type' => 'nullable|string|max:255', 'brand' => 'nullable|string|max:255',
+            'device_type_id' => 'nullable|integer|exists:device_types,id',
+            'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255', 'serial_num' => 'nullable|string|max:255',
             'location_id' => 'nullable|integer|exists:locations,id',
             'room_id' => 'nullable|integer|exists:rooms,id',
@@ -150,24 +144,18 @@ class DataController extends Controller
         if (! empty($data['location_id'])) {
             $data['company_id'] = \App\Models\Location::withoutGlobalScopes()->find($data['location_id'])?->company_id;
         }
-        $device = Device::create($data + ['active' => true]);
-        return response()->json($device, 201);
+        $data['company_id'] ??= app(\App\Support\Contracts\TenantResolver::class)->id();
+        $device = Device::create($data + ['active' => true]);   // tag issued in Device::booted
+        return response()->json($device->fresh(), 201);
     }
 
+    /** The controlled type list — {id, code, name} — for filters and the onboard form. */
     public function deviceTypes(): JsonResponse
     {
-        // clean, curated categories that actually have devices in the current scope
-        $present = Device::query()
-            ->whereNotNull('type')->where('type', '<>', '')
-            ->selectRaw('DISTINCT ' . self::NORM_TYPE . ' as t')
-            ->pluck('t')->all();
-
-        $categories = array_values(array_filter(
-            \App\Support\DeviceCategory::all(),
-            fn ($cat) => count(array_intersect(\App\Support\DeviceCategory::rawTypesFor($cat), $present)) > 0
-        ));
-
-        return response()->json($categories);
+        return response()->json(
+            \App\Models\DeviceType::query()->where('active', true)->ordered()
+                ->get(['id', 'code', 'name'])
+        );
     }
 
     public function device(Device $device): JsonResponse
@@ -210,7 +198,10 @@ class DataController extends Controller
     public function person(User $person): JsonResponse
     {
         $person->load(['company:id,name', 'location:id,name'])
-            ->loadCount(['logins', 'devices', 'subscriptions']);
+            ->loadCount(['logins', 'devices']);
+        // Licenses reach a person through the accounts they hold, so there's no relation
+        // to loadCount — seats are consumed by accounts, not people.
+        $person->licenses_count = $person->licenses()->count();
         return response()->json($person);
     }
 
@@ -297,14 +288,15 @@ class DataController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function personSubscriptions(User $person): JsonResponse
+    public function personLicenses(User $person): JsonResponse
     {
         return response()->json(
-            $person->subscriptions()->with('vendor:id,name')->orderBy('renewal_date')->get()
-                ->map(fn ($s) => [
-                    'id' => $s->id, 'name' => $s->subscription_name, 'vendor' => $s->vendor?->name,
-                    'amount' => $s->amount, 'renewal_date' => $s->renewal_date?->toDateString(),
-                    'account_number' => $s->account_number, 'is_active' => $s->is_active,
+            $person->licenses()->with(['vendor:id,name', 'product:id,name'])->orderBy('renewal_date')->get()
+                ->map(fn ($l) => [
+                    'id' => $l->id, 'name' => $l->name,
+                    'vendor' => $l->vendor?->name, 'product' => $l->product?->name,
+                    'amount' => $l->amount, 'renewal_date' => $l->renewal_date?->toDateString(),
+                    'account_number' => $l->account_number, 'is_active' => $l->is_active,
                 ])
         );
     }
@@ -349,7 +341,7 @@ class DataController extends Controller
 
     public function vendor(Vendor $vendor): JsonResponse
     {
-        $vendor->load(['companies:id,name'])->loadCount(['logins', 'subscriptions']);
+        $vendor->load(['companies:id,name'])->loadCount(['logins', 'licenses']);
         return response()->json($vendor);
     }
 
@@ -363,58 +355,67 @@ class DataController extends Controller
         );
     }
 
-    public function vendorSubscriptions(Vendor $vendor): JsonResponse
+    public function vendorLicenses(Vendor $vendor): JsonResponse
     {
         return response()->json(
-            $vendor->subscriptions()
-                ->with(['user:id,name,last,email', 'login.user:id,name,last,email'])
+            $vendor->licenses()
+                ->with(['product:id,name', 'logins.holders:id,name,last,email'])
                 ->orderBy('renewal_date')->get()
-                ->map(function ($s) {
-                    // subscription.user_id is often null — derive via the linked login
-                    $u = $s->user ?: $s->login?->user;
-                    return ['id' => $s->id, 'name' => $s->subscription_name,
-                        'user' => $u ? trim("{$u->name} {$u->last}") : null,
-                        'email' => $u?->email,
-                        'amount' => $s->amount, 'renewal_date' => $s->renewal_date?->toDateString(),
-                        'account_number' => $s->account_number];
+                ->map(function ($l) {
+                    // Holders come through the accounts consuming the seats — a license
+                    // can legitimately have several (or none, if seats sit unprovisioned).
+                    $holders = $l->logins->flatMap->holders->unique('id')->values();
+                    return ['id' => $l->id, 'name' => $l->name, 'product' => $l->product?->name,
+                        'holders' => $holders->map(fn ($u) => trim("{$u->name} {$u->last}"))->all(),
+                        'email' => $holders->first()?->email,
+                        'seats_total' => $l->seats_total,
+                        'seats_used' => $l->seats_used,
+                        'seats_available' => $l->seats_available,
+                        'amount' => $l->amount, 'renewal_date' => $l->renewal_date?->toDateString(),
+                        'account_number' => $l->account_number];
                 })
         );
     }
 
-    /** Full subscription detail for the edit drawer. */
-    public function subscription(\App\Models\Subscription $subscription): JsonResponse
+    /** Full license detail for the edit drawer. */
+    public function license(\App\Models\License $license): JsonResponse
     {
-        // Effective owner = direct user, else the linked login's user. Include
-        // inactive users so an offboarded person still holding a license shows
-        // (flagged) instead of looking unassigned — the whole point of tracking.
-        $subscription->loadMissing(['user:id,name,last,active', 'login.user:id,name,last,active']);
-        $owner = $subscription->user ?: $subscription->login?->user;
-        $ownerLabel = $owner
-            ? trim("{$owner->name} {$owner->last}").($owner->active ? '' : ' (inactive)')
-            : null;
+        // Holders come via the accounts consuming the seats. Inactive people are kept
+        // (and flagged) so an offboarded person still holding a seat shows up instead of
+        // looking unassigned — that's the whole point of tracking.
+        $license->loadMissing(['logins.holders:id,name,last,active', 'product:id,name']);
+        $holders = $license->logins->flatMap->holders->unique('id')->values();
 
         return response()->json([
-            'id' => $subscription->id,
-            'subscription_name' => $subscription->subscription_name,
-            'vendor_id' => $subscription->vendor_id,
-            'user_id' => $owner?->id,
-            'user_label' => $ownerLabel,
-            'account_number' => $subscription->account_number,
-            'serial_number' => $subscription->serial_number,
-            'amount' => $subscription->amount,
-            'renewal_date' => $subscription->renewal_date?->toDateString(),
-            'renewalfrequency' => $subscription->renewalfrequency,
-            'is_active' => $subscription->is_active,
-            'notes' => $subscription->notes,
+            'id' => $license->id,
+            'name' => $license->name,
+            'vendor_id' => $license->vendor_id,
+            'product_id' => $license->product_id,
+            'holders' => $holders->map(fn ($u) => [
+                'id' => $u->id,
+                'label' => trim("{$u->name} {$u->last}").($u->active ? '' : ' (inactive)'),
+            ])->all(),
+            'seats_total' => $license->seats_total,
+            'seats_used' => $license->seats_used,
+            'seats_available' => $license->seats_available,       // null = count unknown
+            'over_allocated' => $license->isOverAllocated(),
+            'account_number' => $license->account_number,
+            'serial_number' => $license->serial_number,
+            'amount' => $license->amount,
+            'renewal_date' => $license->renewal_date?->toDateString(),
+            'renewalfrequency' => $license->renewalfrequency,
+            'is_active' => $license->is_active,
+            'notes' => $license->notes,
         ]);
     }
 
-    public function updateSubscription(Request $request, \App\Models\Subscription $subscription): JsonResponse
+    public function updateLicense(Request $request, \App\Models\License $license): JsonResponse
     {
-        return $this->applyUpdate($subscription, $request, [
-            'subscription_name' => 'required|string|max:255',
+        return $this->applyUpdate($license, $request, [
+            'name' => 'required|string|max:255',
             'vendor_id' => 'nullable|integer|exists:vendors,id',
-            'user_id' => 'nullable|integer|exists:users,id',
+            'product_id' => 'nullable|integer|exists:products,id',
+            'seats_total' => 'nullable|integer|min:0',   // null = not counted yet
             'account_number' => 'nullable|string|max:255',
             'serial_number' => 'nullable|string|max:255',
             'amount' => 'nullable|numeric',
