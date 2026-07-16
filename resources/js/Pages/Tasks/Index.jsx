@@ -143,7 +143,7 @@ export default function Index() {
                     <AddBar placeholder="Add a task and press Enter…" onAdd={(v) => addTask(v)} />
 
                     <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] table-fixed text-sm border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                    <table className="w-full min-w-[720px] text-sm border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
                         <thead>
                             <tr className="bg-gray-100 dark:bg-gray-800/70 text-xs uppercase tracking-wide text-gray-400">
                                 <Th className="w-9" /><Th>Task</Th><Th className="w-44">Assignee</Th>
