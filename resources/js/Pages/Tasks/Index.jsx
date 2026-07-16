@@ -416,6 +416,8 @@ function AssigneeSelect({ value, people, onChange }) {
             onChange={(id) => onChange(id ? Number(id) : null)}
             placeholder="Unassigned"
             portal
+            className="w-40 max-w-full"
+            inputClassName="w-full truncate border-0 bg-transparent p-0 pr-5 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 hover:text-gray-900 dark:hover:text-white focus:ring-0 cursor-pointer"
         />
     );
 }

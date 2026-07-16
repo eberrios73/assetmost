@@ -8,7 +8,9 @@ import { createPortal } from 'react-dom';
  *  options (e.g. an inactive user who is still the assignee).
  *  `portal` renders the menu in a fixed-position layer on <body> so it isn't
  *  clipped by an overflow container (e.g. a horizontally-scrolling table). */
-export default function SearchSelect({ value, onChange, endpoint, options: providedOptions, placeholder = 'Search…', fallbackLabel = '', portal = false }) {
+const DEFAULT_INPUT = 'w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500 pr-7';
+
+export default function SearchSelect({ value, onChange, endpoint, options: providedOptions, placeholder = 'Search…', fallbackLabel = '', portal = false, className = '', inputClassName = DEFAULT_INPUT }) {
     const [options, setOptions] = useState(providedOptions ?? []);
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -56,7 +58,7 @@ export default function SearchSelect({ value, onChange, endpoint, options: provi
     );
 
     return (
-        <div className="relative" ref={boxRef}>
+        <div className={`relative ${className}`} ref={boxRef}>
             <div className="flex items-center">
                 <input
                     ref={inputRef}
@@ -64,7 +66,7 @@ export default function SearchSelect({ value, onChange, endpoint, options: provi
                     onFocus={openMenu}
                     onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
                     placeholder={placeholder}
-                    className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500 pr-7"
+                    className={inputClassName}
                 />
                 {value && (
                     <button type="button" onMouseDown={(e) => { e.preventDefault(); onChange(null); setQuery(''); }}
