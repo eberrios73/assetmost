@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/build/assets/app-CZm7A6Fx.css"></head>
+<body>
+<div class="h-screen overflow-hidden bg-gray-100 flex flex-col">
+  <header class="h-14 bg-white border-b flex items-center px-4">Header</header>
+  <div class="flex-1 flex overflow-hidden">
+    <main class="flex-1 overflow-y-auto bg-white p-6">
+      <div class="max-w-6xl mx-auto">
+        <input id="addbar" class="w-full mb-3 rounded-lg border-gray-200 text-sm" placeholder="Add a task…">
+        <div class="overflow-x-auto">
+          <table id="tbl" class="w-full min-w-[720px] table-fixed text-sm border border-gray-200 rounded-lg overflow-hidden">
+            <thead><tr class="bg-gray-100 text-xs uppercase text-gray-400">
+              <th class="px-3 py-2 w-9"></th><th class="px-3 py-2 text-left">Task</th><th class="px-3 py-2 w-44 text-left">Assignee</th>
+              <th class="px-3 py-2 w-16 text-center">Pri</th><th class="px-3 py-2 w-40 text-left">%</th>
+              <th class="px-3 py-2 w-32 text-left">Completed</th><th class="px-3 py-2 w-8"></th><th class="px-3 py-2 w-10"></th></tr></thead>
+            <tbody><tr class="border-b"><td class="px-3 py-2 text-center"><input type="checkbox"></td>
+              <td class="px-3 py-2">Nr throughput with Alexander</td>
+              <td class="px-3 py-2"><div class="relative w-40 max-w-full"><input class="w-full border-0 bg-transparent p-0 text-sm text-gray-400" placeholder="Unassigned"></div></td>
+              <td class="px-3 py-2 text-center">High</td>
+              <td class="px-3 py-2"><input type="range" class="w-24"> 50%</td>
+              <td class="px-3 py-2"></td><td class="px-1 py-2">&#9656;</td><td class="px-3 py-2">x</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="h-8 bg-white border-t"></footer>
+</div>
+<script>window.addEventListener("load",()=>{var a=addbar.getBoundingClientRect(),t=tbl.getBoundingClientRect();document.title="viewport="+window.innerWidth+" addbar="+Math.round(a.width)+" table="+Math.round(t.width)+" gap="+Math.round(a.width-t.width);});</script>
+</body></html>
