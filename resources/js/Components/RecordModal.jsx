@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import SearchSelect from '@/Components/SearchSelect';
+import { EyeIcon, EyeOffIcon } from '@/Components/Icons';
 
 /**
  * Create or edit a record in a right-side sliding drawer (keeps the list visible
@@ -12,9 +13,27 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
     const [errors, setErrors] = useState({});
     const [saving, setSaving] = useState(false);
     const [shown, setShown] = useState(false);
+    const [revealed, setRevealed] = useState({});   // { [fieldKey]: true }
 
     useEffect(() => { const t = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(t); }, []);
     const close = () => { setShown(false); setTimeout(onClose, 200); };
+
+    /** Password fields ship blank ("blank = keep"), so revealing has to fetch the real
+     *  secret from the gated endpoint. Once loaded it's editable; saving it unchanged
+     *  just rewrites the same value. */
+    const toggleReveal = async (f) => {
+        if (revealed[f.key]) { setRevealed((r) => ({ ...r, [f.key]: false })); return; }
+        if (f.revealEndpoint && initial?.id && !values[f.key]) {
+            try {
+                const res = await fetch(f.revealEndpoint(initial.id), {
+                    headers: { Accept: 'application/json' }, credentials: 'same-origin',
+                });
+                const body = await res.json();
+                setValues((v) => ({ ...v, [f.key]: body[f.revealKey || 'password'] ?? '' }));
+            } catch { /* leave the field as-is */ }
+        }
+        setRevealed((r) => ({ ...r, [f.key]: true }));
+    };
 
     const submit = async (e) => {
         e.preventDefault();
@@ -58,6 +77,18 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
                                 <SearchSelect value={values[f.key]} endpoint={f.optionsEndpoint}
                                     fallbackLabel={f.labelField ? (initial[f.labelField] ?? '') : ''}
                                     onChange={(id) => setValues((v) => ({ ...v, [f.key]: id }))} placeholder={`Search ${f.label.toLowerCase()}…`} />
+                            ) : f.type === 'password' ? (
+                                <div className="relative">
+                                    <input type={revealed[f.key] ? 'text' : 'password'}
+                                        value={values[f.key] ?? ''}
+                                        onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500 pr-9 font-mono" />
+                                    <button type="button" onClick={() => toggleReveal(f)}
+                                        title={revealed[f.key] ? 'Hide password' : 'Show password'}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                        {revealed[f.key] ? <EyeOffIcon /> : <EyeIcon />}
+                                    </button>
+                                </div>
                             ) : (
                                 <input type={f.type || 'text'} maxLength={f.maxLength}
                                     value={values[f.key] ?? ''}

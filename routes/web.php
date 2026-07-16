@@ -5,13 +5,12 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// No public marketing page in this deployment: land signed-in users on the app,
+// send guests to login. (Was the Breeze "Welcome" scaffold.)
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return auth()->check()
+        ? redirect()->route('people.index')
+        : redirect()->route('login');
 });
 
 // Land on People instead of the generic scaffold dashboard.

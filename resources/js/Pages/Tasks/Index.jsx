@@ -4,6 +4,7 @@ import AppShell from '@/Layouts/AppShell';
 import { TrashIcon } from '@/Components/Icons';
 import { buildDocBody, templateCategory } from '@/docTemplates';
 import TemplateMenu from '@/Components/TemplateMenu';
+import SearchSelect from '@/Components/SearchSelect';
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
@@ -266,8 +267,11 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
     const carried = t.origin && t.origin < t.week && !t.done;
     return (
         <>
-            <tr className={`group border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 relative before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] ${PRI_BAR[t.pri] || ''}`}>
-                <td className="px-3 py-1.5 text-center">
+            {/* Priority bar lives on the first cell, NOT the <tr>: a pseudo-element
+                on a row gets wrapped in an anonymous table cell, which adds a phantom
+                column and makes the header/colSpan rows stop short of the data rows. */}
+            <tr className="group border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <td className={`px-3 py-1.5 text-center relative before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] ${PRI_BAR[t.pri] || ''}`}>
                     <input type="checkbox" checked={t.done} onChange={(e) => patch(t.id, { done: e.target.checked }, { reload: true })}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 </td>
@@ -405,12 +409,19 @@ function InlineText({ value, onCommit, done, bold }) {
 }
 
 function AssigneeSelect({ value, people, onChange }) {
+    // Searchable typeahead (same component as the rest of the app). `people` is
+    // already loaded once by the page, so pass it as options instead of refetching
+    // per row; `portal` keeps the menu from being clipped by the table's overflow.
     return (
-        <select value={value ?? ''} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-            className="w-full max-w-[10rem] truncate border-0 bg-transparent p-0 text-sm text-gray-600 dark:text-gray-300 focus:ring-0">
-            <option value="">—</option>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-        </select>
+        <SearchSelect
+            value={value ?? null}
+            options={people}
+            onChange={(id) => onChange(id ? Number(id) : null)}
+            placeholder="Unassigned"
+            portal
+            className="w-40 max-w-full"
+            inputClassName="w-full truncate border-0 bg-transparent p-0 pr-5 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 hover:text-gray-900 dark:hover:text-white focus:ring-0 cursor-pointer"
+        />
     );
 }
 

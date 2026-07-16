@@ -5,8 +5,37 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
+import CodeBlock from '@tiptap/extension-code-block';
 import { marked } from 'marked';
 import { useEffect, useRef, useState } from 'react';
+
+// Code block with a hover "Copy" button (great for runbook commands). The button
+// lives in the node-view wrapper (contentEditable=false) so it never becomes part
+// of the copied text or the editable content.
+const CodeBlockWithCopy = CodeBlock.extend({
+    addNodeView() {
+        return () => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'relative group';
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            pre.appendChild(code);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.contentEditable = 'false';
+            btn.textContent = 'Copy';
+            btn.className = 'absolute top-2 right-2 px-2 py-0.5 text-xs rounded bg-gray-700/90 text-gray-100 opacity-0 group-hover:opacity-100 hover:bg-gray-600 transition-opacity';
+            btn.addEventListener('mousedown', (e) => e.preventDefault());
+            btn.addEventListener('click', () => {
+                navigator.clipboard?.writeText(code.textContent || '');
+                btn.textContent = 'Copied';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
+            });
+            wrapper.append(btn, pre);
+            return { dom: wrapper, contentDOM: code };
+        };
+    },
+});
 
 // seeded docs are markdown; once saved they're HTML. Detect and normalize to HTML.
 const toHtml = (body) => {
@@ -35,7 +64,8 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
 
     const editor = useEditor({
         extensions: [
-            StarterKit,
+            StarterKit.configure({ codeBlock: false }),
+            CodeBlockWithCopy,
             Placeholder.configure({ placeholder: "Type '/' for commands, or just start writing…" }),
             Table.configure({ resizable: true }),
             TableRow,

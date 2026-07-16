@@ -37,7 +37,10 @@ export default function Index() {
     const collapseInit = useRef(localStorage.getItem(COLLAPSE_KEY) !== null);
     const titleTimer = useRef(null);
 
-    const space = spaces.find((s) => s.id === spaceId) || null;
+    // Compare as strings: the remembered id comes back from localStorage/JSON and a
+    // type mismatch here silently resets you to the first space on every load.
+    const sameId = (a, b) => a != null && b != null && String(a) === String(b);
+    const space = spaces.find((s) => sameId(s.id, spaceId)) || null;
     const persistCollapsed = (set) => { try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...set])); } catch { /* ignore */ } };
     const toggleCollapse = (id) => setCollapsed((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); persistCollapsed(n); return n; });
     const setAllCollapsed = (on) => { const s = on ? new Set(folderIds(tree)) : new Set(); setCollapsed(s); persistCollapsed(s); };
@@ -50,7 +53,7 @@ export default function Index() {
     useEffect(() => { loadSpaces(); }, []);
     // default to the first space once spaces load (if none remembered / stale)
     useEffect(() => {
-        if (spaces.length && !spaces.some((s) => s.id === spaceId)) chooseSpace(spaces[0].id);
+        if (spaces.length && !spaces.some((s) => sameId(s.id, spaceId))) chooseSpace(spaces[0].id);
     }, [spaces]);
     useEffect(() => { if (spaceId) loadTree(); }, [spaceId]);
     // first visit (no saved state): start with folders collapsed so you land on the top level
