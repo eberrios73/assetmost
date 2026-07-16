@@ -10,6 +10,10 @@ class Task extends Model
 {
     use BelongsToCompany;
 
+    // River already has a `tasks` table (project management); AssetMost's
+    // weekly task sheet lives in `it_tasks` to avoid the collision.
+    protected $table = 'it_tasks';
+
     protected $guarded = ['id'];
     protected $casts = [
         'done' => 'boolean',
