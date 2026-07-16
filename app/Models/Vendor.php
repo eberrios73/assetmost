@@ -17,5 +17,6 @@ class Vendor extends Model
 
     public function companies(): BelongsToMany { return $this->belongsToMany(Company::class, 'vendor_client', 'vendorID', 'client_id'); }
     public function logins(): HasMany { return $this->hasMany(Login::class, 'vendorID', 'vendorID'); }
-    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class, 'vendor_id', 'vendorID'); }
+    public function products(): HasMany { return $this->hasMany(Product::class, 'vendor_id', 'vendorID'); }
+    public function licenses(): HasMany { return $this->hasMany(License::class, 'vendor_id', 'vendorID'); }
 }

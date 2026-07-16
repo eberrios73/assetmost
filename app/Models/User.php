@@ -40,8 +40,24 @@ class User extends Authenticatable
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
     public function location(): BelongsTo { return $this->belongsTo(Location::class); }
     public function devices(): BelongsToMany { return $this->belongsToMany(Device::class, 'device_users', 'user_id', 'deviceID'); }
-    public function logins(): HasMany { return $this->hasMany(Login::class, 'userID', 'id'); }
-    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class, 'user_id', 'id'); }
+    /** Credentials this person can use. Many-to-many: a shared mailbox has many holders. */
+    public function logins(): BelongsToMany
+    {
+        return $this->belongsToMany(Login::class, 'login_access', 'user_id', 'login_id')->withTimestamps();
+    }
+
+    /**
+     * Licenses this person effectively holds — derived through the accounts they hold,
+     * because seats are consumed by accounts, not people. Returns a query, not a relation:
+     * there's no single pivot to hang one off.
+     */
+    public function licenses()
+    {
+        return License::query()->whereHas(
+            'logins',
+            fn ($q) => $q->whereHas('holders', fn ($h) => $h->whereKey($this->getKey()))
+        );
+    }
     public function managedCompanies(): BelongsToMany { return $this->belongsToMany(Company::class, 'admin_company'); }
 
     public function isSuperAdmin(): bool { return $this->role === 'SuperAdmin'; }
