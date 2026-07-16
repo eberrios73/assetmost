@@ -267,8 +267,11 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
     const carried = t.origin && t.origin < t.week && !t.done;
     return (
         <>
-            <tr className={`group border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 relative before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] ${PRI_BAR[t.pri] || ''}`}>
-                <td className="px-3 py-1.5 text-center">
+            {/* Priority bar lives on the first cell, NOT the <tr>: a pseudo-element
+                on a row gets wrapped in an anonymous table cell, which adds a phantom
+                column and makes the header/colSpan rows stop short of the data rows. */}
+            <tr className="group border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <td className={`px-3 py-1.5 text-center relative before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] ${PRI_BAR[t.pri] || ''}`}>
                     <input type="checkbox" checked={t.done} onChange={(e) => patch(t.id, { done: e.target.checked }, { reload: true })}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 </td>
