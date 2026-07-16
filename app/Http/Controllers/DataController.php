@@ -218,7 +218,7 @@ class DataController extends Controller
     public function personLogins(User $person): JsonResponse
     {
         return response()->json(
-            $person->logins()->with('vendor:id,name')->orderBy('login_name')->get()
+            $person->logins()->with('vendor:vendorID,name')->orderBy('login_name')->get()
                 ->map(fn ($l) => [
                     'id' => $l->id, 'login_name' => $l->login_name, 'login_id' => $l->login_id,
                     'url' => $l->url, 'type' => $l->type, 'vendor' => $l->vendor?->name,
@@ -230,7 +230,7 @@ class DataController extends Controller
     public function personDevices(User $person): JsonResponse
     {
         return response()->json(
-            $person->devices()->get(['devices.id', 'asset_tag', 'computer_name', 'type', 'brand', 'model'])
+            $person->devices()->get(['devices.deviceID', 'asset_tag', 'computer_name', 'type', 'brand', 'model'])
         );
     }
 
@@ -253,7 +253,7 @@ class DataController extends Controller
     {
         return response()->json(
             Device::query()->where('active', true)->orderBy('asset_tag')
-                ->get(['id', 'asset_tag', 'computer_name', 'type'])
+                ->get(['deviceID', 'asset_tag', 'computer_name', 'type'])
                 ->map(fn ($d) => [
                     'id' => $d->id,
                     'label' => trim(($d->asset_tag ?: $d->computer_name ?: "#{$d->id}") . ($d->type ? " · {$d->type}" : '')),
@@ -300,7 +300,7 @@ class DataController extends Controller
     public function personSubscriptions(User $person): JsonResponse
     {
         return response()->json(
-            $person->subscriptions()->with('vendor:id,name')->orderBy('renewal_date')->get()
+            $person->subscriptions()->with('vendor:vendorID,name')->orderBy('renewal_date')->get()
                 ->map(fn ($s) => [
                     'id' => $s->id, 'name' => $s->subscription_name, 'vendor' => $s->vendor?->name,
                     'amount' => $s->amount, 'renewal_date' => $s->renewal_date?->toDateString(),
@@ -427,15 +427,20 @@ class DataController extends Controller
 
     public function login(\App\Models\Login $login): JsonResponse
     {
-        // never return the decrypted password
-        return response()->json($login->only(['id', 'vendor_id', 'login_name', 'login_id', 'url', 'type', 'notes', 'is_active', 'is_restricted']));
+        // River schema: PK loginID, FK vendorID — map back to the API's id/vendor_id
+        return response()->json([
+            'id' => $login->loginID, 'vendor_id' => $login->vendorID,
+            'login_name' => $login->login_name, 'login_id' => $login->login_id,
+            'url' => $login->url, 'type' => $login->type, 'notes' => $login->notes,
+            'is_active' => (bool) $login->is_active, 'is_restricted' => (bool) $login->is_restricted,
+        ]); // password intentionally omitted (revealed only via the gated /secret endpoint)
     }
 
     /** All vendors as {id,label} for the searchable vendor picker. */
     public function vendorOptions(): JsonResponse
     {
         return response()->json(
-            Vendor::query()->orderBy('name')->get(['id', 'name'])
+            Vendor::query()->orderBy('name')->get(['vendorID', 'name'])
                 ->map(fn ($v) => ['id' => $v->id, 'label' => $v->name])
         );
     }

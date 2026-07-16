@@ -39,9 +39,9 @@ class User extends Authenticatable
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
     public function location(): BelongsTo { return $this->belongsTo(Location::class); }
-    public function devices(): BelongsToMany { return $this->belongsToMany(Device::class); }
-    public function logins(): HasMany { return $this->hasMany(Login::class); }
-    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class); }
+    public function devices(): BelongsToMany { return $this->belongsToMany(Device::class, 'device_users', 'user_id', 'deviceID'); }
+    public function logins(): HasMany { return $this->hasMany(Login::class, 'userID', 'id'); }
+    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class, 'user_id', 'id'); }
     public function managedCompanies(): BelongsToMany { return $this->belongsToMany(Company::class, 'admin_company'); }
 
     public function isSuperAdmin(): bool { return $this->role === 'SuperAdmin'; }

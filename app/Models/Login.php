@@ -14,14 +14,17 @@ class Login extends Model
 {
     use BelongsToCompany;
 
-    protected $guarded = ['id'];
+    // River schema: PK loginID, FKs userID/vendorID, plaintext login_pass (matches ITer).
+    protected $primaryKey = 'loginID';
+    protected $guarded = ['loginID'];
+    protected $appends = ['id'];
+    public function getIdAttribute() { return $this->getKey(); }   // expose River PK as `id`
     protected $casts = [
-        'login_pass' => 'encrypted',
         'is_active' => 'boolean',
         'is_restricted' => 'boolean',
     ];
 
-    public function vendor(): BelongsTo { return $this->belongsTo(Vendor::class); }
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class); }
+    public function vendor(): BelongsTo { return $this->belongsTo(Vendor::class, 'vendorID', 'vendorID'); }
+    public function user(): BelongsTo { return $this->belongsTo(User::class, 'userID', 'id'); }
+    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class, 'login_id', 'loginID'); }
 }

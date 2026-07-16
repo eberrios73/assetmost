@@ -8,10 +8,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Vendor extends Model
 {
-    protected $guarded = ['id'];
+    // River schema: PK vendorID; company link is the vendor_client pivot.
+    protected $primaryKey = 'vendorID';
+    protected $guarded = ['vendorID'];
+    protected $appends = ['id'];
+    public function getIdAttribute() { return $this->getKey(); }   // expose River PK as `id`
     protected $casts = ['active' => 'boolean'];
 
-    public function companies(): BelongsToMany { return $this->belongsToMany(Company::class); }
-    public function logins(): HasMany { return $this->hasMany(Login::class); }
-    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class); }
+    public function companies(): BelongsToMany { return $this->belongsToMany(Company::class, 'vendor_client', 'vendorID', 'client_id'); }
+    public function logins(): HasMany { return $this->hasMany(Login::class, 'vendorID', 'vendorID'); }
+    public function subscriptions(): HasMany { return $this->hasMany(Subscription::class, 'vendor_id', 'vendorID'); }
 }

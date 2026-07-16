@@ -17,7 +17,7 @@ class Subscription extends Model
         'is_active' => 'boolean',
     ];
 
-    public function login(): BelongsTo { return $this->belongsTo(Login::class); }
-    public function vendor(): BelongsTo { return $this->belongsTo(Vendor::class); }
+    public function login(): BelongsTo { return $this->belongsTo(Login::class, 'login_id', 'loginID'); }
+    public function vendor(): BelongsTo { return $this->belongsTo(Vendor::class, 'vendor_id', 'vendorID'); }
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
 }

@@ -16,5 +16,5 @@ class Company extends Model
     public function devices(): HasMany { return $this->hasMany(Device::class); }
     public function logins(): HasMany { return $this->hasMany(Login::class); }
     public function subscriptions(): HasMany { return $this->hasMany(Subscription::class); }
-    public function vendors(): BelongsToMany { return $this->belongsToMany(Vendor::class); }
+    public function vendors(): BelongsToMany { return $this->belongsToMany(Vendor::class, 'vendor_client', 'client_id', 'vendorID'); }
 }
