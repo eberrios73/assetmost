@@ -9,14 +9,14 @@ import ThemeToggle from '@/Components/ThemeToggle';
  * Reusable across every entity screen.
  */
 export default function AppShell({ nav = null, detail = null, active = null, footer = null }) {
-    const { auth, tenant } = usePage().props;
+    const { auth, tenant, pendingTasks } = usePage().props;
 
     return (
         <div className="h-screen overflow-hidden bg-gray-100 dark:bg-gray-950 flex flex-col">
             {/* Row 1 — global header */}
             <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shadow-sm">
                 <div className="flex items-center gap-6">
-                    <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight">
+                    <Link href="/people" className="flex items-center gap-2 font-bold text-xl tracking-tight">
                         <BrandMark className="h-6 w-6" />
                         <span className="flex items-baseline">
                             <span className="text-blue-600 dark:text-blue-400">Asset</span><span className="text-gray-900 dark:text-white">Most</span>
@@ -25,7 +25,7 @@ export default function AppShell({ nav = null, detail = null, active = null, foo
                     <nav className="flex items-center gap-1 text-sm">
                         <HeaderLink href="/people" label="People" active={active === 'people'} />
                         <HeaderLink href="/assets" label="Assets" active={active === 'assets'} />
-                        <HeaderLink href="/tasks" label="Tasks" active={active === 'tasks'} />
+                        <HeaderLink href="/tasks" label="Tasks" active={active === 'tasks'} badge={pendingTasks} />
                         <HeaderLink href="/docs" label="Docs" active={active === 'docs'} />
                     </nav>
                 </div>
@@ -116,11 +116,15 @@ function UserMenu({ user }) {
     );
 }
 
-function HeaderLink({ href, label, active = false }) {
+function HeaderLink({ href, label, active = false, badge = 0 }) {
     return (
         <Link href={href}
-            className={`px-3 py-1.5 rounded-md ${active ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+            className={`px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 ${active ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
             {label}
+            {badge > 0 && (
+                <span className="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-semibold leading-none text-white"
+                    title={`${badge} pending`}>{badge > 99 ? '99+' : badge}</span>
+            )}
         </Link>
     );
 }

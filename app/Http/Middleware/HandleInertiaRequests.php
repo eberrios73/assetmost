@@ -44,6 +44,12 @@ class HandleInertiaRequests extends Middleware
                 'tenantCount' => \App\Support\Plan::tenantCount(),
                 'extraTenantPrice' => \App\Support\Plan::extraTenantPrice(),
             ] : null,
+            // Open (not-done) task count for the nav badge — auto-scoped to the
+            // active company by the Task model's global scope. Lazy closure so it
+            // only runs when a page actually needs shared props.
+            'pendingTasks' => fn () => $request->user()
+                ? \App\Models\Task::query()->where('done', false)->count()
+                : 0,
         ];
     }
 }
