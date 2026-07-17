@@ -131,6 +131,15 @@ export default function Index() {
     const viewDate = parseYmd(view);
     const doneThisWeek = weekTasks.filter((t) => t.done).length;
 
+    // Viewing a FUTURE week: unfinished tasks only roll forward when a week becomes
+    // current (Monday), so preview what will land — otherwise next week looks
+    // deceptively empty while this week is still in progress.
+    const viewIsFuture = view > currentWeek;
+    const rollingIn = useMemo(
+        () => (viewIsFuture ? nonProjects.filter((t) => !t.done && t.week < view).sort((a, b) => (b.pri - a.pri) || (a.ord - b.ord)) : []),
+        [viewIsFuture, nonProjects, view]
+    );
+
     const content = (
         <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 mb-5">
@@ -172,12 +181,30 @@ export default function Index() {
                         </thead>
                         <tbody>
                             <SectionRow label="Current" right={weekTasks.length ? `${avg}% complete` : ''} />
-                            {open.length === 0 && <EmptyRow>{weekTasks.length ? 'All clear for this week.' : 'No tasks yet — add one above.'}</EmptyRow>}
+                            {open.length === 0 && !rollingIn.length && <EmptyRow>{weekTasks.length ? 'All clear for this week.' : 'No tasks yet — add one above.'}</EmptyRow>}
                             {open.map((t) => (
                                 <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses}
                                     expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
                                     onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                             ))}
+                            {rollingIn.length > 0 && (
+                                <FragmentRows>
+                                    <SubRow label={`Will roll in Monday — still open on earlier weeks`} right={`${rollingIn.length} task${rollingIn.length === 1 ? '' : 's'}`} />
+                                    {rollingIn.map((t) => (
+                                        <tr key={`preview-${t.id}`} className="border-b border-gray-100 dark:border-gray-800 opacity-50">
+                                            <td className={`px-3 py-1.5 relative before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] ${PRI_BAR[t.pri] || ''}`} />
+                                            <td className="px-3 py-1.5 text-gray-600 dark:text-gray-300">{t.title} <span className="text-blue-500">↻</span></td>
+                                            <td className="px-3 py-1.5 text-gray-400">{people.find((p) => p.id === t.assigned_to)?.label || 'Unassigned'}</td>
+                                            <td className="px-3 py-1.5 text-center">
+                                                <span className={`inline-block min-w-[42px] px-2 py-0.5 rounded-full text-[11px] font-semibold ${PRI_PILL[t.pri] || PRI_PILL[0]}`}>{PRI[t.pri]}</span>
+                                            </td>
+                                            <td className="px-3 py-1.5 text-center text-xs"><Age t={t} /></td>
+                                            <td className="px-3 py-1.5 text-xs text-gray-400">{t.pct || 0}%</td>
+                                            <td colSpan={3} />
+                                        </tr>
+                                    ))}
+                                </FragmentRows>
+                            )}
                             {completedGroups.length > 0 && <SectionRow label="Completed" />}
                             {completedGroups.map((g) => (
                                 <FragmentRows key={g.wk}>
