@@ -37,12 +37,8 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'tenant' => $request->user() ? [
-                'edition' => config('assetmost.edition'),
                 'companies' => $ctx->options(),
                 'activeId' => $ctx->activeId(),
-                'maxTenants' => \App\Support\Plan::maxTenants(),
-                'tenantCount' => \App\Support\Plan::tenantCount(),
-                'extraTenantPrice' => \App\Support\Plan::extraTenantPrice(),
             ] : null,
             // Open (not-done) task count for the nav badge — auto-scoped to the
             // active company by the Task model's global scope. Lazy closure so it

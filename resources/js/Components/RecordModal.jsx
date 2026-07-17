@@ -77,6 +77,15 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
                                 <SearchSelect value={values[f.key]} endpoint={f.optionsEndpoint}
                                     fallbackLabel={f.labelField ? (initial[f.labelField] ?? '') : ''}
                                     onChange={(id) => setValues((v) => ({ ...v, [f.key]: id }))} placeholder={`Search ${f.label.toLowerCase()}…`} />
+                            ) : f.type === 'select' ? (
+                                <select value={values[f.key] ?? ''}
+                                    onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                                    className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500">
+                                    {!f.required && <option value="">—</option>}
+                                    {(f.options || []).map((o) => (
+                                        <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>
+                                    ))}
+                                </select>
                             ) : f.type === 'password' ? (
                                 <div className="relative">
                                     <input type={revealed[f.key] ? 'text' : 'password'}

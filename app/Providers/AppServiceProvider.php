@@ -12,16 +12,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Tenancy brain, chosen by edition:
-        //   'single' (open core, $99): one Owner, one company. SingleTenantResolver.
-        //   'multi'  ($199, hosted):   one Owner, many companies + switcher. CurrentCompany.
-        // The whole app depends only on the TenantResolver contract, so this one
-        // value swaps the entire tenancy behaviour with no other changes.
-        $this->app->scoped(\App\Support\Contracts\TenantResolver::class, function () {
-            return config('assetmost.edition') === 'single'
-                ? new \App\Support\SingleTenantResolver()
-                : new \App\Support\CurrentCompany();
-        });
+        // Multi-tenant, always. The app depends on the TenantResolver contract rather
+        // than this class directly, so a deployment can bind a richer resolver
+        // (subdomain, SSO-driven) without touching scoping anywhere else.
+        $this->app->scoped(\App\Support\Contracts\TenantResolver::class, \App\Support\CurrentCompany::class);
     }
 
     /**

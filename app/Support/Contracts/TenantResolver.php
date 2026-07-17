@@ -5,13 +5,12 @@ namespace App\Support\Contracts;
 use App\Models\User;
 
 /**
- * The tenancy "brain" — swappable per edition.
- *  - Open core binds SingleTenantResolver (one company, no switching).
- *  - The private multi-tenant module binds its own resolver (session/subdomain,
- *    provisioning, cross-company). One service-provider line swaps it.
+ * The tenancy "brain". CurrentCompany (session switcher) is the default; a deployment can
+ * bind a richer one — subdomain, SSO-driven, provisioning — from one service-provider line.
  *
- * The whole app (global scopes, controllers, Inertia props) depends only on this
- * contract, never on a concrete resolver.
+ * The whole app (global scopes, controllers, Inertia props) depends only on this contract,
+ * never on a concrete resolver. That indirection is why "which company am I looking at?"
+ * is answered in exactly one place.
  */
 interface TenantResolver
 {

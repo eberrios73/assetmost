@@ -3,24 +3,18 @@
 return [
 
     /*
-     | Edition — which tenancy brain to load.
-     |   'single' : open core. One company, no switching. (SingleTenantResolver)
-     |   'multi'  : the private multi-tenant module. (CurrentCompany, or a richer resolver)
+     | AssetMost is self-hosted and multi-tenant, with unlimited companies.
      |
-     | The whole app depends only on the TenantResolver contract, so this one value
-     | swaps the entire tenancy behaviour with no other code changes.
+     | Self-hosted is a security decision, not packaging: this app stores vendor
+     | credentials. Running it as a service would put every customer's passwords in one
+     | blast radius under someone else's control — one breach exposes all of them. Each
+     | install holds only its own secrets.
+     |
+     | There is no tenant cap and no per-tenant billing, so there's nothing to configure
+     | here: a flat licence buys the software, and how many companies you manage with it is
+     | your business. Metering companies would only have punished the customers doing best
+     | with it, in software they run on their own hardware where any limit is honour-system
+     | anyway.
      */
-    'edition' => env('ASSETMOST_EDITION', 'multi'),
-
-    /*
-     | Tenant cap for the hosted multi-tenant plan. Most small MSPs run well
-     | under this. Beyond it is the Enterprise tier (additional tenants billed
-     | per year) — raise ASSETMOST_MAX_TENANTS for an Enterprise customer.
-     | The single edition is always one company regardless of this value.
-     */
-    'max_tenants' => (int) env('ASSETMOST_MAX_TENANTS', 20),
-
-    // Per-tenant annual price for tenants beyond the plan cap (Enterprise).
-    'extra_tenant_price' => (int) env('ASSETMOST_EXTRA_TENANT_PRICE', 30),
 
 ];

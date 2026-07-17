@@ -12,10 +12,11 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
-
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    // No public registration. This app holds the organisation's credentials; accounts are
+    // created by IT (People > Add Staff), never self-served. Leaving Breeze's register
+    // route on meant anyone who could reach the login page could make themselves an
+    // account and be logged straight in.
+    // Route::get('register', ...) — intentionally removed.
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');

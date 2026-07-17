@@ -42,9 +42,19 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // `can_login` and `active` are part of the credential check, not afterthoughts.
+        // The users table is a staff directory, so holding a password is not a decision to
+        // grant access — can_login is. Passing both to attempt() means the DB does the
+        // check: no window between authenticating and remembering to look.
+        if (! Auth::attempt(
+            $this->only('email', 'password') + ['can_login' => true, 'active' => true],
+            $this->boolean('remember'),
+        )) {
             RateLimiter::hit($this->throttleKey());
 
+            // Deliberately the same message as a wrong password. Saying "your account is
+            // disabled" confirms the address is real and tells whoever is trying exactly
+            // what changed.
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);

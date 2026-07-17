@@ -62,6 +62,7 @@ class Login extends Model
     public function isPooled(): bool { return $this->sharing === 'pooled'; }
     public function isShared(): bool { return $this->sharing === 'shared'; }
 
+    /** A pooled seat with nobody attached is available to hand out. */
     public function isAvailableSeat(): bool
     {
         return $this->isPooled() && $this->holders()->count() === 0;

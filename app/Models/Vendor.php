@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * Who you buy from — Adobe, Microsoft, Autodesk.
+ *
+ * NOT what you buy: that's a Product. Filing a product name here ("Adobe Creative Suite"
+ * next to "Adobe") splits one vendor's seats across rows that can never be summed.
+ */
 class Vendor extends Model
 {
     // River schema: PK vendorID; company link is the vendor_client pivot.

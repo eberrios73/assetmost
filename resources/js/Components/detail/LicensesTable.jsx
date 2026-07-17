@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useJson } from '@/Components/detail/Field';
 import RecordModal from '@/Components/RecordModal';
 
@@ -6,6 +6,9 @@ const LICENSE_FIELDS = [
     { key: 'name', label: 'Name', required: true },
     { key: 'vendor_id', label: 'Vendor', type: 'select-search', optionsEndpoint: '/data/vendor-options' },
     { key: 'product_id', label: 'Product', type: 'select-search', optionsEndpoint: '/data/product-options' },
+    // seats_total is deliberately optional — real counts get filled in over time, and
+    // "unknown" must not read as "none available".
+    { key: 'seats_total', label: 'Seats purchased (blank = unknown)', type: 'number' },
     { key: 'account_number', label: 'Account #' },
     { key: 'serial_number', label: 'Serial #' },
     { key: 'amount', label: 'Amount ($)' },
@@ -16,16 +19,19 @@ const LICENSE_FIELDS = [
 ];
 
 /**
- * Licences — what you actually own. Rows open an editable drawer.
+ * Licences — what you actually own. Rows open an editable drawer; "+ Add license" creates.
  *
  * Product is a column here rather than a parent: a vendor's catalog can run to hundreds of
  * SKUs, so nesting these under products would bury them. Sort/filter by product instead.
- * `showHolders` (vendor view) shows who holds it; otherwise shows the vendor.
+ * The filter renders even with one (or zero) products — a control that hides itself reads
+ * as a control that's missing.
+ * `showHolders` (vendor view) shows who holds it; `defaults` pre-fills the add form.
  */
-export default function LicensesTable({ endpoint, showHolders = false }) {
+export default function LicensesTable({ endpoint, showHolders = false, defaults = {} }) {
     const [reload, setReload] = useState(0);
     const { loading, data } = useJson(`${endpoint}?_=${reload}`);
     const [edit, setEdit] = useState(null);
+    const [adding, setAdding] = useState(false);
     const [product, setProduct] = useState('');       // filter
     const [sort, setSort] = useState({ key: null, dir: 'asc' });
 
@@ -35,10 +41,10 @@ export default function LicensesTable({ endpoint, showHolders = false }) {
     };
 
     if (loading) return <p className="text-sm text-gray-400 py-6">Loading…</p>;
-    if (!data?.length) return <p className="text-sm text-gray-400 py-6">No licenses.</p>;
 
-    const products = [...new Set(data.map((l) => l.product).filter(Boolean))].sort();
-    let rows = product ? data.filter((l) => l.product === product) : data;
+    const list = data || [];
+    const products = [...new Set(list.map((l) => l.product).filter(Boolean))].sort();
+    let rows = product ? list.filter((l) => l.product === product) : list;
     if (sort.key) {
         rows = [...rows].sort((a, b) => {
             const A = a[sort.key] ?? '', B = b[sort.key] ?? '';
@@ -53,44 +59,55 @@ export default function LicensesTable({ endpoint, showHolders = false }) {
 
     return (
         <>
-            {products.length > 1 && (
-                <div className="flex items-center gap-2 mb-3">
-                    <select value={product} onChange={(e) => setProduct(e.target.value)}
-                        className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs py-1 text-gray-600 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">All products</option>
-                        {products.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                    <span className="text-xs text-gray-400">{rows.length} of {data.length}</span>
-                </div>
+            <div className="flex items-center gap-2 mb-3">
+                <select value={product} onChange={(e) => setProduct(e.target.value)}
+                    className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs py-1 text-gray-600 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <option value="">All products</option>
+                    {products.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <span className="text-xs text-gray-400">{rows.length} of {list.length}</span>
+                <button onClick={() => setAdding(true)}
+                    className="ml-auto text-sm text-blue-600 dark:text-blue-400 hover:underline">+ Add license</button>
+            </div>
+
+            {!rows.length ? (
+                <p className="text-sm text-gray-400 py-4">No licenses.</p>
+            ) : (
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-200 dark:border-gray-800">
+                            <Th onClick={() => toggleSort(showHolders ? 'holders' : 'name')}>{showHolders ? 'Held by' : 'Name'}{arrow(showHolders ? 'holders' : 'name')}</Th>
+                            <Th onClick={() => toggleSort('product')}>Product{arrow('product')}</Th>
+                            {!showHolders && <Th onClick={() => toggleSort('vendor')}>Vendor{arrow('vendor')}</Th>}
+                            <Th onClick={() => toggleSort('account_number')}>Account #{arrow('account_number')}</Th>
+                            <Th onClick={() => toggleSort('amount')}>Amount{arrow('amount')}</Th>
+                            <Th onClick={() => toggleSort('renewal_date')}>Renews{arrow('renewal_date')}</Th>
+                        </tr>
+                    </thead>
+                    <tbody>{rows.map((l) => (
+                        <tr key={l.id} onClick={() => openEdit(l.id)}
+                            className="border-b border-gray-50 dark:border-gray-800 cursor-pointer hover:bg-blue-50/40 dark:hover:bg-gray-800/50">
+                            <td className="py-2 pr-4 text-gray-800 dark:text-gray-200">
+                                {showHolders
+                                    ? (l.holders?.length ? l.holders.join(', ') : <span className="text-gray-300">Unassigned</span>)
+                                    : (l.name || dash)}
+                            </td>
+                            <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.product || dash}</td>
+                            {!showHolders && <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.vendor || dash}</td>}
+                            <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.account_number || dash}</td>
+                            <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.amount ? `$${l.amount}` : dash}</td>
+                            <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.renewal_date || dash}</td>
+                        </tr>
+                    ))}</tbody>
+                </table>
             )}
 
-            <table className="w-full text-sm">
-                <thead>
-                    <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-200 dark:border-gray-800">
-                        <Th onClick={() => toggleSort(showHolders ? 'holders' : 'name')}>{showHolders ? 'Held by' : 'Name'}{arrow(showHolders ? 'holders' : 'name')}</Th>
-                        <Th onClick={() => toggleSort('product')}>Product{arrow('product')}</Th>
-                        {!showHolders && <Th onClick={() => toggleSort('vendor')}>Vendor{arrow('vendor')}</Th>}
-                        <Th onClick={() => toggleSort('account_number')}>Account #{arrow('account_number')}</Th>
-                        <Th onClick={() => toggleSort('amount')}>Amount{arrow('amount')}</Th>
-                        <Th onClick={() => toggleSort('renewal_date')}>Renews{arrow('renewal_date')}</Th>
-                    </tr>
-                </thead>
-                <tbody>{rows.map((l) => (
-                    <tr key={l.id} onClick={() => openEdit(l.id)}
-                        className="border-b border-gray-50 dark:border-gray-800 cursor-pointer hover:bg-blue-50/40 dark:hover:bg-gray-800/50">
-                        <td className="py-2 pr-4 text-gray-800 dark:text-gray-200">
-                            {showHolders
-                                ? (l.holders?.length ? l.holders.join(', ') : <span className="text-gray-300">Unassigned</span>)
-                                : (l.name || dash)}
-                        </td>
-                        <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.product || dash}</td>
-                        {!showHolders && <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.vendor || dash}</td>}
-                        <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.account_number || dash}</td>
-                        <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.amount ? `$${l.amount}` : dash}</td>
-                        <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.renewal_date || dash}</td>
-                    </tr>
-                ))}</tbody>
-            </table>
+            {adding && (
+                <RecordModal title="Add License" endpoint="/data/licenses" method="POST"
+                    fields={LICENSE_FIELDS} initial={{ is_active: true, ...defaults }}
+                    onClose={() => setAdding(false)}
+                    onSaved={() => { setAdding(false); setReload((r) => r + 1); }} />
+            )}
 
             {edit && (
                 <RecordModal title="License" endpoint={`/data/licenses/${edit.id}`} method="PATCH"

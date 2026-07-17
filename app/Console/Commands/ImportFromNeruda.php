@@ -34,7 +34,7 @@ class ImportFromNeruda extends Command
 
         if ($this->option('fresh')) {
             $dst->statement('SET FOREIGN_KEY_CHECKS=0');
-            foreach (['subscriptions','logins','company_vendor','vendors','device_user','devices','rooms','locations','companies'] as $t) {
+            foreach (['licenses','logins','company_vendor','vendors','device_user','devices','rooms','locations','companies'] as $t) {
                 $dst->table($t)->truncate();
             }
             $dst->table('users')->where('id','>',0)->delete();
@@ -178,12 +178,12 @@ class ImportFromNeruda extends Command
         // 8) subscriptions
         $loginIds = $dst->table('logins')->pluck('id')->all();
         foreach ($src->table('subscriptions')->get() as $s) {
-            $dst->table('subscriptions')->insert([
+            $dst->table('licenses')->insert([
                 'company_id' => null,
                 'login_id' => in_array((int) $s->login_id, $loginIds, true) ? $s->login_id : null,
                 'vendor_id' => in_array((int) $s->vendor_id, $vendorIds, true) ? $s->vendor_id : null,
                 'user_id' => in_array((int) $s->user_id, $userIds, true) ? $s->user_id : null,
-                'subscription_name' => $s->subscription_name ?? 'Subscription',
+                'name' => $s->subscription_name ?? 'Subscription',
                 'account_number' => $s->account_number ?? null, 'serial_number' => $s->serial_number ?? null,
                 'amount' => $s->amount ?? null, 'renewal_date' => $s->renewal_date ?? null,
                 'renewalfrequency' => $s->renewalfrequency ?? null, 'is_active' => (int) ($s->is_active ?? 1),
@@ -192,8 +192,8 @@ class ImportFromNeruda extends Command
             ]);
         }
         // backfill subscription.company_id from its login
-        $dst->statement('UPDATE subscriptions s JOIN logins l ON s.login_id=l.id SET s.company_id=l.company_id WHERE s.company_id IS NULL');
-        $this->info('subscriptions: ' . $dst->table('subscriptions')->count());
+        $dst->statement('UPDATE licenses s JOIN logins l ON s.login_id=l.id SET s.company_id=l.company_id WHERE s.company_id IS NULL');
+        $this->info('licenses: ' . $dst->table('licenses')->count());
 
         $this->info('Import complete.');
         return self::SUCCESS;

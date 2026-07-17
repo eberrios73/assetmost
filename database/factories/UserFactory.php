@@ -24,13 +24,24 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        // Mirrors the real default: a directory record. can_login stays false unless a
+        // test grants it via canLogin() — the same deliberate step an admin takes.
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'role' => 'User',
+            'active' => true,
+            'can_login' => false,
         ];
+    }
+
+    /** A person who may actually sign in. */
+    public function canLogin(string $role = 'IT Admin'): static
+    {
+        return $this->state(fn () => ['can_login' => true, 'role' => $role]);
     }
 
     /**

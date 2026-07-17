@@ -117,19 +117,18 @@ class DataController extends Controller
         return $this->page($q, $request, fn ($d) => [
             'id' => $d->id,
             'primary' => $d->asset_tag ?: ($d->computer_name ?: "#{$d->id}"),
-            'secondary' => trim(($d->type ? $d->type . ' · ' : '') . trim("{$d->brand} {$d->model}")),
+            'secondary' => trim((($d->deviceType?->name ?: $d->type) ? ($d->deviceType?->name ?: $d->type) . ' · ' : '') . trim("{$d->brand} {$d->model}")),
             'badge' => $d->computer_name,
         ]);
     }
-
-    /** Normalizes the messy type column (strip newlines, trim, lowercase). */
-    private const NORM_TYPE = "LOWER(TRIM(REPLACE(REPLACE(type, '\\n', ''), '\\r', '')))";
 
     /** Onboard (create) a device. Company derives from the chosen location or the active company. */
     public function storeDevice(Request $request): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            // asset_tag is optional: leave it blank and the company's counter issues one
+            // (PG-WS-1001). Supplying one keeps it — that's how legacy gear stays as-is.
             'asset_tag' => 'nullable|string|max:25', 'computer_name' => 'nullable|string|max:255',
             'device_type_id' => 'nullable|integer|exists:device_types,id',
             'brand' => 'nullable|string|max:255',
@@ -257,7 +256,7 @@ class DataController extends Controller
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
             'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
@@ -342,7 +341,7 @@ class DataController extends Controller
 
     public function vendor(Vendor $vendor): JsonResponse
     {
-        $vendor->load(['companies:id,name'])->loadCount(['logins', 'licenses']);
+        $vendor->load(['companies:id,name'])->loadCount(['logins', 'licenses', 'products']);
         return response()->json($vendor);
     }
 
@@ -410,6 +409,34 @@ class DataController extends Controller
         ]);
     }
 
+    /** Create a license (a company's purchase of a product). company_id comes from the
+     *  tenant scope on create — never from the client. */
+    public function storeLicense(Request $request): JsonResponse
+    {
+        $v = validator($request->all(), [
+            'name' => 'required|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
+            'product_id' => 'nullable|integer|exists:products,id',
+            'seats_total' => 'nullable|integer|min:0',   // null = not counted yet
+            'account_number' => 'nullable|string|max:255',
+            'serial_number' => 'nullable|string|max:255',
+            'amount' => 'nullable|numeric',
+            'renewal_date' => 'nullable|date',
+            'renewalfrequency' => 'nullable|string|max:50',
+            'is_active' => 'boolean',
+            'notes' => 'nullable|string',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $data = $v->validated();
+        $data['is_active'] = (bool) ($data['is_active'] ?? true);
+
+        $license = \App\Models\License::create($data);
+
+        return response()->json($license->fresh(), 201);
+    }
+
     public function updateLicense(Request $request, \App\Models\License $license): JsonResponse
     {
         return $this->applyUpdate($license, $request, [
@@ -447,11 +474,25 @@ class DataController extends Controller
         );
     }
 
+    /** Products as {id,label} for the license form; labelled "Vendor — Product" because
+     *  two vendors can sell same-named things ("Standard", "Pro"). */
+    public function productOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Product::query()->with('vendor:vendorID,name')->orderBy('name')->get()
+                ->map(fn ($p) => [
+                    'id' => $p->id,
+                    'label' => $p->vendor ? "{$p->vendor->name} — {$p->name}" : $p->name,
+                ])
+                ->sortBy('label')->values()
+        );
+    }
+
     public function updateLogin(Request $request, \App\Models\Login $login): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
             'login_name' => 'nullable|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
@@ -475,18 +516,25 @@ class DataController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** Reveal a login's password (for copy). Gated by role + restricted flag; audited. */
+    /** Reveal a login's password (for copy). Gated by Roles & access + restricted flag; audited. */
     public function loginSecret(\App\Models\Login $login): JsonResponse
     {
         $u = auth()->user();
-        abort_if($u?->role === 'User', 403);
-        abort_if($login->is_restricted && ! in_array($u->role, ['SuperAdmin', 'IT Admin'], true), 403);
+        // The matrix decides this now, so unticking it on Roles & access actually revokes it.
+        abort_unless($u?->may(\App\Support\Access::REVEAL), 403);
+        abort_if($login->is_restricted && ! $u->isAdmin(), 403);
         \Illuminate\Support\Facades\Log::info('credential.revealed', ['login' => $login->id, 'by' => $u->id]);
-        $login->loadMissing('user:id,name,last,cell');
+
+        // Through holders(), not the old single user_id — a credential can be held by many
+        // people (a shared mailbox, a pooled seat). `cell` is here for the SMS-the-code
+        // flow, so it only means anything when exactly one person holds this.
+        $login->loadMissing('holders:id,name,last,cell');
+        $sole = $login->holders->count() === 1 ? $login->holders->first() : null;
+
         return response()->json([
-            'password' => $login->login_pass, // decrypted via cast
-            'cell' => $login->user?->cell,
-            'name' => $login->user ? trim("{$login->user->name} {$login->user->last}") : null,
+            'password' => $login->login_pass, // plaintext on River (matches ITer)
+            'cell' => $sole?->cell,
+            'name' => $sole ? trim("{$sole->name} {$sole->last}") : null,
         ]);
     }
 
@@ -569,22 +617,139 @@ class DataController extends Controller
         return response()->json($company);
     }
 
-    /** Create a company. Only SuperAdmin / IT Admin may add. Enforces the plan tenant cap. */
+    /** {id, label} locations for pickers (e.g. placing a room). */
+    public function locationOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Location::query()->where('active', true)->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($l) => ['id' => $l->id, 'label' => $l->name])
+        );
+    }
+
+    /** {id, label} companies the current user may file records under. */
+    public function companyOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Company::query()->whereIn('id', auth()->user()->managedCompanyIds())
+                ->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($c) => ['id' => $c->id, 'label' => $c->name])
+        );
+    }
+
+    /** Create a staff member. Company defaults to the active one. */
+    public function storePerson(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'name' => 'required|string|max:255', 'last' => 'nullable|string|max:255',
+            // Unique because email is how a person is matched to their accounts; two
+            // people sharing one silently merges their credentials later.
+            'email' => 'nullable|email|max:255|unique:users,email',
+            'title' => 'nullable|string|max:255', 'department' => 'nullable|string|max:255',
+            'cell' => 'nullable|string|max:30', 'ext' => 'nullable|string|max:11',
+            'company_id' => 'nullable|integer|exists:companies,id',
+            // Most staff are directory records who never sign in, so this is optional —
+            // set one only for someone who actually uses the app.
+            'password' => 'nullable|string|min:8',
+            'role' => 'nullable|in:'.implode(',', \App\Support\Access::ROLES),
+            'can_login' => 'boolean',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $data = $v->validated();
+        $data['company_id'] ??= app(\App\Support\Contracts\TenantResolver::class)->id();
+        $data['role'] ??= \App\Support\Access::USER;
+        $data['can_login'] = (bool) ($data['can_login'] ?? false);
+
+        // A password without can_login would be a login nobody granted, and can_login
+        // without a password is an account that can never be used. Keep the two honest.
+        if (blank($data['password'] ?? null)) {
+            unset($data['password']);
+            $data['can_login'] = false;
+        }
+        if (! $data['can_login']) {
+            unset($data['password']);
+        }
+
+        $person = User::create($data + ['active' => true]);
+
+        return response()->json($person->fresh(), 201);
+    }
+
+    /** Create a vendor. Vendors are shared across companies (m2m), so no company_id here. */
+    public function storeVendor(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'name' => 'required|string|max:255|unique:vendors,name',
+            'contact_name' => 'nullable|string|max:255', 'phone' => 'nullable|string|max:30',
+            'email' => 'nullable|email|max:255', 'website' => 'nullable|string|max:255',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $vendor = Vendor::create($v->validated() + ['active' => true]);
+        // Link to the active company so it shows up for them; "all companies" leaves it
+        // unlinked and visible anyway.
+        if ($companyId = app(\App\Support\Contracts\TenantResolver::class)->activeId()) {
+            $vendor->companies()->syncWithoutDetaching([$companyId]);
+        }
+
+        return response()->json($vendor->fresh(), 201);
+    }
+
+    /** Create a location. company_id null = a site shared by every company. */
+    public function storeLocation(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'name' => 'required|string|max:255', 'type' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:255', 'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:2', 'zip' => 'nullable|string|max:10',
+            'company_id' => 'nullable|integer|exists:companies,id',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        // Defaults to the active company, or shared when viewing "all companies" — a
+        // building several companies work out of belongs to none of them.
+        $data = $v->validated();
+        $data['company_id'] ??= app(\App\Support\Contracts\TenantResolver::class)->activeId();
+        $location = \App\Models\Location::create($data + ['active' => true]);
+
+        return response()->json($location->fresh(), 201);
+    }
+
+    /** Create a room. Rooms hang off a location and inherit its visibility. */
+    public function storeRoom(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'location_id' => 'required|integer|exists:locations,id',
+            'room_type' => 'nullable|string|max:255', 'room_number' => 'nullable|string|max:255',
+            'capacity' => 'nullable|integer|min:0',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $room = \App\Models\Room::create($v->validated() + ['active' => true]);
+
+        return response()->json($room->fresh(), 201);
+    }
+
+    /** Create a company. Only SuperAdmin / IT Admin may add. Companies are unlimited. */
     public function storeCompany(Request $request): JsonResponse
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        if (\App\Support\Plan::atTenantCap()) {
-            $cap = \App\Support\Plan::maxTenants();
-            $price = \App\Support\Plan::extraTenantPrice();
-            return response()->json([
-                'message' => "You're at the {$cap}-tenant limit for this plan.",
-                'errors' => ['_' => ["Tenant limit reached ({$cap}). Beyond {$cap} is Enterprise — additional tenants are \${$price}/year each. Contact sales to raise the limit."]],
-            ], 422);
-        }
-
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name' => 'required|string|max:255',
+            // Required: without it the company can't issue an asset tag, and you only find
+            // out when someone onboards its first device.
+            'tag_prefix' => 'required|string|max:4|alpha_num|unique:companies,tag_prefix',
             'domain' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'city' => 'nullable|string|max:255',
@@ -593,7 +758,10 @@ class DataController extends Controller
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
-        $company = \App\Models\Company::create($v->validated() + ['active' => true]);
+        $data = $v->validated();
+        $data['tag_prefix'] = strtoupper($data['tag_prefix']);
+        // Counter starts at 1001 per the tag scheme; see the asset-tag migration.
+        $company = \App\Models\Company::create($data + ['active' => true, 'tag_next' => 1001]);
         return response()->json($company, 201);
     }
 
