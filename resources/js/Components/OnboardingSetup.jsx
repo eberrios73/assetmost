@@ -47,20 +47,37 @@ const api = async (url, method = 'GET', body) => {
 };
 
 export default function OnboardingSetup() {
+    const [meta, setMeta] = useState({ kinds: {}, existing: [] });
+    const [kind, setKind] = useState('onboarding');
+    const [variant, setVariant] = useState('');
     const [loaded, setLoaded] = useState(false);
-    const [steps, setSteps] = useState(null);        // null = no template yet
+    const [steps, setSteps] = useState(null);        // null = nothing saved for this kind/variant
     const [pasting, setPasting] = useState(false);
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
 
-    useEffect(() => {
-        api('/data/onboarding-template').then((r) => { setSteps(r.steps?.steps ?? null); setLoaded(true); });
-    }, []);
+    const load = (k = kind, v = variant) => {
+        setLoaded(false);
+        api(`/data/onboarding-template?kind=${k}&variant=${encodeURIComponent(v)}`)
+            .then((r) => { setMeta({ kinds: r.kinds, existing: r.existing }); setSteps(r.steps?.steps ?? null); setLoaded(true); });
+    };
+    useEffect(() => { load(kind, variant); }, [kind, variant]);
 
     const save = async (next) => {
         setSteps(next);
-        await api('/data/onboarding-template', 'PUT', { steps: { version: 1, steps: next } });
+        await api('/data/onboarding-template', 'PUT', { kind, variant, steps: { version: 1, steps: next } });
         setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
+    };
+
+    const adoptStarter = async () => {
+        const r = await api(`/data/onboarding-starter?kind=${kind}`);
+        await save(r.steps.steps);
+    };
+
+    const variants = ['', ...new Set(meta.existing.filter((e) => e.kind === kind && e.variant).map((e) => e.variant))];
+    const newVariant = () => {
+        const v = prompt('Department variant name (e.g. Design):');
+        if (v?.trim()) setVariant(v.trim());
     };
 
     // list surgery helpers — operate on top-level or a parent's subtasks uniformly
@@ -68,19 +85,45 @@ export default function OnboardingSetup() {
     const removeById = (list, id) => list.filter((s) => s.id !== id).map((s) => ({ ...s, subtasks: removeById(s.subtasks || [], id) }));
     const move = (list, i, dir) => { const n = [...list]; const j = i + dir; if (j < 0 || j >= n.length) return list; [n[i], n[j]] = [n[j], n[i]]; return n; };
 
-    if (!loaded) return <p className="text-sm text-gray-400 py-6">Loading…</p>;
+    const kindBar = (
+        <div className="mb-4 flex items-center gap-2">
+            {Object.entries(meta.kinds || {}).map(([k, label]) => (
+                <button key={k} onClick={() => { setKind(k); setVariant(''); setPasting(false); }}
+                    className={`px-3 py-1.5 text-sm rounded-md ${kind === k ? 'bg-blue-600 text-white' : 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                    {label}
+                </button>
+            ))}
+            <span className="mx-1 text-gray-300">|</span>
+            <select value={variant} onChange={(e) => e.target.value === '__new__' ? newVariant() : setVariant(e.target.value)}
+                className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-sm py-1.5 text-gray-600 dark:text-gray-300">
+                {variants.map((v) => <option key={v} value={v}>{v || 'Default'}</option>)}
+                <option value="__new__">+ Department variant…</option>
+            </select>
+        </div>
+    );
+
+    if (!loaded) return <div className="max-w-3xl">{kindBar}<p className="text-sm text-gray-400 py-6">Loading…</p></div>;
 
     if (steps === null || pasting) {
         return (
             <div className="max-w-3xl">
-                <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-1">Onboarding steps</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Paste your current onboarding SOP — every line becomes a step, indented lines become subtasks.
-                    Your wording is kept as the instructions (log in to DC01, set password to never expire — whatever your reality is).
-                    You'll rearrange after.
+                {kindBar}
+                <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-1">
+                    {meta.kinds[kind]}{variant ? ` — ${variant}` : ''}
+                </h2>
+                {!pasting && (
+                    <div className="mb-4 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-500/10 p-4">
+                        <p className="text-sm text-blue-800 dark:text-blue-300 mb-3">
+                            Start from the standard {meta.kinds[kind]?.toLowerCase()} SOP that ships with AssetMost — it becomes yours to edit — or paste your own below.
+                        </p>
+                        <AddButton label="Use the standard SOP" onClick={adoptStarter} />
+                    </div>
+                )}
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    Or paste your current SOP — every line becomes a step, indented lines become subtasks; your wording is kept verbatim.
                 </p>
-                <textarea rows={14} value={text} onChange={(e) => setText(e.target.value)}
-                    placeholder={"Create AD account on DC01\nCreate M365 mailbox\nAssign Adobe seat\nSet up their machine\n    Image with standard build\n    Join to domain\nSecurity training"}
+                <textarea rows={12} value={text} onChange={(e) => setText(e.target.value)}
+                    placeholder={"Create AD account on DC01\nCreate M365 mailbox\nSet up their machine\n    Image with standard build\n    Join to domain\nSecurity training"}
                     className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm font-mono focus:border-blue-500 focus:ring-blue-500" />
                 <div className="mt-3 flex gap-2">
                     <AddButton label="Parse into steps" onClick={() => { const parsed = parseSop(text); if (parsed.length) { save(parsed); setPasting(false); setText(''); } }} />
@@ -95,9 +138,12 @@ export default function OnboardingSetup() {
 
     return (
         <div className="max-w-3xl">
-            <RunCard />
+            {kindBar}
+            {kind === 'onboarding' && <RunCard />}
             <div className="flex items-center justify-between mb-1">
-                <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">Onboarding steps</h2>
+                <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">
+                    {meta.kinds[kind]}{variant ? ` — ${variant}` : ''} steps
+                </h2>
                 <div className="flex items-center gap-2">
                     {saved && <span className="text-xs text-green-600">{saved}</span>}
                     <button onClick={() => setPasting(true)}
@@ -106,9 +152,9 @@ export default function OnboardingSetup() {
                 </div>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                These become the task project for every new hire, chained in this order. Placeholders
+                Steps become the task project, chained in this order. Placeholders
                 <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date}'}</code>
-                fill in at run time.
+                fill in at run time{kind === 'offboarding' ? ' ({start_date} = last day)' : ''}.
             </p>
 
             <ol className="space-y-2">

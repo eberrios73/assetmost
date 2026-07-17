@@ -28,16 +28,35 @@ use Illuminate\Support\Facades\Log;
  */
 class OnboardingController extends Controller
 {
-    public function template(): JsonResponse
+    /** Every template the company has, plus which starters exist for empty kinds. */
+    public function template(Request $request): JsonResponse
     {
         $companyId = app(TenantResolver::class)->id();
-        $t = OnboardingTemplate::query()->where('company_id', $companyId)->first();
+        $kind = $request->string('kind')->toString() ?: 'onboarding';
+        $variant = $request->string('variant')->toString();
+
+        $all = OnboardingTemplate::query()->where('company_id', $companyId)
+            ->get(['kind', 'variant', 'name']);
+        $t = OnboardingTemplate::query()->where('company_id', $companyId)
+            ->where('kind', $kind)->where('variant', $variant)->first();
 
         return response()->json([
             'company_id' => $companyId,
-            'name' => $t->name ?? 'Onboarding',
+            'kinds' => \App\Support\StarterTemplates::KINDS,
+            'existing' => $all,           // [{kind, variant, name}]
+            'kind' => $kind, 'variant' => $variant,
+            'name' => $t->name ?? \App\Support\StarterTemplates::KINDS[$kind] ?? 'Onboarding',
             'steps' => $t ? json_decode($t->steps, true) : null,
         ]);
+    }
+
+    /** The shipped starter for a kind — adopting copies it; upgrades never touch copies. */
+    public function starter(Request $request): JsonResponse
+    {
+        $kind = $request->string('kind')->toString();
+        $tpl = \App\Support\StarterTemplates::get($kind);
+        abort_if(! $tpl, 404);
+        return response()->json(['kind' => $kind, 'steps' => $tpl]);
     }
 
     public function saveTemplate(Request $request): JsonResponse
@@ -48,14 +67,17 @@ class OnboardingController extends Controller
 
         $data = $request->validate([
             'name' => 'nullable|string|max:255',
+            'kind' => 'nullable|in:onboarding,offboarding,imaging',
+            'variant' => 'nullable|string|max:100',
             'steps' => 'required|array',
             'steps.version' => 'required|integer',
             'steps.steps' => 'required|array',
         ]);
 
+        $kind = $data['kind'] ?? 'onboarding';
         $t = OnboardingTemplate::updateOrCreate(
-            ['company_id' => $companyId],
-            ['name' => $data['name'] ?? 'Onboarding', 'steps' => json_encode($data['steps'])],
+            ['company_id' => $companyId, 'kind' => $kind, 'variant' => $data['variant'] ?? ''],
+            ['name' => $data['name'] ?? (\App\Support\StarterTemplates::KINDS[$kind] ?? 'Onboarding'), 'steps' => json_encode($data['steps'])],
         );
 
         return response()->json(['ok' => true, 'id' => $t->id]);
@@ -82,7 +104,11 @@ class OnboardingController extends Controller
             'account_ids.*' => 'integer|exists:accounts,id',
         ]);
 
-        $template = OnboardingTemplate::query()->where('company_id', $companyId)->first();
+        $template = OnboardingTemplate::query()->where('company_id', $companyId)
+            ->where('kind', 'onboarding')
+            ->whereIn('variant', array_filter(['', $data['department'] ?? null], fn ($v) => $v !== null))
+            ->orderByRaw("variant <> '' DESC")   // department variant wins over the default
+            ->first();
         $steps = $template ? (json_decode($template->steps, true)['steps'] ?? []) : [];
         $doh = Carbon::parse($data['start_date']);
         $company = \App\Models\Company::find($companyId);
