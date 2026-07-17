@@ -11,8 +11,8 @@ use App\Support\Contracts\TenantResolver;
  * stored in session — validated here against what the user may see. The old
  * client-supplied company_id is gone; this is the enforced boundary.
  *
- * This is the multi-tenant implementation of TenantResolver. The open core binds
- * SingleTenantResolver instead; a private module can bind a richer one.
+ * The default TenantResolver. A deployment can bind a richer one (subdomain, SSO) without
+ * touching a single global scope.
  */
 class CurrentCompany implements TenantResolver
 {

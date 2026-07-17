@@ -66,8 +66,8 @@ export default function AppShell({ nav = null, detail = null, active = null, foo
 function CompanySwitcher({ tenant }) {
     const companies = tenant?.companies || [];
     const active = tenant?.activeId ?? '';
-    // single-tenant edition has one company — nothing to switch
-    if (tenant?.edition === 'single' || companies.length < 2) return null;
+    // nothing to switch between with one company
+    if (companies.length < 2) return null;
 
     const change = (e) => {
         router.post('/switch-company', { company_id: e.target.value || null }, { preserveScroll: true });

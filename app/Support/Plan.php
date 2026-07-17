@@ -5,17 +5,15 @@ namespace App\Support;
 use App\Models\Company;
 
 /**
- * Plan limits. The tenant cap is the one commercial line that matters in code:
- * the hosted multi-tenant plan allows up to `max_tenants` companies; beyond
- * that is Enterprise (raise the cap for that customer). Single edition is 1.
+ * Licence tier. AssetMost is self-hosted, so this is a guardrail that tells an install it
+ * has outgrown its tier — not enforcement. Anyone can edit the config; the point is to be
+ * honest about what was bought, not to police it.
  */
 class Plan
 {
     public static function maxTenants(): int
     {
-        return config('assetmost.edition') === 'single'
-            ? 1
-            : (int) config('assetmost.max_tenants', 20);
+        return (int) config('assetmost.max_tenants', 20);
     }
 
     public static function tenantCount(): int
