@@ -851,6 +851,16 @@ class DataController extends Controller
         $q = \App\Models\Login::query()->with(['vendor:vendorID,name', 'holders:id,name,last']);
         $this->sort($q, $request, ['login_name', 'login_id', 'type', 'sharing'], 'login_name');
 
+        // Only role/service credentials live here — pooled or shared accounts, plus
+        // anything whose login id isn't a person's own directory email (info@,
+        // accmgr001, distribution lists). A person's identity login belongs on their
+        // staff page; listing it twice would make this registry unreadable.
+        $q->where(function ($w) {
+            $w->whereIn('sharing', ['pooled', 'shared'])
+              ->orWhereNull('login_id')->orWhere('login_id', '')
+              ->orWhereNotExists(fn ($s) => $s->selectRaw('1')->from('users')->whereColumn('users.email', 'logins.login_id'));
+        });
+
         if ($s = $request->string('search')->toString()) {
             $q->where(fn ($w) => $w->where('login_name', 'like', "%{$s}%")
                 ->orWhere('login_id', 'like', "%{$s}%")
