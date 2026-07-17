@@ -21,6 +21,25 @@ const PRI_PILL = [
     'text-red-700 bg-red-100 dark:bg-red-500/20 dark:text-red-300',
 ];
 const PRI_BAR = ['', 'before:bg-blue-500', 'before:bg-amber-500', 'before:bg-red-500'];
+
+/**
+ * Age = how long a task has been open, counted from `origin` (the first week it
+ * appeared — carry-overs keep aging, that's the point). Done tasks freeze at
+ * their completion date. Color steps up as it gets old: quiet < 1w, amber < 2w,
+ * red after — the sheet should make neglect visible without anyone asking.
+ */
+function Age({ t }) {
+    const start = t.origin || t.week;
+    if (!start) return <span className="text-gray-300">—</span>;
+    const end = t.done && t.completed_at ? new Date(t.completed_at) : new Date();
+    const days = Math.max(0, Math.round((end - new Date(start)) / 86400000));
+    const label = days < 14 ? `${days}d` : days < 60 ? `${Math.round(days / 7)}w` : `${Math.round(days / 30)}mo`;
+    const tone = t.done ? 'text-gray-300 dark:text-gray-600'
+        : days >= 14 ? 'text-red-600 font-semibold'
+        : days >= 7 ? 'text-amber-600 font-medium'
+        : 'text-gray-400';
+    return <span className={tone} title={`Started ${start}`}>{label}</span>;
+}
 const STATUS_STYLE = {
     Proposed: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
     Approved: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
@@ -147,7 +166,7 @@ export default function Index() {
                         <thead>
                             <tr className="bg-gray-100 dark:bg-gray-800/70 text-xs uppercase tracking-wide text-gray-400">
                                 <Th className="w-9" /><Th>Task</Th><Th className="w-44">Assignee</Th>
-                                <Th className="w-16 text-center">Pri</Th><Th className="w-40">%</Th>
+                                <Th className="w-16 text-center">Pri</Th><Th className="w-16 text-center">Age</Th><Th className="w-40">%</Th>
                                 <Th className="w-32">Completed</Th><Th className="w-8" /><Th className="w-10" />
                             </tr>
                         </thead>
@@ -246,7 +265,7 @@ function AddBar({ placeholder, onAdd }) {
 function SectionRow({ label, right }) {
     return (
         <tr className="bg-gray-100 dark:bg-gray-800/70 border-y border-gray-200 dark:border-gray-800">
-            <td colSpan={8} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <td colSpan={9} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {label}{right && <span className="float-right text-blue-600 dark:text-blue-400 normal-case tracking-normal">{right}</span>}
             </td>
         </tr>
@@ -255,13 +274,13 @@ function SectionRow({ label, right }) {
 function SubRow({ label, right }) {
     return (
         <tr className="bg-gray-50 dark:bg-gray-900/60">
-            <td colSpan={8} className="px-3 py-1 pl-6 text-xs text-gray-400 border-b border-gray-100 dark:border-gray-800">
+            <td colSpan={9} className="px-3 py-1 pl-6 text-xs text-gray-400 border-b border-gray-100 dark:border-gray-800">
                 <span className="uppercase tracking-wide">{label}</span>{right && <span className="float-right">{right}</span>}
             </td>
         </tr>
     );
 }
-function EmptyRow({ children }) { return <tr><td colSpan={8} className="px-3 py-3 text-gray-400">{children}</td></tr>; }
+function EmptyRow({ children }) { return <tr><td colSpan={9} className="px-3 py-3 text-gray-400">{children}</td></tr>; }
 
 function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, onDelete }) {
     const carried = t.origin && t.origin < t.week && !t.done;
@@ -287,6 +306,7 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
                     <button onClick={() => patch(t.id, { pri: ((t.pri || 0) + 1) % 4 })} title="click to cycle priority"
                         className={`inline-block min-w-[42px] px-2 py-0.5 rounded-full text-[11px] font-semibold ${PRI_PILL[t.pri] || PRI_PILL[0]}`}>{PRI[t.pri]}</button>
                 </td>
+                <td className="px-3 py-1.5 text-center text-xs"><Age t={t} /></td>
                 <td className="px-3 py-1.5"><PctCell t={t} onCommit={(v) => patch(t.id, { pct: v }, { reload: true })} /></td>
                 <td className="px-3 py-1.5">
                     {t.done && (
@@ -305,7 +325,7 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
             </tr>
             {expanded && (
                 <tr>
-                    <td colSpan={8} className="p-0 border-b border-gray-200 dark:border-gray-800">
+                    <td colSpan={9} className="p-0 border-b border-gray-200 dark:border-gray-800">
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4">
                             <div className="flex items-start gap-3">
                                 <div className="flex-1">
