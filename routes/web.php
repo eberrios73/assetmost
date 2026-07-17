@@ -106,6 +106,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/data/companies/{company}', [$dc, 'updateCompany']);
 
     Route::get('/data/vendor-options', [$dc, 'vendorOptions']);
+    Route::get('/data/person-options', [$dc, 'personOptions']);
     Route::get('/data/logins/{login}', [$dc, 'login']);
     Route::patch('/data/logins/{login}', [$dc, 'updateLogin']);
     Route::delete('/data/logins/{login}', [$dc, 'destroyLogin']);

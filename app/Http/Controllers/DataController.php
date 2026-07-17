@@ -347,11 +347,20 @@ class DataController extends Controller
 
     public function vendorLogins(Vendor $vendor): JsonResponse
     {
+        // "User" is whoever holds it via login_access; legacy userID is the fallback for
+        // rows never re-assigned in this app (ITer still writes it).
         return response()->json(
-            $vendor->logins()->with('user:id,name,last')->orderBy('login_name')->get()
-                ->map(fn ($l) => ['id' => $l->id, 'login_name' => $l->login_name,
-                    'login_id' => $l->login_id, 'url' => $l->url, 'type' => $l->type, 'is_restricted' => $l->is_restricted,
-                    'user' => $l->user ? trim("{$l->user->name} {$l->user->last}") : null])
+            $vendor->logins()->with(['user:id,name,last', 'holders:id,name,last'])->orderBy('login_name')->get()
+                ->map(function ($l) {
+                    $names = $l->holders->map(fn ($u) => trim("{$u->name} {$u->last}"));
+                    if ($names->isEmpty() && $l->user) {
+                        $names = collect([trim("{$l->user->name} {$l->user->last}")]);
+                    }
+                    return ['id' => $l->id, 'login_name' => $l->login_name,
+                        'login_id' => $l->login_id, 'url' => $l->url, 'type' => $l->type,
+                        'is_restricted' => $l->is_restricted,
+                        'user' => $names->join(', ') ?: null];
+                })
         );
     }
 
@@ -457,12 +466,28 @@ class DataController extends Controller
     public function login(\App\Models\Login $login): JsonResponse
     {
         // River schema: PK loginID, FK vendorID — map back to the API's id/vendor_id
+        $login->loadMissing('holders:id,name,last');
         return response()->json([
             'id' => $login->loginID, 'vendor_id' => $login->vendorID,
             'login_name' => $login->login_name, 'login_id' => $login->login_id,
             'url' => $login->url, 'type' => $login->type, 'notes' => $login->notes,
             'is_active' => (bool) $login->is_active, 'is_restricted' => (bool) $login->is_restricted,
+            // Who holds this credential, editable in the drawer.
+            'holder_ids' => $login->holders->pluck('id')->all(),
+            'holder_options' => $login->holders->map(fn ($u) => [
+                'id' => $u->id, 'label' => trim("{$u->name} {$u->last}"),
+            ])->all(),
         ]); // password intentionally omitted (revealed only via the gated /secret endpoint)
+    }
+
+    /** People as {id,label} for pickers (assign a login holder, etc.). Tenant-scoped. */
+    public function personOptions(): JsonResponse
+    {
+        return response()->json(
+            User::query()->where('active', true)->orderBy('name')->orderBy('last')
+                ->get(['id', 'name', 'last'])
+                ->map(fn ($u) => ['id' => $u->id, 'label' => trim("{$u->name} {$u->last}")])
+        );
     }
 
     /** All vendors as {id,label} for the searchable vendor picker. */
@@ -497,6 +522,7 @@ class DataController extends Controller
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
             'is_active' => 'boolean', 'is_restricted' => 'boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
@@ -505,7 +531,12 @@ class DataController extends Controller
         if (empty($data['login_pass'])) {
             unset($data['login_pass']); // blank = keep existing secret
         }
-        $login->update($data); // login_pass re-encrypts via cast
+        // Holders live on the pivot, not the row. Absent key = untouched; [] = unassign all.
+        if (array_key_exists('holder_ids', $data)) {
+            $login->holders()->sync($data['holder_ids'] ?? []);
+            unset($data['holder_ids']);
+        }
+        $login->update($data);
         return response()->json(['ok' => true]);
     }
 

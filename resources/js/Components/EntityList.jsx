@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
- * Reusable infinite-scroll list panel: search + sort + optional filter + Active toggle.
- * Loads pages from `endpoint` (offset-based) and appends on scroll.
- * One component drives every entity screen — no per-page copies.
+ * Reusable infinite-scroll list panel: search + column-header sort + optional filter +
+ * Active toggle. One component drives every entity screen — no per-page copies.
+ *
+ * Sorting is a header row of the entity's field names — click a name to sort by it,
+ * click again to flip. Same interaction as every DataTable in the app; the sort
+ * pulldown is gone on purpose.
  */
 export default function EntityList({
     endpoint,
     icon,
     filter = null,                 // { key, label, options: string[] }
-    sortOptions = [],              // [{ key, label }]
+    sortOptions = [],              // [{ key, label }] — rendered as the column header row
     defaultSort = null,
     selectedId = null,
     onSelect,
@@ -61,6 +64,11 @@ export default function EntityList({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasMore, loading, offset]);
 
+    const clickSort = (key) => {
+        if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        else { setSortKey(key); setSortDir('asc'); }
+    };
+
     return (
         <div className="flex flex-col h-full">
             <div className="p-3 border-b border-gray-100 dark:border-gray-800 space-y-2">
@@ -71,49 +79,41 @@ export default function EntityList({
                     className="w-full rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 text-sm focus:border-blue-500 focus:ring-blue-500"
                 />
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    {sortOptions.length > 0 && (
-                        <div className="flex items-center">
+                        {filter && (
                             <select
-                                value={sortKey}
-                                onChange={(e) => setSortKey(e.target.value)}
-                                title="Sort by"
-                                className="rounded-l-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs py-1 text-gray-600 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                value={filterVal}
+                                onChange={(e) => setFilterVal(e.target.value)}
+                                className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs py-1 text-gray-600 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500"
                             >
-                                {sortOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                                <option value="">All {filter.label}</option>
+                                {/* Options arrive either as plain strings (/data/departments) or as
+                                    records (/data/device-types -> {id, code, name}). */}
+                                {filter.options.map((o) => {
+                                    const value = typeof o === 'string' ? o : (o.value ?? o.code ?? o.id);
+                                    const label = typeof o === 'string' ? o : (o.label ?? o.name ?? value);
+                                    return <option key={value} value={value}>{label}</option>;
+                                })}
                             </select>
-                            <button
-                                type="button"
-                                onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-                                title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
-                                className="border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-md px-2 py-1 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-                            >
-                                {sortDir === 'asc' ? '↑' : '↓'}
-                            </button>
-                        </div>
-                    )}
-                    {filter && (
-                        <select
-                            value={filterVal}
-                            onChange={(e) => setFilterVal(e.target.value)}
-                            className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs py-1 text-gray-600 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                        >
-                            <option value="">All {filter.label}</option>
-                            {/* Options arrive either as plain strings (/data/departments) or as
-                                records (/data/device-types -> {id, code, name}). */}
-                            {filter.options.map((o) => {
-                                const value = typeof o === 'string' ? o : (o.value ?? o.code ?? o.id);
-                                const label = typeof o === 'string' ? o : (o.label ?? o.name ?? value);
-                                return <option key={value} value={value}>{label}</option>;
-                            })}
-                        </select>
-                    )}
-                    <label className="flex items-center gap-1.5 cursor-pointer ml-auto">
-                        Active
-                        <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    </label>
+                        )}
+                        <label className="flex items-center gap-1.5 cursor-pointer ml-auto">
+                            Active
+                            <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        </label>
                 </div>
             </div>
+
+            {/* Column header row — the entity's sortable field names. */}
+            {sortOptions.length > 0 && (
+                <div className="flex items-center gap-4 px-3 py-1.5 border-b border-gray-100 dark:border-gray-800 text-[11px] uppercase tracking-wide text-gray-400">
+                    {sortOptions.map((o) => (
+                        <button key={o.key} onClick={() => clickSort(o.key)}
+                            className={`select-none hover:text-gray-600 dark:hover:text-gray-200 ${sortKey === o.key ? 'text-blue-600 dark:text-blue-400 font-medium' : ''}`}>
+                            {o.label}{sortKey === o.key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             <ul className="flex-1 overflow-y-auto">
                 {items.map((it) => (

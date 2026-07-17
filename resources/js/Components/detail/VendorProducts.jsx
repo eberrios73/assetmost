@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { PlusIcon, TrashIcon } from '@/Components/Icons';
+import DataTable from '@/Components/ui/DataTable';
+import { TrashIcon } from '@/Components/Icons';
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
@@ -11,9 +12,8 @@ const api = (url, method = 'GET', body) => fetch(url, {
 /**
  * A vendor's product catalog — Adobe ▸ Creative Cloud, Firefly, Substance.
  *
- * Catalog only: licences are NOT nested here. A vendor can list hundreds of SKUs, so
- * nesting what you own inside what they sell makes an unusable tree. Licences live on
- * their own screen, filtered by product.
+ * Catalog only: licences are NOT nested here (they live on the Licenses tab, filtered by
+ * product). Same DataTable as everywhere; the name cell stays inline-editable.
  */
 export default function VendorProducts({ vendorId }) {
     const [rows, setRows] = useState(null);
@@ -55,19 +55,36 @@ export default function VendorProducts({ vendorId }) {
 
     if (rows === null) return <p className="text-sm text-gray-400 py-6">Loading…</p>;
 
-    const dash = <span className="text-gray-300">—</span>;
+    const columns = [
+        { key: 'name', label: 'Product', width: '34%', className: 'text-gray-800 dark:text-gray-200',
+          render: (p) => (
+              <input defaultValue={p.name} onBlur={(e) => rename(p, e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full border-0 bg-transparent p-0 text-sm text-gray-800 dark:text-gray-200 focus:ring-0" />
+          ) },
+        { key: 'sku', label: 'SKU', width: '16%',
+          render: (p) => p.sku ? <span className="text-xs font-mono text-gray-400">{p.sku}</span> : <span className="text-gray-300">—</span> },
+        { key: 'licenses', label: 'Licenses', width: '13%', sortValue: (p) => p.licenses || 0 },
+        { key: 'annual', label: 'Annual', width: '15%', sortValue: (p) => p.annual || 0,
+          render: (p) => p.annual ? `$${p.annual.toLocaleString()}` : <span className="text-gray-300">—</span> },
+        { key: 'active', label: 'Active', width: '12%', sortValue: (p) => (p.active ? 1 : 0),
+          render: (p) => (
+              <button onClick={(e) => { e.stopPropagation(); toggleActive(p); }}
+                  className={`text-xs ${p.active ? 'text-gray-500 dark:text-gray-400' : 'text-gray-300'}`}>
+                  {p.active ? 'Yes' : 'No'}
+              </button>
+          ) },
+        { key: '_actions', label: '', width: '10%', sortValue: () => '',
+          render: (p) => (
+              <button onClick={(e) => { e.stopPropagation(); remove(p); }}
+                  title={p.licenses ? 'In use — deactivate instead' : 'Delete'}
+                  className="text-gray-300 dark:text-gray-600 hover:text-red-600"><TrashIcon /></button>
+          ) },
+    ];
+
     return (
         <div>
-            <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-gray-400">{rows.length} product{rows.length === 1 ? '' : 's'}</span>
-                {!adding && (
-                    <button onClick={() => { setAdding(true); setError(''); }}
-                        className="flex items-center gap-1 rounded-md border border-gray-200 dark:border-gray-700 px-2.5 py-1 text-xs text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600">
-                        <PlusIcon /> Add product
-                    </button>
-                )}
-            </div>
-
             {adding && (
                 <div className="flex items-center gap-2 mb-3 rounded-md border border-blue-200 dark:border-blue-500/30 bg-blue-50/40 dark:bg-blue-500/10 p-2">
                     <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
@@ -86,46 +103,10 @@ export default function VendorProducts({ vendorId }) {
             )}
             {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
 
-            {!rows.length ? (
-                <p className="text-sm text-gray-400 py-6">No products yet — add what this vendor sells you.</p>
-            ) : (
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-200 dark:border-gray-800">
-                            <th className="py-2 pr-4 font-normal">Product</th>
-                            <th className="py-2 pr-4 font-normal w-32">SKU</th>
-                            <th className="py-2 pr-4 font-normal w-24">Licenses</th>
-                            <th className="py-2 pr-4 font-normal w-28">Annual</th>
-                            <th className="py-2 pr-4 font-normal w-20">Active</th>
-                            <th className="w-8" />
-                        </tr>
-                    </thead>
-                    <tbody>{rows.map((p) => (
-                        <tr key={p.id} className="group border-b border-gray-50 dark:border-gray-800">
-                            <td className="py-1.5 pr-4">
-                                <input defaultValue={p.name} onBlur={(e) => rename(p, e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                                    className="w-full border-0 bg-transparent p-0 text-sm text-gray-800 dark:text-gray-200 focus:ring-0" />
-                            </td>
-                            <td className="py-1.5 pr-4 text-xs text-gray-400 font-mono">{p.sku || dash}</td>
-                            <td className="py-1.5 pr-4 text-gray-500 dark:text-gray-400">{p.licenses || dash}</td>
-                            <td className="py-1.5 pr-4 text-gray-500 dark:text-gray-400">{p.annual ? `$${p.annual.toLocaleString()}` : dash}</td>
-                            <td className="py-1.5 pr-4">
-                                <button onClick={() => toggleActive(p)}
-                                    className={`text-xs ${p.active ? 'text-gray-500 dark:text-gray-400' : 'text-gray-300'}`}>
-                                    {p.active ? 'Yes' : 'No'}
-                                </button>
-                            </td>
-                            <td className="py-1.5 text-center">
-                                <button onClick={() => remove(p)} title={p.licenses ? 'In use — deactivate instead' : 'Delete'}
-                                    className="text-gray-300 dark:text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-600">
-                                    <TrashIcon />
-                                </button>
-                            </td>
-                        </tr>
-                    ))}</tbody>
-                </table>
-            )}
+            <DataTable columns={columns} rows={rows}
+                addLabel="Add product" onAdd={() => { setAdding(true); setError(''); }}
+                emptyText="No products yet — add what this vendor sells you." />
+
             <p className="mt-3 text-xs text-gray-400">
                 What this vendor sells. Licenses you actually pay for live on the Licenses tab — filter them by product.
             </p>

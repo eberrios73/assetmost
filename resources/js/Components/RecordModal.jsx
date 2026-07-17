@@ -3,12 +3,53 @@ import SearchSelect from '@/Components/SearchSelect';
 import { EyeIcon, EyeOffIcon } from '@/Components/Icons';
 
 /**
+ * Multi-value picker: chips for what's assigned, one SearchSelect to add more.
+ * `knownLabels` seeds names for ids that came with the record (the options
+ * endpoint also has them, but this avoids a flash of bare ids on open).
+ */
+function MultiPicker({ ids, endpoint, knownLabels, onChange }) {
+    const [options, setOptions] = useState(knownLabels);
+
+    useEffect(() => {
+        fetch(endpoint, { headers: { Accept: 'application/json' } })
+            .then((r) => r.json())
+            .then((all) => setOptions((prev) => {
+                const seen = new Set(all.map((o) => o.id));
+                return [...all, ...prev.filter((o) => !seen.has(o.id))];
+            }));
+    }, [endpoint]);
+
+    const label = (id) => options.find((o) => o.id === id)?.label ?? `#${id}`;
+
+    return (
+        <div className="space-y-2">
+            {ids.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {ids.map((id) => (
+                        <span key={id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-500/15 px-2.5 py-1 text-xs text-blue-700 dark:text-blue-300">
+                            {label(id)}
+                            <button type="button" onClick={() => onChange(ids.filter((x) => x !== id))}
+                                className="text-blue-400 hover:text-blue-700 dark:hover:text-blue-200 leading-none">×</button>
+                        </span>
+                    ))}
+                </div>
+            )}
+            <SearchSelect value={null} options={options.filter((o) => !ids.includes(o.id))}
+                onChange={(id) => { if (id) onChange([...ids, id]); }} placeholder="Add a person…" />
+        </div>
+    );
+}
+
+/**
  * Create or edit a record in a right-side sliding drawer (keeps the list visible
  * behind it). method 'POST' = create, 'PATCH' = edit. Driven by `fields`.
  */
 export default function RecordModal({ title, endpoint, method = 'POST', fields, initial = {}, onClose, onSaved }) {
     const [values, setValues] = useState(() =>
-        Object.fromEntries(fields.map((f) => [f.key, initial[f.key] ?? '']))
+        Object.fromEntries(fields.map((f) => [
+            f.key,
+            initial[f.key] ?? (f.type === 'multi-select-search' ? [] : ''),
+        ]))
     );
     const [errors, setErrors] = useState({});
     const [saving, setSaving] = useState(false);
@@ -77,6 +118,10 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
                                 <SearchSelect value={values[f.key]} endpoint={f.optionsEndpoint}
                                     fallbackLabel={f.labelField ? (initial[f.labelField] ?? '') : ''}
                                     onChange={(id) => setValues((v) => ({ ...v, [f.key]: id }))} placeholder={`Search ${f.label.toLowerCase()}…`} />
+                            ) : f.type === 'multi-select-search' ? (
+                                <MultiPicker ids={values[f.key] || []} endpoint={f.optionsEndpoint}
+                                    knownLabels={initial[f.optionsKey || 'holder_options'] || []}
+                                    onChange={(ids) => setValues((v) => ({ ...v, [f.key]: ids }))} />
                             ) : f.type === 'select' ? (
                                 <select value={values[f.key] ?? ''}
                                     onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}

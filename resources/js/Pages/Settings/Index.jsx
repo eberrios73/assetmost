@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import RecordModal from '@/Components/RecordModal';
+import DataTable from '@/Components/ui/DataTable';
 import { ENTITIES } from '@/entities';
 
 const SECTIONS = [
@@ -53,38 +54,21 @@ function Companies() {
     const [adding, setAdding] = useState(false);
     const [editing, setEditing] = useState(null);
 
+    const columns = [
+        { key: 'name', label: 'Name', width: '28%', className: 'text-gray-800 dark:text-gray-100' },
+        { key: 'tag_prefix', label: 'Tag prefix', width: '15%',
+          render: (c) => c.tag_prefix ? <span className="font-mono text-xs">{c.tag_prefix}</span> : <span className="text-gray-300">—</span> },
+        { key: 'domain', label: 'Domain', width: '22%' },
+        { key: 'location', label: 'Location', width: '20%', sortValue: (c) => [c.city, c.state].filter(Boolean).join(', '),
+          render: (c) => [c.city, c.state].filter(Boolean).join(', ') || <span className="text-gray-300">—</span> },
+        { key: 'active', label: 'Status', width: '15%', sortValue: (c) => (c.active ? 1 : 0),
+          render: (c) => <span className={c.active ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}>{c.active ? 'Active' : 'Inactive'}</span> },
+    ];
+
     return (
         <Section title="Companies" desc="Every company in this install. Assets, people and licences all hang off one of these. Click a row to edit.">
-            <div className="mb-4 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-900 text-xs uppercase tracking-wide text-gray-400">
-                        <tr>
-                            <Th>Name</Th><Th>Tag prefix</Th><Th>Domain</Th><Th>Location</Th><Th>Status</Th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {companies.map((c) => (
-                            <tr key={c.id} onClick={() => setEditing(c)}
-                                className="border-t border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-blue-50/40 dark:hover:bg-gray-800/50">
-                                <td className="px-3 py-2 text-gray-800 dark:text-gray-100">{c.name}</td>
-                                <td className="px-3 py-2 font-mono text-xs text-gray-600 dark:text-gray-300">{c.tag_prefix || '—'}</td>
-                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{c.domain || '—'}</td>
-                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{[c.city, c.state].filter(Boolean).join(', ') || '—'}</td>
-                                <td className="px-3 py-2">
-                                    <span className={c.active ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}>
-                                        {c.active ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                        {!companies.length && (
-                            <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">No companies yet.</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-            <button onClick={() => setAdding(true)}
-                className="px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">+ Add a company</button>
+            <DataTable columns={columns} rows={companies} onRowClick={setEditing}
+                addLabel="Add company" onAdd={() => setAdding(true)} emptyText="No companies yet." />
 
             {adding && (
                 <RecordModal title="Add Company" endpoint="/data/companies" method="POST"
@@ -383,10 +367,6 @@ function Grid({ rows }) {
             ))}
         </dl>
     );
-}
-
-function Th({ children }) {
-    return <th className="px-3 py-2 text-left font-medium">{children}</th>;
 }
 
 function Empty({ children }) {

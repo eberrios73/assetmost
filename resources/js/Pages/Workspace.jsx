@@ -1,5 +1,5 @@
-import { PlusIcon } from "@/Components/Icons";
 import { Head, usePage } from '@inertiajs/react';
+import AddButton from '@/Components/ui/AddButton';
 import { useEffect, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import EntityList from '@/Components/EntityList';
@@ -121,9 +121,7 @@ export default function Workspace({ group }) {
                     {entity?.edit && detail && (
                         <button onClick={() => setEditing(true)} className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Edit</button>
                     )}
-                    {entity?.add && (
-                        <button onClick={() => setAdding(true)} className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"><PlusIcon /> {entity.add.title}</button>
-                    )}
+                    {entity?.add && <AddButton label={entity.add.title} onClick={() => setAdding(true)} />}
                 </div>
             </div>
             <div className="flex-1 min-h-0">{detailContent}</div>
