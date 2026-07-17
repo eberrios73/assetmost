@@ -107,6 +107,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/data/vendor-options', [$dc, 'vendorOptions']);
     Route::get('/data/person-options', [$dc, 'personOptions']);
+    Route::get('/data/login-options', [$dc, 'loginOptions']);
     Route::get('/data/logins/{login}', [$dc, 'login']);
     Route::patch('/data/logins/{login}', [$dc, 'updateLogin']);
     Route::delete('/data/logins/{login}', [$dc, 'destroyLogin']);

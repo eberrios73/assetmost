@@ -404,6 +404,11 @@ class DataController extends Controller
                 'id' => $u->id,
                 'label' => trim("{$u->name} {$u->last}").($u->active ? '' : ' (inactive)'),
             ])->all(),
+            // The accounts consuming the seats — editable in the drawer.
+            'login_ids' => $license->logins->map->id->all(),
+            'login_options' => $license->logins->map(fn ($l) => [
+                'id' => $l->id, 'label' => $l->login_name.($l->login_id ? " ({$l->login_id})" : ''),
+            ])->all(),
             'seats_total' => $license->seats_total,
             'seats_used' => $license->seats_used,
             'seats_available' => $license->seats_available,       // null = count unknown
@@ -434,21 +439,28 @@ class DataController extends Controller
             'renewalfrequency' => 'nullable|string|max:50',
             'is_active' => 'boolean',
             'notes' => 'nullable|string',
+            'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,loginID',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = $v->validated();
         $data['is_active'] = (bool) ($data['is_active'] ?? true);
+        $loginIds = $data['login_ids'] ?? [];
+        unset($data['login_ids']);
 
         $license = \App\Models\License::create($data);
+        if ($loginIds) {
+            $license->logins()->sync($loginIds);
+        }
 
         return response()->json($license->fresh(), 201);
     }
 
     public function updateLicense(Request $request, \App\Models\License $license): JsonResponse
     {
-        return $this->applyUpdate($license, $request, [
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
             'product_id' => 'nullable|integer|exists:products,id',
@@ -460,7 +472,20 @@ class DataController extends Controller
             'renewalfrequency' => 'nullable|string|max:50',
             'is_active' => 'boolean',
             'notes' => 'nullable|string',
+            'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,loginID',
         ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $data = $v->validated();
+        // The accounts consuming this license's seats live on the pivot, not the row.
+        // Absent key = untouched; [] = detach all.
+        if (array_key_exists('login_ids', $data)) {
+            $license->logins()->sync($data['login_ids'] ?? []);
+            unset($data['login_ids']);
+        }
+        $license->update($data);
+        return response()->json($license->fresh());
     }
 
     public function login(\App\Models\Login $login): JsonResponse
@@ -487,6 +512,16 @@ class DataController extends Controller
             User::query()->where('active', true)->orderBy('name')->orderBy('last')
                 ->get(['id', 'name', 'last'])
                 ->map(fn ($u) => ['id' => $u->id, 'label' => trim("{$u->name} {$u->last}")])
+        );
+    }
+
+    /** Logins as {id,label} for pickers (attach accounts to a license). Tenant-scoped. */
+    public function loginOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Login::query()->where('is_active', true)->orderBy('login_name')
+                ->get()
+                ->map(fn ($l) => ['id' => $l->id, 'label' => $l->login_name.($l->login_id ? " ({$l->login_id})" : '')])
         );
     }
 

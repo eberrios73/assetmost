@@ -11,7 +11,7 @@ const LOGIN_FIELDS = [
     { key: 'login_pass', label: 'Password (blank = keep)', type: 'password',
       revealEndpoint: (id) => `/data/logins/${id}/secret`, revealKey: 'password' },
     // Who holds this credential — many allowed (shared mailbox, pooled seat).
-    { key: 'holder_ids', label: 'Assigned to', type: 'multi-select-search', optionsEndpoint: '/data/person-options' },
+    { key: 'holder_ids', label: 'Assigned to', type: 'multi-select-search', optionsEndpoint: '/data/person-options', pickPlaceholder: 'Add a person…' },
     { key: 'url', label: 'URL' },
     { key: 'type', label: 'Type' },
     { key: 'notes', label: 'Notes', type: 'textarea' },

@@ -7,7 +7,7 @@ import { EyeIcon, EyeOffIcon } from '@/Components/Icons';
  * `knownLabels` seeds names for ids that came with the record (the options
  * endpoint also has them, but this avoids a flash of bare ids on open).
  */
-function MultiPicker({ ids, endpoint, knownLabels, onChange }) {
+function MultiPicker({ ids, endpoint, knownLabels, onChange, placeholder = 'Add…' }) {
     const [options, setOptions] = useState(knownLabels);
 
     useEffect(() => {
@@ -35,7 +35,7 @@ function MultiPicker({ ids, endpoint, knownLabels, onChange }) {
                 </div>
             )}
             <SearchSelect value={null} options={options.filter((o) => !ids.includes(o.id))}
-                onChange={(id) => { if (id) onChange([...ids, id]); }} placeholder="Add a person…" />
+                onChange={(id) => { if (id) onChange([...ids, id]); }} placeholder={placeholder} />
         </div>
     );
 }
@@ -121,6 +121,7 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
                             ) : f.type === 'multi-select-search' ? (
                                 <MultiPicker ids={values[f.key] || []} endpoint={f.optionsEndpoint}
                                     knownLabels={initial[f.optionsKey || 'holder_options'] || []}
+                                    placeholder={f.pickPlaceholder || 'Add…'}
                                     onChange={(ids) => setValues((v) => ({ ...v, [f.key]: ids }))} />
                             ) : f.type === 'select' ? (
                                 <select value={values[f.key] ?? ''}
