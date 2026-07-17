@@ -113,20 +113,31 @@ export default function Index() {
 
     // ---- weekly grid data ----
     const nonProjects = useMemo(() => tasks.filter((t) => !t.is_project), [tasks]);
-    const weekTasks = useMemo(() => nonProjects.filter((t) => t.week === view), [nonProjects, view]);
+    const weekTasks = useMemo(() => topLevel.filter((t) => t.week === view), [topLevel, view]);
     const open = useMemo(() => weekTasks.filter((t) => !t.done).sort((a, b) => (b.pri - a.pri) || (a.ord - b.ord)), [weekTasks]);
     const completedGroups = useMemo(() => {
         const out = [];
         for (let i = 0; i < 4; i++) {
             const wk = ymd(addDays(parseYmd(view), -7 * i));
-            const items = nonProjects.filter((t) => t.week === wk && t.done).sort((a, b) => a.ord - b.ord);
+            const items = topLevel.filter((t) => t.week === wk && t.done).sort((a, b) => a.ord - b.ord);
             if (items.length) out.push({ wk, items });
         }
         return out;
-    }, [nonProjects, view]);
+    }, [topLevel, view]);
     const avg = weekTasks.length ? Math.round(weekTasks.reduce((s, t) => s + (t.pct || 0), 0) / weekTasks.length) : 0;
 
     const projects = useMemo(() => tasks.filter((t) => t.is_project).sort((a, b) => a.ord - b.ord), [tasks]);
+
+    // Subtasks: parent_id pointing at a TASK (not a project). They render nested
+    // under their parent everywhere, never as top-level rows.
+    const projectIds = useMemo(() => new Set(projects.map((pj) => pj.id)), [projects]);
+    const subsByParent = useMemo(() => {
+        const m = {};
+        for (const t of nonProjects) if (t.parent_id && !projectIds.has(t.parent_id)) (m[t.parent_id] ??= []).push(t);
+        return m;
+    }, [nonProjects, projectIds]);
+    const topLevel = useMemo(() => nonProjects.filter((t) => !(t.parent_id && !projectIds.has(t.parent_id))), [nonProjects, projectIds]);
+    const addSub = async (parentId, title, week) => { await api('/data/tasks', 'POST', { title, week, parent_id: parentId }); load(); };
 
     const viewDate = parseYmd(view);
     const doneThisWeek = weekTasks.filter((t) => t.done).length;
@@ -136,8 +147,8 @@ export default function Index() {
     // deceptively empty while this week is still in progress.
     const viewIsFuture = view > currentWeek;
     const rollingIn = useMemo(
-        () => (viewIsFuture ? nonProjects.filter((t) => !t.done && t.week < view).sort((a, b) => (b.pri - a.pri) || (a.ord - b.ord)) : []),
-        [viewIsFuture, nonProjects, view]
+        () => (viewIsFuture ? topLevel.filter((t) => !t.done && t.week < view).sort((a, b) => (b.pri - a.pri) || (a.ord - b.ord)) : []),
+        [viewIsFuture, topLevel, view]
     );
 
     const content = (
@@ -184,7 +195,8 @@ export default function Index() {
                             {open.length === 0 && !rollingIn.length && <EmptyRow>{weekTasks.length ? 'All clear for this week.' : 'No tasks yet — add one above.'}</EmptyRow>}
                             {open.map((t) => (
                                 <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects} allTasks={nonProjects}
-                                    expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
+                                    expandedId={expandedId} onToggleAny={(id) => setExpandedId(expandedId === id ? null : id)}
+                                    subs={subsByParent} onAddSub={addSub}
                                     onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                             ))}
                             {rollingIn.length > 0 && (
@@ -211,7 +223,8 @@ export default function Index() {
                                     <SubRow label={weekLabel(g.wk, currentWeek)} right={`${g.items.length} done`} />
                                     {g.items.map((t) => (
                                         <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects} allTasks={nonProjects}
-                                            expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
+                                            expandedId={expandedId} onToggleAny={(id) => setExpandedId(expandedId === id ? null : id)}
+                                            subs={subsByParent} onAddSub={addSub}
                                             onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                                     ))}
                                 </FragmentRows>
@@ -311,7 +324,9 @@ function SubRow({ label, right }) {
 }
 function EmptyRow({ children }) { return <tr><td colSpan={9} className="px-3 py-3 text-gray-400">{children}</td></tr>; }
 
-function TaskRows({ t, people, patch, projects = [], allTasks = [], expanded, onToggle, onProject, onMakeDoc, onDelete }) {
+function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, onAddSub, depth = 0, expandedId, onToggleAny, onProject, onMakeDoc, onDelete }) {
+    const expanded = expandedId === t.id;
+    const onToggle = () => onToggleAny(t.id);
     const carried = t.origin && t.origin < t.week && !t.done;
     return (
         <>
@@ -324,7 +339,8 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], expanded, on
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 </td>
                 <td className="px-3 py-1.5">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" style={depth ? { marginLeft: depth * 20 } : undefined}>
+                        {depth > 0 && <span className="text-gray-300 dark:text-gray-600">↳</span>}
                         <InlineText value={t.title} done={t.done} onCommit={(v) => patch(t.id, { title: v }, { debounce: true })} />
                         {t.notes ? <span className="text-gray-300 dark:text-gray-600 shrink-0" title="has notes"><NoteGlyph /></span> : null}
                         {carried && <span className="text-blue-500 shrink-0" title="carried over from an earlier week">↻</span>}
@@ -371,6 +387,13 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], expanded, on
                                         </select>
                                     </label>
                                     <label className="block">
+                                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Planned / due</span>
+                                        <input type="date" value={t.planned_start || ''} onChange={(e) => patch(t.id, { planned_start: e.target.value || null })}
+                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1 mb-1 focus:border-blue-500 focus:ring-blue-500" />
+                                        <input type="date" value={t.due_date || ''} onChange={(e) => patch(t.id, { due_date: e.target.value || null })}
+                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1 focus:border-blue-500 focus:ring-blue-500" />
+                                    </label>
+                                    <label className="block">
                                         <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">After</span>
                                         <select value={t.depends_on_id ?? ''} onChange={(e) => patch(t.id, { depends_on_id: e.target.value ? Number(e.target.value) : null })}
                                             className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
@@ -380,6 +403,9 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], expanded, on
                                     </label>
                                     <button onClick={() => onProject(t.id, true)}
                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400 hover:text-indigo-600"><Wrench /> Make project</button>
+                                    <input placeholder="Add subtask ⏎"
+                                        onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { onAddSub?.(t.id, e.target.value.trim(), t.week); e.target.value = ''; } }}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
                                     <TemplateMenu label="Make doc" glyph={<DocGlyph />} onPick={(k) => onMakeDoc(t, k)}
                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm w-full rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600" />
                                 </div>
@@ -388,6 +414,11 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], expanded, on
                     </td>
                 </tr>
             )}
+            {(subs[t.id] || []).map((st) => (
+                <TaskRows key={st.id} t={st} people={people} patch={patch} projects={projects} allTasks={allTasks}
+                    subs={subs} onAddSub={onAddSub} depth={depth + 1} expandedId={expandedId} onToggleAny={onToggleAny}
+                    onProject={onProject} onMakeDoc={onMakeDoc} onDelete={onDelete} />
+            ))}
         </>
     );
 }
@@ -535,37 +566,47 @@ const GANTT_STATUS_BAR = {
     Proposed: 'bg-indigo-400',
 };
 const GANTT_PRI_BAR = ['bg-blue-400', 'bg-blue-500', 'bg-amber-500', 'bg-red-500'];
-const ROW_H = { project: 34, task: 26, sect: 26 };   // fixed px so connector/drag math is exact
+const ROW_H = { project: 34, task: 26, sect: 26 };
 
 /**
- * Timeline: projects thick, tasks thin, chains dotted. Interactive:
- *  - drag the ○ handle at a bar's end onto another bar → that task runs AFTER it
- *  - drag a task's bar onto a project (or the No-project section) → refile it
- *  - click an arrowhead → unlink
- * Bars do NOT drag along the time axis: they run origin → completion, which is
- * a record, not a plan. Pure CSS + pointer events; no library.
+ * Timeline. Bars show the PLANNED window (planned_start → due/completion);
+ * `origin` — when the task was born — is the fixed ◆ tick and never moves.
+ * Interactive: drag a bar horizontally to replan it (creation date stays put),
+ * drag it vertically onto a project to refile, drag the ○ handle to chain,
+ * click an arrowhead to unlink. Overdue open bars get a red ring.
  */
 function Gantt({ projects, tasks, currentWeek, patch }) {
     const canvasRef = useRef(null);
     const listRef = useRef([]);
-    const [drag, setDrag] = useState(null);   // {type:'link'|'move', source, x1,y1, xPct,yPx}
+    const [drag, setDrag] = useState(null);
 
     const today = new Date();
-    const start = (t) => parseYmd(t.origin || t.week);
-    const end = (t) => (t.done && t.completed_at ? parseYmd(t.completed_at) : today);
+    const start = (t) => parseYmd(t.planned_start || t.origin || t.week);
+    const end = (t) => (t.done && t.completed_at ? parseYmd(t.completed_at) : (t.due_date ? parseYmd(t.due_date) : today));
+    const overdue = (t) => !t.done && t.due_date && parseYmd(t.due_date) < today;
+
+    const projectIds = new Set(projects.map((p) => p.id));
+    const subsOf = (id) => tasks.filter((t) => t.parent_id === id);
 
     const list = [];
+    const pushTask = (t, level) => {
+        list.push({ kind: 'task', item: t, level });
+        subsOf(t.id).forEach((st) => pushTask(st, level + 1));
+    };
     for (const p of projects) {
-        const children = tasks.filter((t) => t.parent_id === p.id);
-        const starts = [start(p), ...children.map(start)];
-        const ends = [end(p), ...children.map(end)];
+        const children = subsOf(p.id);
+        const flat = [];
+        const collect = (t) => { flat.push(t); subsOf(t.id).forEach(collect); };
+        children.forEach(collect);
+        const starts = [start(p), ...flat.map(start)];
+        const ends = [end(p), ...flat.map(end)];
         list.push({ kind: 'project', item: p, s: new Date(Math.min(...starts)), e: new Date(Math.max(...ends)) });
-        children.forEach((t) => list.push({ kind: 'task', item: t }));
+        children.forEach((t) => pushTask(t, 0));
     }
     const orphans = tasks.filter((t) => !t.parent_id && !t.done);
     if (orphans.length) {
         list.push({ kind: 'sect', label: 'No project — open tasks' });
-        orphans.forEach((t) => list.push({ kind: 'task', item: t }));
+        orphans.forEach((t) => pushTask(t, 0));
     }
 
     let y = 0;
@@ -574,17 +615,15 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
     const bodyH = y;
     listRef.current = list;
 
-    const allS = list.filter((r) => r.item).map((r) => r.s || start(r.item));
-    const allE = list.filter((r) => r.item).map((r) => r.e || end(r.item));
-    const lo = mondayOf(new Date(Math.min(...(allS.length ? allS : [today]), today)));
-    const hi = addDays(mondayOf(new Date(Math.max(...(allE.length ? allE : [today]), today))), 13);
+    const items = list.filter((r) => r.item);
+    const lo = mondayOf(new Date(Math.min(...items.map((r) => r.s || start(r.item)), today)));
+    const hi = addDays(mondayOf(new Date(Math.max(...items.map((r) => r.e || end(r.item)), today))), 13);
     const total = (hi - lo) / 86400000;
     const X = (d) => ((d - lo) / 86400000 / total) * 100;
     const weeks = [];
     for (let d = new Date(lo); d < hi; d = addDays(d, 7)) weeks.push(new Date(d));
 
     const byId = (id) => tasks.find((o) => o.id === id) || projects.find((o) => o.id === id);
-    // Linking succ AFTER pred cycles only if pred already (transitively) runs after succ.
     const wouldCycle = (pred, succ) => {
         let cur = pred;
         for (let i = 0; cur && i < 100; i++) {
@@ -611,23 +650,50 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
 
     useEffect(() => {
         if (!drag) return;
-        const mv = (e) => setDrag((d) => (d ? { ...d, ...pt(e) } : d));
-        const up = (e) => {
-            const { yPx } = pt(e);
-            const target = rowAt(yPx);
-            setDrag(null);
-            if (!target) return;
-            if (drag.type === 'link') {
-                if (target.kind === 'task' && target.item.id !== drag.source.id && !wouldCycle(drag.source, target.item)) {
-                    patch(target.item.id, { depends_on_id: drag.source.id });
+        const mv = (e) => {
+            const cur = pt(e);
+            setDrag((d) => {
+                if (!d) return d;
+                // Axis lock: horizontal = replan dates, vertical = refile/chain target.
+                let axis = d.axis;
+                if (!axis && d.type === 'bar') {
+                    const dx = Math.abs(cur.xPct - d.x0), dy = Math.abs(cur.yPx - d.y0);
+                    if (dx * 8 > 1 || dy > 6) axis = (dx / 100 * (canvasRef.current?.clientWidth || 1000)) > dy ? 'time' : 'row';
                 }
-            } else if (drag.type === 'move') {
-                if (target.kind === 'project' && target.item.id !== drag.source.parent_id) {
-                    patch(drag.source.id, { parent_id: target.item.id });
-                } else if (target.kind === 'task' && target.item.parent_id && target.item.parent_id !== drag.source.parent_id) {
-                    patch(drag.source.id, { parent_id: target.item.parent_id });   // dropped among a project's tasks
-                } else if ((target.kind === 'sect' || (target.kind === 'task' && !target.item.parent_id)) && drag.source.parent_id) {
-                    patch(drag.source.id, { parent_id: null });
+                return { ...d, ...cur, axis };
+            });
+        };
+        const up = (e) => {
+            const { xPct, yPx } = pt(e);
+            const d = drag;
+            setDrag(null);
+            if (!d) return;
+            if (d.type === 'link') {
+                const target = rowAt(yPx);
+                if (target?.kind === 'task' && target.item.id !== d.source.id && !wouldCycle(d.source, target.item)) {
+                    patch(target.item.id, { depends_on_id: d.source.id });
+                }
+                return;
+            }
+            // bar drag: settle by locked axis
+            if (d.axis === 'time' && !d.source.done) {
+                const deltaDays = Math.round((xPct - d.x0) / 100 * total);
+                if (deltaDays !== 0) {
+                    const s0 = start(d.source), e0 = end(d.source);
+                    patch(d.source.id, {
+                        planned_start: ymd(addDays(s0, deltaDays)),
+                        due_date: ymd(addDays(e0, deltaDays)),
+                    });
+                }
+            } else if (d.axis === 'row') {
+                const target = rowAt(yPx);
+                if (!target) return;
+                if (target.kind === 'project' && target.item.id !== d.source.parent_id) {
+                    patch(d.source.id, { parent_id: target.item.id });
+                } else if (target.kind === 'task' && target.item.parent_id && projectIds.has(target.item.parent_id) && target.item.parent_id !== d.source.parent_id) {
+                    patch(d.source.id, { parent_id: target.item.parent_id });
+                } else if ((target.kind === 'sect' || (target.kind === 'task' && !target.item.parent_id)) && d.source.parent_id) {
+                    patch(d.source.id, { parent_id: null });
                 }
             }
         };
@@ -641,15 +707,17 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
         return <p className="py-8 text-sm text-gray-400 text-center">Nothing to chart yet — add a project or some tasks.</p>;
     }
 
-    const hoverRow = drag ? rowAt(drag.yPx ?? -1) : null;
+    const hoverRow = drag && (drag.type === 'link' || drag.axis === 'row') ? rowAt(drag.yPx ?? -1) : null;
     const hoverValid = hoverRow && (
-        drag?.type === 'link' ? (hoverRow.kind === 'task' && hoverRow.item.id !== drag.source.id && !wouldCycle(drag.source, hoverRow.item))
-            : (hoverRow.kind === 'project' || hoverRow.kind === 'sect' || hoverRow.kind === 'task')
+        drag?.type === 'link'
+            ? (hoverRow.kind === 'task' && hoverRow.item.id !== drag.source.id && !wouldCycle(drag.source, hoverRow.item))
+            : true
     );
+    const timeDelta = drag?.axis === 'time' ? Math.round(((drag.xPct ?? drag.x0) - drag.x0) / 100 * total) : 0;
 
     return (
         <div className="overflow-x-auto">
-            <div className={`min-w-[860px] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden ${drag ? 'select-none cursor-grabbing' : ''}`}>
+            <div className={`min-w-[860px] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden ${drag ? 'select-none' : ''}`}>
                 <div className="flex items-stretch bg-gray-100 dark:bg-gray-800/70 text-[11px] uppercase tracking-wide text-gray-400">
                     <div className="w-56 shrink-0 px-3 py-2">Project / Task</div>
                     <div className="relative flex-1 py-2">
@@ -662,12 +730,12 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
                 <div className="flex">
                     <div className="w-56 shrink-0">
                         {list.map((r, i) => (
-                            <div key={i} style={{ height: ROW_H[r.kind] }}
-                                className={`px-3 flex items-center text-sm truncate border-b border-gray-50 dark:border-gray-800/70 ${
+                            <div key={i} style={{ height: ROW_H[r.kind], paddingLeft: r.kind === 'task' ? 12 + 16 * (r.level + 1) : 12 }}
+                                className={`pr-3 flex items-center text-sm truncate border-b border-gray-50 dark:border-gray-800/70 ${
                                     r.kind === 'project' ? 'font-medium text-gray-800 dark:text-gray-100'
                                     : r.kind === 'sect' ? 'bg-gray-50 dark:bg-gray-900/60 text-[11px] uppercase tracking-wide text-gray-400'
-                                    : 'pl-7 text-gray-500 dark:text-gray-400'}`}>
-                                {r.kind === 'sect' ? r.label : r.item.title}
+                                    : 'text-gray-500 dark:text-gray-400'}`}>
+                                {r.kind === 'sect' ? r.label : <>{r.kind === 'task' && r.level > 0 && <span className="mr-1 text-gray-300 dark:text-gray-600">↳</span>}{r.item.title}</>}
                             </div>
                         ))}
                     </div>
@@ -677,8 +745,7 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
                         ))}
                         <div className="absolute inset-y-0 border-l-2 border-red-400/70" style={{ left: `${X(today)}%` }} title="today" />
 
-                        {/* drop-target highlight while dragging */}
-                        {drag && hoverRow && (
+                        {hoverRow && (
                             <div className={`absolute inset-x-0 ${hoverValid ? 'bg-blue-100/60 dark:bg-blue-500/15' : 'bg-red-100/40 dark:bg-red-500/10'}`}
                                 style={{ top: hoverRow.y, height: ROW_H[hoverRow.kind] }} />
                         )}
@@ -687,20 +754,26 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
                             if (r.kind === 'sect') return <div key={i} className="absolute inset-x-0 bg-gray-50 dark:bg-gray-900/60" style={{ top: r.y, height: ROW_H.sect }} />;
                             const t = r.item;
                             const isProject = r.kind === 'project';
-                            const s = isProject ? r.s : start(t);
-                            const e = isProject ? r.e : end(t);
+                            const dragging = drag?.type === 'bar' && drag.axis === 'time' && drag.source.id === t.id && !t.done;
+                            const shift = dragging ? timeDelta : 0;
+                            const s = addDays(isProject ? r.s : start(t), shift);
+                            const e = addDays(isProject ? r.e : end(t), shift);
                             const cls = isProject
                                 ? `${GANTT_STATUS_BAR[t.status || (t.pct >= 100 ? 'Done' : t.pct > 0 ? 'In progress' : 'Proposed')] || GANTT_STATUS_BAR.Proposed} opacity-90`
                                 : `${t.done ? 'bg-gray-300 dark:bg-gray-600' : GANTT_PRI_BAR[t.pri] || GANTT_PRI_BAR[0]} opacity-80`;
                             return (
                                 <div key={i} className="absolute inset-x-0 group/lane" style={{ top: r.y, height: ROW_H[r.kind] }}>
-                                    <div className={`absolute rounded ${cls} ${isProject ? 'h-5' : 'h-3 cursor-grab active:cursor-grabbing'}`}
+                                    {/* origin tick: where the task was born — never moves */}
+                                    {!isProject && t.origin && (
+                                        <span className="absolute h-2 w-2 rotate-45 bg-gray-400 dark:bg-gray-500" title={`Origin ${t.origin} (fixed)`}
+                                            style={{ left: `calc(${X(parseYmd(t.origin))}% - 4px)`, top: '50%', transform: 'translateY(-50%) rotate(45deg)' }} />
+                                    )}
+                                    <div className={`absolute rounded ${cls} ${isProject ? 'h-5' : 'h-3 cursor-grab active:cursor-grabbing'} ${overdue(t) ? 'ring-2 ring-red-500' : ''} ${dragging ? 'opacity-60' : ''}`}
                                         style={{ left: `${X(s)}%`, width: `${Math.max(((e - s) / 86400000 + 1) / total * 100, 1.2)}%`, top: '50%', transform: 'translateY(-50%)' }}
-                                        title={`${t.title} · ${t.pct || 0}%${isProject ? '' : ' — drag onto a project to refile; drag the ○ to chain'}`}
-                                        onPointerDown={isProject ? undefined : (ev) => { ev.preventDefault(); setDrag({ type: 'move', source: t, ...pt(ev) }); }}>
+                                        title={`${t.title} · ${t.pct || 0}%${isProject ? '' : t.done ? '' : ' — drag ↔ to replan, ↕ onto a project to refile, ○ to chain'}`}
+                                        onPointerDown={isProject ? undefined : (ev) => { ev.preventDefault(); const c = pt(ev); setDrag({ type: 'bar', source: t, x0: c.xPct, y0: c.yPx, ...c }); }}>
                                         {(t.pct || 0) > 0 && <div className="absolute inset-y-0 left-0 rounded bg-black/20" style={{ width: `${Math.min(t.pct, 100)}%` }} />}
-                                        {/* link handle at the bar's end */}
-                                        <span onPointerDown={(ev) => { ev.stopPropagation(); ev.preventDefault(); setDrag({ type: 'link', source: t, x1: X(end2(t, isProject, r)), y1: yMid[t.id], ...pt(ev) }); }}
+                                        <span onPointerDown={(ev) => { ev.stopPropagation(); ev.preventDefault(); const c = pt(ev); setDrag({ type: 'link', source: t, x1: X(e), y1: yMid[t.id], ...c }); }}
                                             title="drag to another bar: it will run AFTER this"
                                             className="absolute -right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-gray-400 bg-white dark:bg-gray-900 opacity-0 group-hover/lane:opacity-100 cursor-crosshair" />
                                     </div>
@@ -708,7 +781,6 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
                             );
                         })}
 
-                        {/* the chains */}
                         {chains.map((c) => (
                             <FragmentRows key={`${c.pred.id}-${c.succ.id}`}>
                                 <div className="absolute border-t-2 border-dotted border-gray-400/80 pointer-events-none" style={{ top: c.y1, left: `${Math.min(c.x1, c.x2)}%`, width: `${Math.max(Math.abs(c.x2 - c.x1), 0.4)}%` }} />
@@ -720,26 +792,24 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
                             </FragmentRows>
                         ))}
 
-                        {/* live link preview while dragging */}
                         {drag?.type === 'link' && drag.xPct != null && (
                             <>
                                 <div className="absolute border-t-2 border-dotted border-blue-500 pointer-events-none" style={{ top: drag.y1, left: `${Math.min(drag.x1, drag.xPct)}%`, width: `${Math.abs(drag.xPct - drag.x1)}%` }} />
                                 <div className="absolute border-l-2 border-dotted border-blue-500 pointer-events-none" style={{ left: `${drag.xPct}%`, top: Math.min(drag.y1, drag.yPx), height: Math.abs(drag.yPx - drag.y1) }} />
                             </>
                         )}
+                        {drag?.axis === 'time' && timeDelta !== 0 && (
+                            <div className="absolute rounded bg-gray-800 text-white text-[11px] px-1.5 py-0.5 pointer-events-none" style={{ left: `${drag.xPct}%`, top: Math.max(drag.yPx - 26, 0) }}>
+                                {timeDelta > 0 ? '+' : ''}{timeDelta}d
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
             <p className="mt-3 text-xs text-gray-400">
-                Drag a bar's ○ onto another bar to chain it (runs after). Drag a task bar onto a project to refile it. Click an arrowhead to unlink.
-                Bars run origin → completion — length IS age; darker fill = % complete; red line = today.
+                Drag a bar ↔ to replan (◆ = origin, fixed — you can move the plan, not the past) or ↕ onto a project to refile.
+                Drag the ○ to chain ("runs after"); click an arrowhead to unlink. Red ring = overdue. Darker fill = % complete. Red line = today.
             </p>
         </div>
     );
-}
-
-// End-of-bar x for the link handle origin (project spans use the computed row span).
-function end2(t, isProject, row) {
-    if (isProject) return row.e;
-    return t.done && t.completed_at ? parseYmd(t.completed_at) : new Date();
 }
