@@ -25,6 +25,18 @@ export const ENTITIES = {
                 { key: 'department', label: 'Department' },
                 { key: 'cell', label: 'Cell' },
                 { key: 'ext', label: 'Ext' },
+                // Defaults to the company in the switcher; pick one to file them elsewhere.
+                { key: 'company_id', label: 'Company', type: 'select-search', optionsEndpoint: '/data/company-options' },
+                // Most staff are a directory record and never sign in. Access is stated
+                // here, not inferred from whether a password happens to exist.
+                { key: 'role', label: 'Role', type: 'select', options: [
+                    { value: 'User', label: 'User — directory record, no app access' },
+                    { value: 'Operations', label: 'Operations — everything except passwords' },
+                    { value: 'IT Admin', label: 'IT Admin — including passwords' },
+                    { value: 'SuperAdmin', label: 'SuperAdmin — full access' },
+                ] },
+                { key: 'can_login', label: 'Can sign in to AssetMost', type: 'checkbox' },
+                { key: 'password', label: 'Password (only if they can sign in)', type: 'password' },
             ],
         },
         edit: { fields: [

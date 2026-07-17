@@ -1,24 +1,26 @@
-import { Head } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
+import RecordModal from '@/Components/RecordModal';
+import { ENTITIES } from '@/entities';
 
 const SECTIONS = [
-    { key: 'directory', label: 'Directory (Samba / AD)' },
-    { key: 'm365', label: 'Microsoft 365' },
+    { key: 'companies', label: 'Companies' },
+    { key: 'identity', label: 'Identity providers' },
     { key: 'email', label: 'Email & signatures' },
     { key: 'backups', label: 'Backups' },
     { key: 'roles', label: 'Roles & access' },
 ];
 
 export default function Index() {
-    const [section, setSection] = useState('directory');
+    const [section, setSection] = useState('companies');
 
     const nav = (
         <ul className="p-2">
             {SECTIONS.map((s) => (
                 <li key={s.key}>
                     <button onClick={() => setSection(s.key)}
-                        className={`w-full text-left px-3 py-2.5 rounded-md text-sm ${section === s.key ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                        className={`w-full text-left px-3 py-2.5 rounded-md text-sm ${section === s.key ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
                         {s.label}
                     </button>
                 </li>
@@ -26,79 +28,387 @@ export default function Index() {
         </ul>
     );
 
+    const RENDER = {
+        companies: <Companies />,
+        identity: <Identity />,
+        email: <Email />,
+        backups: <Backups />,
+        roles: <RolesAccess />,
+    };
+
     return (
         <>
             <Head title="Settings" />
             <AppShell active="settings" nav={nav}
-                detail={<div className="max-w-3xl">{RENDER[section]()}</div>}
+                detail={<div className="max-w-4xl">{RENDER[section]}</div>}
                 footer={<span>Settings — {SECTIONS.find((s) => s.key === section)?.label}</span>} />
         </>
     );
 }
 
-const RENDER = {
-    directory: () => (
-        <Section title="Directory (Samba / AD)" desc="Connection and user sync.">
-            <Grid rows={[['Host', '—'], ['Base DN', '—'], ['Sync on login', 'Off'], ['App is source of truth', 'Off']]} />
-            <Btns labels={['Test connection', 'Sync users']} />
-        </Section>
-    ),
-    m365: () => (
-        <Section title="Microsoft 365" desc="Graph integration (device-code OAuth). Folded in here — was previously a separate screen that only half-worked before we had API access.">
-            <div className="flex items-center gap-3 mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                <span className="text-sm text-amber-800">Not connected — one Graph client to be wired up.</span>
+/* ---------------- Companies ---------------- */
+
+function Companies() {
+    const { companies = [] } = usePage().props;
+    const [adding, setAdding] = useState(false);
+    const [editing, setEditing] = useState(null);
+
+    return (
+        <Section title="Companies" desc="Every company in this install. Assets, people and licences all hang off one of these. Click a row to edit.">
+            <div className="mb-4 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+                <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-gray-900 text-xs uppercase tracking-wide text-gray-400">
+                        <tr>
+                            <Th>Name</Th><Th>Tag prefix</Th><Th>Domain</Th><Th>Location</Th><Th>Status</Th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {companies.map((c) => (
+                            <tr key={c.id} onClick={() => setEditing(c)}
+                                className="border-t border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-blue-50/40 dark:hover:bg-gray-800/50">
+                                <td className="px-3 py-2 text-gray-800 dark:text-gray-100">{c.name}</td>
+                                <td className="px-3 py-2 font-mono text-xs text-gray-600 dark:text-gray-300">{c.tag_prefix || '—'}</td>
+                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{c.domain || '—'}</td>
+                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{[c.city, c.state].filter(Boolean).join(', ') || '—'}</td>
+                                <td className="px-3 py-2">
+                                    <span className={c.active ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}>
+                                        {c.active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                        {!companies.length && (
+                            <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">No companies yet.</td></tr>
+                        )}
+                    </tbody>
+                </table>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-                {['Connect (device-code)', 'Create user', 'Assign license', 'Manage groups', 'Offboard user'].map((a) => (
-                    <div key={a} className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">{a}</div>
+            <button onClick={() => setAdding(true)}
+                className="px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">+ Add a company</button>
+
+            {adding && (
+                <RecordModal title="Add Company" endpoint="/data/companies" method="POST"
+                    fields={ENTITIES.companies.add.fields}
+                    onClose={() => setAdding(false)}
+                    onSaved={() => { setAdding(false); router.reload({ only: ['companies'] }); }} />
+            )}
+
+            {editing && (
+                <RecordModal title={editing.name} endpoint={`/data/companies/${editing.id}`} method="PATCH"
+                    fields={ENTITIES.companies.edit.fields} initial={editing}
+                    onClose={() => setEditing(null)}
+                    onSaved={() => { setEditing(null); router.reload({ only: ['companies'] }); }} />
+            )}
+        </Section>
+    );
+}
+
+/* ---------------- Identity providers ---------------- */
+
+/**
+ * Per company, because identity is a per-company fact: two companies in one install don't
+ * share a Google tenant. The old Directory (Samba/AD) section is gone — it needs software
+ * reachable on the company's own LAN, which a self-hosted box elsewhere isn't.
+ */
+function Identity() {
+    const { companies = [], providers = [], providerTypes = {} } = usePage().props;
+    const [companyId, setCompanyId] = useState(companies[0]?.id ?? null);
+
+    const forCompany = (p) => providers.find((x) => x.company_id === companyId && x.provider === p);
+
+    if (!companies.length) {
+        return (
+            <Section title="Identity providers" desc="Where a company's people come from.">
+                <Empty>Add a company first — identity is configured per company.</Empty>
+            </Section>
+        );
+    }
+
+    return (
+        <Section title="Identity providers" desc="Where a company's people come from. Sync only: the provider says who exists, this app decides what they may do.">
+            <label className="mb-5 block">
+                <span className="mb-1 block text-xs uppercase tracking-wide text-gray-400">Company</span>
+                <select value={companyId ?? ''} onChange={(e) => setCompanyId(Number(e.target.value))}
+                    className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm">
+                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+            </label>
+
+            <div className="space-y-3">
+                {Object.entries(providerTypes).map(([key, label]) => (
+                    <ProviderCard key={key} providerKey={key} label={label}
+                        companyId={companyId} existing={forCompany(key)} />
                 ))}
             </div>
+
+            <p className="mt-5 text-xs text-gray-400">
+                Signing in through a provider isn't wired up yet — these save the configuration only.
+                A person arriving from a sync is a directory record: whether they can sign in stays a
+                local decision on the Roles &amp; access screen.
+            </p>
         </Section>
-    ),
-    email: () => (
+    );
+}
+
+function ProviderCard({ providerKey, label, companyId, existing }) {
+    const [open, setOpen] = useState(false);
+    const [form, setForm] = useState(() => ({
+        domain: existing?.domain ?? '', tenant_id: existing?.tenant_id ?? '',
+        client_id: existing?.client_id ?? '', client_secret: '',
+        enabled: existing?.enabled ?? false, sync_on_login: existing?.sync_on_login ?? false,
+    }));
+    const [saving, setSaving] = useState(false);
+
+    const save = async () => {
+        setSaving(true);
+        await post('/settings/identity-providers', { company_id: companyId, provider: providerKey, ...form });
+        setSaving(false); setOpen(false);
+        router.reload({ only: ['providers'] });
+    };
+
+    return (
+        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+            <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                    <span className={`h-2.5 w-2.5 rounded-full ${existing?.enabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                    <div>
+                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{label}</div>
+                        <div className="text-xs text-gray-400">
+                            {existing?.enabled ? `Connected${existing.domain ? ` — ${existing.domain}` : ''}` : 'Not connected'}
+                        </div>
+                    </div>
+                </div>
+                <button onClick={() => setOpen((o) => !o)}
+                    className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    {open ? 'Cancel' : existing ? 'Edit' : 'Configure'}
+                </button>
+            </div>
+
+            {open && (
+                <div className="border-t border-gray-100 dark:border-gray-800 p-4 space-y-3">
+                    <Field label={providerKey === 'okta' ? 'Org URL' : 'Domain'} value={form.domain}
+                        onChange={(v) => setForm((f) => ({ ...f, domain: v }))}
+                        placeholder={providerKey === 'okta' ? 'acme.okta.com' : 'acme.com'} />
+                    {providerKey === 'microsoft' && (
+                        <Field label="Directory (tenant) ID" value={form.tenant_id}
+                            onChange={(v) => setForm((f) => ({ ...f, tenant_id: v }))} />
+                    )}
+                    <Field label="Client ID" value={form.client_id} onChange={(v) => setForm((f) => ({ ...f, client_id: v }))} />
+                    <Field label="Client secret" type="password" value={form.client_secret}
+                        onChange={(v) => setForm((f) => ({ ...f, client_secret: v }))}
+                        placeholder={existing?.has_secret ? 'Stored — leave blank to keep' : ''} />
+                    <div className="flex gap-6 pt-1">
+                        <Check label="Enabled" checked={form.enabled} onChange={(v) => setForm((f) => ({ ...f, enabled: v }))} />
+                        <Check label="Sync on login" checked={form.sync_on_login} onChange={(v) => setForm((f) => ({ ...f, sync_on_login: v }))} />
+                    </div>
+                    <button onClick={save} disabled={saving}
+                        className="px-3 py-2 text-sm rounded-md bg-blue-600 text-white disabled:opacity-50">
+                        {saving ? 'Saving…' : 'Save'}
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* ---------------- Roles & access ---------------- */
+
+/**
+ * The permission matrix, editable.
+ *
+ * Passwords are the row that matters: they're an encrypted column, and reading one needs
+ * the escrow key, so ticking the box is necessary but not sufficient. SuperAdmin is locked
+ * — a screen that grants permissions must not be able to revoke the permission to reach it.
+ */
+function RolesAccess() {
+    const { access } = usePage().props;
+    const [matrix, setMatrix] = useState(access.matrix);
+    const [saving, setSaving] = useState(false);
+
+    const groups = useMemo(() => {
+        const out = [];
+        access.permissions.forEach((p) => {
+            const g = out.find((x) => x.name === p.group);
+            (g ? g.items : (out.push({ name: p.group, items: [] }), out[out.length - 1].items)).push(p);
+        });
+        return out;
+    }, [access.permissions]);
+
+    const dirty = JSON.stringify(matrix) !== JSON.stringify(access.matrix);
+
+    const toggle = (role, key) =>
+        setMatrix((m) => ({ ...m, [role]: { ...m[role], [key]: !m[role][key] } }));
+
+    const save = async () => {
+        setSaving(true);
+        await post('/settings/roles', { matrix }, 'PATCH');
+        setSaving(false);
+        router.reload({ only: ['access'] });
+    };
+
+    const reset = async () => {
+        setSaving(true);
+        const body = await post('/settings/roles/reset', {});
+        if (body?.matrix) setMatrix(body.matrix);
+        setSaving(false);
+        router.reload({ only: ['access'] });
+    };
+
+    return (
+        <Section title="Roles & access" desc="What each role may do. Passwords are the line that matters — everything else is operational data.">
+            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+                <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                            <th className="px-3 py-2 text-left text-xs uppercase tracking-wide text-gray-400">Permission</th>
+                            {access.roles.map((r) => (
+                                <th key={r} className="px-3 py-2 text-center text-xs font-medium text-gray-600 dark:text-gray-300 w-28">
+                                    {r}
+                                    {r === access.locked && <div className="text-[10px] font-normal text-gray-400">locked</div>}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {groups.map((g) => (
+                            <RoleGroup key={g.name} group={g} access={access} matrix={matrix} toggle={toggle} />
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <p className="mt-3 text-xs text-gray-400">
+                <span className="text-amber-600 dark:text-amber-400">Reveal passwords</span> also requires the
+                key escrow service. Ticking it here grants the right; without the key there's nothing to decrypt.
+            </p>
+
+            {access.editable ? (
+                <div className="mt-5 flex items-center gap-2">
+                    <button onClick={save} disabled={!dirty || saving}
+                        className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white disabled:opacity-40">
+                        {saving ? 'Saving…' : 'Save changes'}
+                    </button>
+                    <button onClick={reset} disabled={saving}
+                        className="px-3 py-2 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                        Reset to defaults
+                    </button>
+                    {dirty && <span className="text-xs text-amber-600 dark:text-amber-400">Unsaved changes</span>}
+                </div>
+            ) : (
+                <p className="mt-5 text-xs text-gray-400">Your role can't change these.</p>
+            )}
+        </Section>
+    );
+}
+
+function RoleGroup({ group, access, matrix, toggle }) {
+    return (
+        <>
+            <tr className="bg-gray-50/60 dark:bg-gray-900/60">
+                <td colSpan={access.roles.length + 1}
+                    className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{group.name}</td>
+            </tr>
+            {group.items.map((p) => (
+                <tr key={p.key} className="border-t border-gray-100 dark:border-gray-800">
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-200">
+                        {p.label}
+                        {p.keyed && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">escrow key</span>}
+                    </td>
+                    {access.roles.map((r) => {
+                        const locked = r === access.locked || !access.editable;
+                        return (
+                            <td key={r} className="px-3 py-2 text-center">
+                                <input type="checkbox" checked={!!matrix[r]?.[p.key]} disabled={locked}
+                                    onChange={() => toggle(r, p.key)}
+                                    className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-blue-600 focus:ring-blue-500 disabled:opacity-40" />
+                            </td>
+                        );
+                    })}
+                </tr>
+            ))}
+        </>
+    );
+}
+
+/* ---------------- Still mockups ---------------- */
+
+function Email() {
+    return (
         <Section title="Email & signatures" desc="Transactional email provider and per-company HTML signature.">
             <Grid rows={[['Provider', '—'], ['From address', '—'], ['Signature', 'Per company']]} />
+            <Empty>Not wired up yet.</Empty>
         </Section>
-    ),
-    backups: () => (
-        <Section title="Backups" desc="Database backup schedule and downloads (admin only).">
+    );
+}
+
+function Backups() {
+    return (
+        <Section title="Backups" desc="Database backup schedule and downloads.">
             <Grid rows={[['Schedule', '—'], ['Last backup', '—'], ['Retention', '—']]} />
-            <Btns labels={['Create backup now']} />
+            <Empty>Not wired up yet.</Empty>
         </Section>
-    ),
-    roles: () => (
-        <Section title="Roles & access" desc="Role tiers enforced across the app.">
-            <Grid rows={[['SuperAdmin', 'All companies'], ['IT Admin', 'Assigned companies'], ['Company Admin', 'Own company'], ['User', 'Self only']]} />
-        </Section>
-    ),
-};
+    );
+}
+
+/* ---------------- bits ---------------- */
+
+async function post(url, body, method = 'POST') {
+    const xsrf = decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
+    const res = await fetch(url, {
+        method, credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf },
+        body: JSON.stringify(body),
+    });
+    return res.ok ? res.json().catch(() => ({})) : null;
+}
 
 function Section({ title, desc, children }) {
     return (
         <div>
-            <h1 className="text-xl font-semibold text-gray-800 mb-1">{title}</h1>
-            <p className="text-sm text-gray-500 mb-5">{desc}</p>
+            <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-1">{title}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">{desc}</p>
             {children}
         </div>
     );
 }
+
 function Grid({ rows }) {
     return (
         <dl className="grid grid-cols-2 gap-x-8 mb-5">
             {rows.map(([k, v]) => (
-                <div key={k} className="border-b border-gray-100 py-1.5">
+                <div key={k} className="border-b border-gray-100 dark:border-gray-800 py-1.5">
                     <dt className="text-xs uppercase tracking-wide text-gray-400">{k}</dt>
-                    <dd className="text-sm text-gray-800">{v}</dd>
+                    <dd className="text-sm text-gray-800 dark:text-gray-100">{v}</dd>
                 </div>
             ))}
         </dl>
     );
 }
-function Btns({ labels }) {
+
+function Th({ children }) {
+    return <th className="px-3 py-2 text-left font-medium">{children}</th>;
+}
+
+function Empty({ children }) {
+    return <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-800 p-4 text-sm text-gray-400">{children}</div>;
+}
+
+function Field({ label, value, onChange, type = 'text', placeholder = '' }) {
     return (
-        <div className="flex gap-2">
-            {labels.map((l) => <button key={l} className="px-3 py-2 text-sm rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50">{l}</button>)}
-        </div>
+        <label className="block">
+            <span className="mb-1 block text-xs uppercase tracking-wide text-gray-400">{label}</span>
+            <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+                className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
+        </label>
+    );
+}
+
+function Check({ label, checked, onChange }) {
+    return (
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+            <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)}
+                className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800 text-blue-600 focus:ring-blue-500" />
+            {label}
+        </label>
     );
 }

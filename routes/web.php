@@ -62,7 +62,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/clients', fn () => redirect()->route('companies.index'))->name('clients.index');
 
     // Settings (moved to header gear / user menu)
-    Route::get('/settings', fn () => \Inertia\Inertia::render('Settings/Index'))->name('settings.index');
+    $sc = \App\Http\Controllers\SettingsController::class;
+    Route::get('/settings', [$sc, 'index'])->name('settings.index');
+    Route::patch('/settings/roles', [$sc, 'updateRoles']);
+    Route::post('/settings/roles/reset', [$sc, 'resetRoles']);
+    Route::post('/settings/identity-providers', [$sc, 'saveProvider']);
+    // /m365 was its own screen; Microsoft is now one identity provider among three.
     Route::get('/m365', fn () => redirect()->route('settings.index'))->name('m365.index');
 
     // JSON data endpoints (infinite scroll + detail)
@@ -80,6 +85,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/device-options', [$dc, 'deviceOptions']);
     Route::get('/data/people-options', [$dc, 'peopleOptions']);
     Route::get('/data/location-options', [$dc, 'locationOptions']);
+    Route::get('/data/company-options', [$dc, 'companyOptions']);
     Route::get('/data/people/{person}/devices', [$dc, 'personDevices']);
     Route::post('/data/people/{person}/devices', [$dc, 'attachPersonDevice']);
     Route::delete('/data/people/{person}/devices/{device}', [$dc, 'detachPersonDevice']);
@@ -102,8 +108,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/vendors/{vendor}', [$dc, 'vendor']);
     Route::get('/data/vendors/{vendor}/logins', [$dc, 'vendorLogins']);
     Route::get('/data/vendors/{vendor}/licenses', [$dc, 'vendorLicenses']);
+    Route::post('/data/licenses', [$dc, 'storeLicense']);
     Route::get('/data/licenses/{license}', [$dc, 'license']);
     Route::patch('/data/licenses/{license}', [$dc, 'updateLicense']);
+    Route::get('/data/product-options', [$dc, 'productOptions']);
     Route::get('/data/rooms', [$dc, 'rooms']);
     Route::post('/data/rooms', [$dc, 'storeRoom']);
     Route::get('/data/rooms/{room}', [$dc, 'room']);

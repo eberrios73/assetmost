@@ -36,8 +36,11 @@ class PasswordResetLinkController extends Controller
         // We will send the password reset link to this user. Once we have attempted
         // to send the link, we will examine the response then see the message we
         // need to show to the user. Finally, we'll send out a proper response.
+        // Scoped to active users: a deactivated account shouldn't be mailed a way back
+        // in, and shouldn't have its existence confirmed either. Password::sendResetLink
+        // returns the same "we sent it" status regardless, so this leaks nothing.
         $status = Password::sendResetLink(
-            $request->only('email')
+            $request->only('email') + ['active' => true]
         );
 
         if ($status == Password::RESET_LINK_SENT) {

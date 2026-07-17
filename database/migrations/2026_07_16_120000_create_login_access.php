@@ -32,9 +32,11 @@ return new class extends Migration {
         });
 
         // Carry existing single assignments over before the column goes.
+        // CURRENT_TIMESTAMP, not NOW(): NOW() is MySQL-only and this has to run on the
+        // sqlite the test suite builds, otherwise nothing downstream of it is testable.
         DB::statement('
             INSERT INTO login_access (login_id, user_id, created_at, updated_at)
-            SELECT id, user_id, NOW(), NOW() FROM logins WHERE user_id IS NOT NULL
+            SELECT id, user_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM logins WHERE user_id IS NOT NULL
         ');
 
         Schema::table('logins', function (Blueprint $t) {

@@ -22,7 +22,7 @@ export default function VendorDetail({ v }) {
                         </dl>
                     ) },
                     { key: 'logins', label: 'Logins', count: v.logins_count, render: () => <LoginsTable endpoint={`/data/vendors/${v.id}/logins`} showUser /> },
-                    { key: 'licenses', label: 'Licenses', count: v.licenses_count, render: () => <LicensesTable endpoint={`/data/vendors/${v.id}/licenses`} showHolders /> },
+                    { key: 'licenses', label: 'Licenses', count: v.licenses_count, render: () => <LicensesTable endpoint={`/data/vendors/${v.id}/licenses`} showHolders defaults={{ vendor_id: v.id }} /> },
                 ]} />
             </div>
         </div>

@@ -409,6 +409,34 @@ class DataController extends Controller
         ]);
     }
 
+    /** Create a license (a company's purchase of a product). company_id comes from the
+     *  tenant scope on create — never from the client. */
+    public function storeLicense(Request $request): JsonResponse
+    {
+        $v = validator($request->all(), [
+            'name' => 'required|string|max:255',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'product_id' => 'nullable|integer|exists:products,id',
+            'seats_total' => 'nullable|integer|min:0',   // null = not counted yet
+            'account_number' => 'nullable|string|max:255',
+            'serial_number' => 'nullable|string|max:255',
+            'amount' => 'nullable|numeric',
+            'renewal_date' => 'nullable|date',
+            'renewalfrequency' => 'nullable|string|max:50',
+            'is_active' => 'boolean',
+            'notes' => 'nullable|string',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $data = $v->validated();
+        $data['is_active'] = (bool) ($data['is_active'] ?? true);
+
+        $license = \App\Models\License::create($data);
+
+        return response()->json($license->fresh(), 201);
+    }
+
     public function updateLicense(Request $request, \App\Models\License $license): JsonResponse
     {
         return $this->applyUpdate($license, $request, [
@@ -441,6 +469,20 @@ class DataController extends Controller
         );
     }
 
+    /** Products as {id,label} for the license form; labelled "Vendor — Product" because
+     *  two vendors can sell same-named things ("Standard", "Pro"). */
+    public function productOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Product::query()->with('vendor:id,name')->orderBy('name')->get()
+                ->map(fn ($p) => [
+                    'id' => $p->id,
+                    'label' => $p->vendor ? "{$p->vendor->name} — {$p->name}" : $p->name,
+                ])
+                ->sortBy('label')->values()
+        );
+    }
+
     public function updateLogin(Request $request, \App\Models\Login $login): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);
@@ -469,18 +511,25 @@ class DataController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** Reveal a login's password (for copy). Gated by role + restricted flag; audited. */
+    /** Reveal a login's password (for copy). Gated by Roles & access + restricted flag; audited. */
     public function loginSecret(\App\Models\Login $login): JsonResponse
     {
         $u = auth()->user();
-        abort_if($u?->role === 'User', 403);
-        abort_if($login->is_restricted && ! in_array($u->role, ['SuperAdmin', 'IT Admin'], true), 403);
+        // The matrix decides this now, so unticking it on Roles & access actually revokes it.
+        abort_unless($u?->may(\App\Support\Access::REVEAL), 403);
+        abort_if($login->is_restricted && ! $u->isAdmin(), 403);
         \Illuminate\Support\Facades\Log::info('credential.revealed', ['login' => $login->id, 'by' => $u->id]);
-        $login->loadMissing('user:id,name,last,cell');
+
+        // Through holders(), not the old single user_id — a credential can be held by many
+        // people (a shared mailbox, a pooled seat). `cell` is here for the SMS-the-code
+        // flow, so it only means anything when exactly one person holds this.
+        $login->loadMissing('holders:id,name,last,cell');
+        $sole = $login->holders->count() === 1 ? $login->holders->first() : null;
+
         return response()->json([
             'password' => $login->login_pass, // decrypted via cast
-            'cell' => $login->user?->cell,
-            'name' => $login->user ? trim("{$login->user->name} {$login->user->last}") : null,
+            'cell' => $sole?->cell,
+            'name' => $sole ? trim("{$sole->name} {$sole->last}") : null,
         ]);
     }
 
@@ -573,6 +622,16 @@ class DataController extends Controller
         );
     }
 
+    /** {id, label} companies the current user may file records under. */
+    public function companyOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Company::query()->whereIn('id', auth()->user()->managedCompanyIds())
+                ->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($c) => ['id' => $c->id, 'label' => $c->name])
+        );
+    }
+
     /** Create a staff member. Company defaults to the active one. */
     public function storePerson(Request $request): JsonResponse
     {
@@ -585,15 +644,31 @@ class DataController extends Controller
             'title' => 'nullable|string|max:255', 'department' => 'nullable|string|max:255',
             'cell' => 'nullable|string|max:30', 'ext' => 'nullable|string|max:11',
             'company_id' => 'nullable|integer|exists:companies,id',
+            // Most staff are directory records who never sign in, so this is optional —
+            // set one only for someone who actually uses the app.
+            'password' => 'nullable|string|min:8',
+            'role' => 'nullable|in:'.implode(',', \App\Support\Access::ROLES),
+            'can_login' => 'boolean',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = $v->validated();
         $data['company_id'] ??= app(\App\Support\Contracts\TenantResolver::class)->id();
-        // No password: a staff record is a person, not necessarily someone who signs in.
-        // Give them one deliberately later rather than minting a credential by accident.
-        $person = User::create($data + ['role' => 'User', 'active' => true]);
+        $data['role'] ??= \App\Support\Access::USER;
+        $data['can_login'] = (bool) ($data['can_login'] ?? false);
+
+        // A password without can_login would be a login nobody granted, and can_login
+        // without a password is an account that can never be used. Keep the two honest.
+        if (blank($data['password'] ?? null)) {
+            unset($data['password']);
+            $data['can_login'] = false;
+        }
+        if (! $data['can_login']) {
+            unset($data['password']);
+        }
+
+        $person = User::create($data + ['active' => true]);
 
         return response()->json($person->fresh(), 201);
     }

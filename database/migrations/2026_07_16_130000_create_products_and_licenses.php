@@ -53,9 +53,10 @@ return new class extends Migration {
         });
 
         // Carry the old 1:1 login link into the pivot before dropping it.
+        // CURRENT_TIMESTAMP, not NOW(): NOW() is MySQL-only and this has to run on sqlite.
         DB::statement('
             INSERT INTO license_login (license_id, login_id, created_at, updated_at)
-            SELECT id, login_id, NOW(), NOW() FROM licenses WHERE login_id IS NOT NULL
+            SELECT id, login_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM licenses WHERE login_id IS NOT NULL
         ');
 
         Schema::table('licenses', function (Blueprint $t) {

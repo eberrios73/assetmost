@@ -19,7 +19,8 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
-        $user = User::factory()->create();
+        // canLogin(): sign-in is granted, never implied by having a password.
+        $user = User::factory()->canLogin()->create();
 
         $response = $this->post('/login', [
             'email' => $user->email,
@@ -27,12 +28,13 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        // The app lands on People — the Breeze dashboard is gone on purpose.
+        $response->assertRedirect(route('people.index', absolute: false));
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->canLogin()->create();
 
         $this->post('/login', [
             'email' => $user->email,

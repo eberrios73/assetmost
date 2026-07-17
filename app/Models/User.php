@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Access;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'active' => 'boolean',
+            'can_login' => 'boolean',
             'restricted' => 'boolean',
             'force_password_change' => 'boolean',
             'samba_synced' => 'boolean',
@@ -62,8 +64,11 @@ class User extends Authenticatable
 
     public function managedCompanies(): BelongsToMany { return $this->belongsToMany(Company::class, 'admin_company'); }
 
-    public function isSuperAdmin(): bool { return $this->role === 'SuperAdmin'; }
-    public function isAdmin(): bool { return in_array($this->role, ['SuperAdmin', 'IT Admin'], true); }
+    public function isSuperAdmin(): bool { return $this->role === Access::SUPER_ADMIN; }
+    public function isAdmin(): bool { return in_array($this->role, [Access::SUPER_ADMIN, Access::IT_ADMIN], true); }
+
+    /** Does this person's role carry this permission? See App\Support\Access. */
+    public function may(string $permission): bool { return Access::allows($this->role, $permission); }
 
     /** Company ids this user may access (all for SuperAdmin/IT Admin, own otherwise). */
     public function managedCompanyIds(): array
