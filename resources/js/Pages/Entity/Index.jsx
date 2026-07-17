@@ -44,36 +44,17 @@ export default function Index({ entity, title }) {
             sortOptions={cfg.sort || []} selectedId={selectedId} onSelect={chooseId} onStats={setStats} reloadKey={reloadKey} />
     );
 
-    // Tenant cap (companies only). Use the live list total for the current count.
-    const isTenants = entity === 'companies';
-    const cap = tenant?.maxTenants ?? null;
-    const used = tenant?.tenantCount ?? stats.total;   // authoritative total (list is scoped to allowed)
-    const atCap = isTenants && cap != null && used >= cap;
-
     const detailPane = (
         <div className="h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-baseline gap-3">
-                    <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{title}</h1>
-                    {isTenants && cap != null && (
-                        <span className={`text-sm ${atCap ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-400'}`}>
-                            Tenants: {used} / {cap}
-                        </span>
-                    )}
-                </div>
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{title}</h1>
                 <div className="flex items-center gap-2">
                     {cfg.edit && detail && (
                         <button onClick={() => setEditing(true)} className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Edit</button>
                     )}
-                    {cfg.add && (atCap ? (
-                        <span className="flex items-center gap-2">
-                            <span className="hidden sm:inline text-xs text-amber-600 dark:text-amber-400">Enterprise adds tenants at ${tenant?.extraTenantPrice ?? 30}/yr</span>
-                            <button disabled title={`Tenant limit reached (${cap}). Beyond ${cap} is Enterprise.`}
-                                className="flex items-center gap-1 rounded-md bg-gray-300 dark:bg-gray-700 px-3 py-1.5 text-sm text-white/80 cursor-not-allowed"><PlusIcon /> {cfg.add.title}</button>
-                        </span>
-                    ) : (
+                    {cfg.add && (
                         <button onClick={() => setAdding(true)} className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"><PlusIcon /> {cfg.add.title}</button>
-                    ))}
+                    )}
                 </div>
             </div>
             <div className="flex-1 min-h-0">

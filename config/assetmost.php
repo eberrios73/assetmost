@@ -3,26 +3,18 @@
 return [
 
     /*
-     | AssetMost is multi-tenant and self-hosted, always.
+     | AssetMost is self-hosted and multi-tenant, with unlimited companies.
      |
-     | Self-hosted is a security decision, not a packaging one: this app stores vendor
-     | credentials. Running it as a hosted service would put every customer's passwords in
-     | one blast radius under someone else's control — one breach exposes all of them.
-     | Each install holds only its own secrets.
+     | Self-hosted is a security decision, not packaging: this app stores vendor
+     | credentials. Running it as a service would put every customer's passwords in one
+     | blast radius under someone else's control — one breach exposes all of them. Each
+     | install holds only its own secrets.
      |
-     | Multi-tenant from the start because the alternative (a single-company mode) forks
-     | every scoping decision in the codebase forever, to serve a case that a multi-tenant
-     | install already covers with one company.
+     | There is no tenant cap and no per-tenant billing, so there's nothing to configure
+     | here: a flat licence buys the software, and how many companies you manage with it is
+     | your business. Metering companies would only have punished the customers doing best
+     | with it, in software they run on their own hardware where any limit is honour-system
+     | anyway.
      */
-
-    /*
-     | Companies this install is licensed for. Self-hosted, so this is a licence tier and
-     | an honest guardrail — not DRM. It exists so an install can tell you it's outgrown
-     | its tier, not to stop anyone.
-     */
-    'max_tenants' => (int) env('ASSETMOST_MAX_TENANTS', 20),
-
-    // Annual price per company beyond the tier.
-    'extra_tenant_price' => (int) env('ASSETMOST_EXTRA_TENANT_PRICE', 30),
 
 ];
