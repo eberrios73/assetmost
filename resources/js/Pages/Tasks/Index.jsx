@@ -235,7 +235,7 @@ export default function Index() {
                     <p className="mt-3 text-xs text-gray-400">↻ carried over from an earlier week — unfinished tasks roll into the current week automatically.</p>
                 </>
             ) : mode === 'timeline' ? (
-                <Gantt projects={projects} tasks={nonProjects} currentWeek={currentWeek} patch={patch} />
+                <Gantt projects={projects} tasks={nonProjects} currentWeek={currentWeek} patch={patch} onOpenProject={(id) => { setMode('projects'); setOpenProj(id); }} />
             ) : (
                 <>
                     <AddBar placeholder="Add a project and press Enter…" onAdd={(v) => addTask(v, true)} />
@@ -575,7 +575,7 @@ const ROW_H = { project: 34, task: 26, sect: 26 };
  * drag it vertically onto a project to refile, drag the ○ handle to chain,
  * click an arrowhead to unlink. Overdue open bars get a red ring.
  */
-function Gantt({ projects, tasks, currentWeek, patch }) {
+function Gantt({ projects, tasks, currentWeek, patch, onOpenProject }) {
     const canvasRef = useRef(null);
     const listRef = useRef([]);
     const [drag, setDrag] = useState(null);
@@ -731,8 +731,10 @@ function Gantt({ projects, tasks, currentWeek, patch }) {
                     <div className="w-56 shrink-0">
                         {list.map((r, i) => (
                             <div key={i} style={{ height: ROW_H[r.kind], paddingLeft: r.kind === 'task' ? 12 + 16 * (r.level + 1) : 12 }}
+                                onClick={r.kind === 'project' ? () => onOpenProject?.(r.item.id) : undefined}
+                                title={r.kind === 'project' ? 'Open project details' : undefined}
                                 className={`pr-3 flex items-center text-sm truncate border-b border-gray-50 dark:border-gray-800/70 ${
-                                    r.kind === 'project' ? 'font-medium text-gray-800 dark:text-gray-100'
+                                    r.kind === 'project' ? 'font-medium text-gray-800 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400'
                                     : r.kind === 'sect' ? 'bg-gray-50 dark:bg-gray-900/60 text-[11px] uppercase tracking-wide text-gray-400'
                                     : 'text-gray-500 dark:text-gray-400'}`}>
                                 {r.kind === 'sect' ? r.label : <>{r.kind === 'task' && r.level > 0 && <span className="mr-1 text-gray-300 dark:text-gray-600">↳</span>}{r.item.title}</>}
