@@ -1,7 +1,7 @@
 import Field from '@/Components/detail/Field';
+import DataTable from '@/Components/ui/DataTable';
 
 const SHARING = {
-    personal: 'Personal — one human',
     pooled: 'Pooled — one at a time, reassignable',
     shared: 'Shared — many at once (a mailbox)',
     service: 'Service — runs the system, no human holder',
@@ -9,25 +9,31 @@ const SHARING = {
 };
 
 /**
- * A FLOATING account: an assignable credential. artist001 can be assigned to any
- * employee and reassigned later; a person's own email never can — which is why
- * identity logins live on the person and only assignable ones live here. The
- * assignment is the thing this screen tracks.
+ * A FLOATING account: ONE credential identity (artist001, info@, ITAdmin) used
+ * across many services. The services are uses of the credential, not more
+ * accounts — which is why they're a table inside this screen, and why the
+ * assignment (who currently holds the credential) lives here, not on them.
  */
 export default function AccountDetail({ a }) {
+    const serviceCols = [
+        { key: 'name', label: 'Service', width: '30%', className: 'text-gray-800 dark:text-gray-200' },
+        { key: 'vendor', label: 'Vendor', width: '22%' },
+        { key: 'type', label: 'Type', width: '18%' },
+        { key: 'url', label: 'URL', width: '15%',
+          render: (s) => s.url ? <a href={s.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 hover:underline">link</a> : <span className="text-gray-300">—</span> },
+        { key: 'is_active', label: 'Active', width: '15%', sortValue: (s) => (s.is_active ? 1 : 0),
+          render: (s) => s.is_active ? 'Yes' : <span className="text-gray-400">No</span> },
+    ];
+
     return (
         <div className="max-w-3xl">
-            {/* The account IS the email/username; the service it's for is the subtitle. */}
-            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">{a.login_id || a.login_name}</h2>
+            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">{a.identifier}</h2>
             <p className="text-sm text-gray-500 mb-4">
-                {a.login_id ? a.login_name : null}
-                {a.is_restricted && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">restricted</span>}
+                {SHARING[a.sharing] || a.sharing}
+                {a.sharing === 'breakglass' && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">sealed</span>}
             </p>
 
             <dl className="grid grid-cols-2 gap-x-8 mb-6">
-                <Field label="Sharing" value={SHARING[a.sharing] || a.sharing} />
-                <Field label="Type" value={a.type} />
-                <Field label="URL" value={a.url} />
                 <Field label="Active" value={a.is_active ? 'Yes' : 'No'} />
                 <Field label="Notes" value={a.notes} />
             </dl>
@@ -40,7 +46,6 @@ export default function AccountDetail({ a }) {
                     ))}
                 </div>
             ) : a.sharing === 'service' ? (
-                // No holder is the CORRECT state here — don't nag to assign one.
                 <p className="mb-6 text-sm text-gray-400">No one — this account runs the system, it isn't held.</p>
             ) : a.sharing === 'breakglass' ? (
                 <p className="mb-6 text-sm text-amber-600 dark:text-amber-400">Sealed — emergency use only. Every reveal is logged.</p>
@@ -50,14 +55,9 @@ export default function AccountDetail({ a }) {
                 </p>
             )}
 
-            <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">Licenses this account consumes</h3>
-            {a.licenses?.length ? (
-                <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
-                    {a.licenses.map((l) => <li key={l.id}>{l.name}</li>)}
-                </ul>
-            ) : (
-                <p className="text-sm text-gray-400">None — a service or infrastructure account.</p>
-            )}
+            <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">Used in these services</h3>
+            <DataTable columns={serviceCols} rows={a.services || []}
+                emptyText="No service logins linked to this credential yet." searchable={(a.services || []).length > 5} />
         </div>
     );
 }

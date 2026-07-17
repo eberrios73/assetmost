@@ -47,6 +47,9 @@ class Login extends Model
     /** Legacy single owner. ITer reads userID; the app uses holders(). */
     public function user(): BelongsTo { return $this->belongsTo(User::class, 'userID', 'id'); }
 
+    /** The floating account (credential identity) this login is a use of, if any. */
+    public function account(): BelongsTo { return $this->belongsTo(Account::class, 'account_id', 'id'); }
+
     // --- who holds it ---
     /** Everyone who can use this credential. Empty = nobody (an available pooled seat). */
     public function holders(): BelongsToMany

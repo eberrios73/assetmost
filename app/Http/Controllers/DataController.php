@@ -850,27 +850,19 @@ class DataController extends Controller
      * someone's directory email, pooled seats, shared mailboxes. Person-centric access
      * lives on the staff screen; this is the same data seen from the account side.
      */
+    /**
+     * Floating accounts — one row per credential IDENTITY, not per service login.
+     * itmgr@plutonicgames.com is one account used in 29 services; it lists once.
+     */
     public function accounts(Request $request): JsonResponse
     {
-        $q = \App\Models\Login::query()->with(['vendor:vendorID,name', 'holders:id,name,last']);
-        $this->sort($q, $request, ['login_id', 'login_name', 'type', 'sharing'], 'login_id');
-
-        // Only role/service credentials live here. A PERSONAL account that somebody
-        // holds is that person's — it lives on their staff page (heather.adbe@ belongs
-        // to Heather, whatever the alias looks like). What's left: everything flagged
-        // pooled/shared/service/breakglass, plus unheld personal accounts — those are
-        // unassigned or role accounts awaiting classification, and hiding them would
-        // make them invisible everywhere. Assign one to a person and it leaves this
-        // list on its own.
-        $q->where(function ($w) {
-            $w->where('sharing', '<>', 'personal')
-              ->orWhereNotExists(fn ($s) => $s->selectRaw('1')->from('login_access')->whereColumn('login_access.login_id', 'logins.loginID'));
-        });
+        $q = \App\Models\Account::query()->withCount('logins')->with('holders:id,name,last');
+        $this->sort($q, $request, ['identifier', 'sharing'], 'identifier');
 
         if ($s = $request->string('search')->toString()) {
-            $q->where(fn ($w) => $w->where('login_name', 'like', "%{$s}%")
-                ->orWhere('login_id', 'like', "%{$s}%")
-                ->orWhere('type', 'like', "%{$s}%"));
+            $q->where(fn ($w) => $w->where('identifier', 'like', "%{$s}%")
+                ->orWhere('notes', 'like', "%{$s}%")
+                ->orWhereHas('logins', fn ($l) => $l->where('login_name', 'like', "%{$s}%")));
         }
         if ($sharing = $request->string('sharing')->toString()) {
             $q->where('sharing', $sharing);
@@ -879,81 +871,95 @@ class DataController extends Controller
             $q->where('is_active', true);
         }
 
-        return $this->page($q, $request, fn ($l) => [
-            'id' => $l->id,
-            // The account IS the email/username. login_name ("Adobe") is what it's
-            // for — second line, never the headline.
-            'primary' => $l->login_id ?: $l->login_name,
-            'secondary' => $l->login_id ? $l->login_name : null,
-            // Personal is the norm, so only the exceptions get a badge.
-            'badge' => $l->sharing !== 'personal' ? $l->sharing : ($l->holders->count() > 1 ? 'multi' : null),
+        return $this->page($q, $request, fn ($a) => [
+            'id' => $a->id,
+            'primary' => $a->identifier,
+            'secondary' => $a->logins_count === 1 ? '1 service' : "{$a->logins_count} services",
+            'badge' => $a->sharing,
         ]);
     }
 
-    /** Account detail — the login plus who holds it and the seats it consumes. */
-    public function account(\App\Models\Login $login): JsonResponse
+    /** One credential: how it's shared, who holds it, and the services it's used in. */
+    public function account(\App\Models\Account $account): JsonResponse
     {
-        $login->loadMissing(['vendor:vendorID,name', 'holders:id,name,last,active', 'licenses:id,subscription_name']);
+        $account->loadMissing(['holders:id,name,last,active', 'logins.vendor:vendorID,name']);
         return response()->json([
-            'id' => $login->id,
-            'login_name' => $login->login_name, 'login_id' => $login->login_id,
-            'vendor_id' => $login->vendorID, 'vendor' => $login->vendor?->name,
-            'url' => $login->url, 'type' => $login->type, 'notes' => $login->notes,
-            'sharing' => $login->sharing ?? 'personal',
-            'is_active' => (bool) $login->is_active, 'is_restricted' => (bool) $login->is_restricted,
-            'holder_ids' => $login->holders->pluck('id')->all(),
-            'holder_options' => $login->holders->map(fn ($u) => [
+            'id' => $account->id,
+            'identifier' => $account->identifier,
+            'sharing' => $account->sharing,
+            'notes' => $account->notes,
+            'is_active' => $account->is_active,
+            'holder_ids' => $account->holders->pluck('id')->all(),
+            'holder_options' => $account->holders->map(fn ($u) => [
                 'id' => $u->id, 'label' => trim("{$u->name} {$u->last}").($u->active ? '' : ' (inactive)'),
             ])->all(),
-            'holders' => $login->holders->map(fn ($u) => trim("{$u->name} {$u->last}"))->all(),
-            'licenses' => $login->licenses->map(fn ($lic) => ['id' => $lic->id, 'name' => $lic->name])->all(),
-            'created_at' => $login->created_at, 'updated_at' => $login->updated_at,
-        ]); // password intentionally omitted (revealed only via the gated /secret endpoint)
+            'holders' => $account->holders->map(fn ($u) => trim("{$u->name} {$u->last}"))->all(),
+            'services' => $account->logins->map(fn ($l) => [
+                'id' => $l->id, 'name' => $l->login_name, 'vendor' => $l->vendor?->name,
+                'type' => $l->type, 'url' => $l->url,
+                'is_active' => (bool) $l->is_active, 'is_restricted' => (bool) $l->is_restricted,
+            ])->values()->all(),
+            'created_at' => $account->created_at, 'updated_at' => $account->updated_at,
+        ]);
     }
 
-    /** Create an account (login). Company comes from the tenant scope on create. */
+    /** Create a floating account (the identity only; service logins link to it). */
     public function storeAccount(Request $request): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
-            'login_pass' => 'nullable|string|max:255',
-            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
-            'sharing' => 'nullable|in:'.implode(',', \App\Models\Login::SHARING),
-            'url' => 'nullable|string|max:255', 'type' => 'nullable|string|max:255',
+            'identifier' => 'required|string|max:255|unique:accounts,identifier',
+            'sharing' => 'required|in:'.implode(',', \App\Models\Account::SHARING),
             'notes' => 'nullable|string',
-            'is_active' => 'boolean', 'is_restricted' => 'boolean',
+            'is_active' => 'boolean',
             'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = $v->validated();
-        $data['vendorID'] = $data['vendor_id'] ?? null;   // River FK name
-        unset($data['vendor_id']);
         $holderIds = $data['holder_ids'] ?? [];
         unset($data['holder_ids']);
-        $data['sharing'] ??= 'personal';
+        $data['identifier'] = trim($data['identifier']);
         $data['is_active'] = (bool) ($data['is_active'] ?? true);
-        // Break glass is restricted BY DEFINITION — an unsealed emergency credential
-        // is just a password lying around. Not overridable from the form.
-        if ($data['sharing'] === 'breakglass') {
-            $data['is_restricted'] = true;
-        }
+        $data['company_id'] = app(\App\Support\Contracts\TenantResolver::class)->id();
 
-        $login = \App\Models\Login::create($data);
+        $account = \App\Models\Account::create($data);
         if ($holderIds) {
-            $login->holders()->sync($holderIds);
+            $account->holders()->sync($holderIds);
         }
 
-        return response()->json($login->fresh(), 201);
+        return response()->json($account->fresh(), 201);
     }
 
-    /** The ways an account can be held, for the list filter and drawer. */
+    public function updateAccount(Request $request, \App\Models\Account $account): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'identifier' => 'required|string|max:255|unique:accounts,identifier,'.$account->id,
+            'sharing' => 'required|in:'.implode(',', \App\Models\Account::SHARING),
+            'notes' => 'nullable|string',
+            'is_active' => 'boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $data = $v->validated();
+        if (array_key_exists('holder_ids', $data)) {
+            $account->holders()->sync($data['holder_ids'] ?? []);
+            unset($data['holder_ids']);
+        }
+        $data['identifier'] = trim($data['identifier']);
+        $account->update($data);
+
+        return response()->json($account->fresh());
+    }
+
+    /** The ways a FLOATING account can be held (personal belongs to logins, not here). */
     public function sharingOptions(): JsonResponse
     {
         return response()->json([
-            ['value' => 'personal', 'label' => 'Personal — one human'],
             ['value' => 'pooled', 'label' => 'Pooled — one at a time'],
             ['value' => 'shared', 'label' => 'Shared — many at once'],
             ['value' => 'service', 'label' => 'Service — runs the system, no human holder'],

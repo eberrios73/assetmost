@@ -7,15 +7,11 @@ import LocationDetail from '@/Components/detail/LocationDetail';
 import CompanyDetail from '@/Components/detail/CompanyDetail';
 import AccountDetail from '@/Components/detail/AccountDetail';
 
-// One field list for accounts, used by both add and edit — the same credential
-// either way. Password reveal goes through the gated /secret endpoint.
+// A floating account is the credential IDENTITY only — the passwords live on
+// the service logins that use it. Floating means no 'personal' option here.
 const ACCOUNT_FIELDS = [
-    { key: 'login_name', label: 'Name', required: true },
-    { key: 'login_id', label: 'Login ID' },
-    { key: 'login_pass', label: 'Password (blank = keep)', type: 'password',
-      revealEndpoint: (id) => `/data/logins/${id}/secret`, revealKey: 'password' },
+    { key: 'identifier', label: 'Email / username', required: true },
     { key: 'sharing', label: 'Sharing', type: 'select', required: true, options: [
-        { value: 'personal', label: 'Personal — one human' },
         { value: 'pooled', label: 'Pooled — one at a time' },
         { value: 'shared', label: 'Shared — many at once' },
         { value: 'service', label: 'Service — runs the system, no human holder' },
@@ -23,10 +19,7 @@ const ACCOUNT_FIELDS = [
     ] },
     { key: 'holder_ids', label: 'Assigned to', type: 'multi-select-search',
       optionsEndpoint: '/data/person-options', pickPlaceholder: 'Search people to add…' },
-    { key: 'url', label: 'URL' },
-    { key: 'type', label: 'Type' },
     { key: 'notes', label: 'Notes', type: 'textarea' },
-    { key: 'is_restricted', label: 'Restricted', type: 'checkbox' },
     { key: 'is_active', label: 'Active', type: 'checkbox' },
 ];
 
@@ -75,7 +68,7 @@ export const ENTITIES = {
         listEndpoint: '/data/accounts', detailEndpoint: (id) => `/data/accounts/${id}`,
         icon: <KeyIcon />, idLabel: 'Account ID',
         filter: { key: 'sharing', label: 'sharing', optionsEndpoint: '/data/sharing-options' },
-        sort: [{ key: 'login_id', label: 'Email / username' }, { key: 'login_name', label: 'Service' }, { key: 'type', label: 'Type' }, { key: 'sharing', label: 'Sharing' }],
+        sort: [{ key: 'identifier', label: 'Email / username' }, { key: 'sharing', label: 'Sharing' }],
         render: (a) => <AccountDetail a={a} />,
         add: { endpoint: '/data/accounts', title: 'Add Account', fields: ACCOUNT_FIELDS },
         edit: { fields: ACCOUNT_FIELDS },

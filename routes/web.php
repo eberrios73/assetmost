@@ -108,11 +108,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/vendor-options', [$dc, 'vendorOptions']);
     Route::get('/data/person-options', [$dc, 'personOptions']);
     Route::get('/data/login-options', [$dc, 'loginOptions']);
-    // Accounts = the credential-centric view of logins (People > Accounts).
+    // Accounts = floating credential identities (People > Accounts). One row per
+    // credential; service logins point at it.
     Route::get('/data/accounts', [$dc, 'accounts']);
     Route::post('/data/accounts', [$dc, 'storeAccount']);
-    Route::get('/data/accounts/{login}', [$dc, 'account']);
-    Route::patch('/data/accounts/{login}', [$dc, 'updateLogin']);
+    Route::get('/data/accounts/{account}', [$dc, 'account']);
+    Route::patch('/data/accounts/{account}', [$dc, 'updateAccount']);
     Route::get('/data/sharing-options', [$dc, 'sharingOptions']);
     Route::get('/data/logins/{login}', [$dc, 'login']);
     Route::patch('/data/logins/{login}', [$dc, 'updateLogin']);
