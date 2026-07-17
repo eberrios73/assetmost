@@ -855,14 +855,16 @@ class DataController extends Controller
         $q = \App\Models\Login::query()->with(['vendor:vendorID,name', 'holders:id,name,last']);
         $this->sort($q, $request, ['login_name', 'login_id', 'type', 'sharing'], 'login_name');
 
-        // Only role/service credentials live here — pooled or shared accounts, plus
-        // anything whose login id isn't a person's own directory email (info@,
-        // accmgr001, distribution lists). A person's identity login belongs on their
-        // staff page; listing it twice would make this registry unreadable.
+        // Only role/service credentials live here. A PERSONAL account that somebody
+        // holds is that person's — it lives on their staff page (heather.adbe@ belongs
+        // to Heather, whatever the alias looks like). What's left: everything flagged
+        // pooled/shared/service/breakglass, plus unheld personal accounts — those are
+        // unassigned or role accounts awaiting classification, and hiding them would
+        // make them invisible everywhere. Assign one to a person and it leaves this
+        // list on its own.
         $q->where(function ($w) {
-            $w->whereIn('sharing', ['pooled', 'shared', 'service', 'breakglass'])
-              ->orWhereNull('login_id')->orWhere('login_id', '')
-              ->orWhereNotExists(fn ($s) => $s->selectRaw('1')->from('users')->whereColumn('users.email', 'logins.login_id'));
+            $w->where('sharing', '<>', 'personal')
+              ->orWhereNotExists(fn ($s) => $s->selectRaw('1')->from('login_access')->whereColumn('login_access.login_id', 'logins.loginID'));
         });
 
         if ($s = $request->string('search')->toString()) {
