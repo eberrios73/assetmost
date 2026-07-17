@@ -119,6 +119,11 @@ Route::middleware('auth')->group(function () {
         Route::patch('/data/accounts/{account}', [$dc, 'updateAccount']);
     });
     Route::get('/data/sharing-options', [$dc, 'sharingOptions']);
+
+    // Onboarding v2: per-company step template (paste SOP -> steps -> task project).
+    $oc = \App\Http\Controllers\OnboardingController::class;
+    Route::get('/data/onboarding-template', [$oc, 'template']);
+    Route::put('/data/onboarding-template', [$oc, 'saveTemplate']);
     Route::get('/data/logins/{login}', [$dc, 'login']);
     Route::patch('/data/logins/{login}', [$dc, 'updateLogin']);
     Route::delete('/data/logins/{login}', [$dc, 'destroyLogin']);

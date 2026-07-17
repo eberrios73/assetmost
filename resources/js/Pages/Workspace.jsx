@@ -6,6 +6,7 @@ import EntityList from '@/Components/EntityList';
 import RecordModal from '@/Components/RecordModal';
 import PasswordGate from '@/Components/ui/PasswordGate';
 import AssetOnboard from '@/Components/AssetOnboard';
+import OnboardingSetup from '@/Components/OnboardingSetup';
 import { ENTITIES, GROUPS } from '@/entities';
 import { getLast, setLast } from '@/lib/lastView';
 
@@ -99,18 +100,14 @@ export default function Workspace({ group }) {
         );
     } else if (tab.view === 'onboarding') {
         listContent = (
-            <ol className="p-3">
-                {ONB_STEPS.map((s, i) => (
-                    <li key={s}>
-                        <button onClick={() => setStep(i)} className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-md ${i === step ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
-                            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${i === step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>{i + 1}</span>{s}
-                        </button>
-                    </li>
-                ))}
-            </ol>
+            <div className="p-4 text-sm text-gray-500 dark:text-gray-400 space-y-2">
+                <p className="font-medium text-gray-700 dark:text-gray-200">Onboarding</p>
+                <p>Each company keeps its own steps — paste your SOP once, rearrange, done.</p>
+                <p>Running the wizard creates the person, their credentials in the registry, and a chained task project from these steps.</p>
+            </div>
         );
-        detailContent = <OnboardingStep step={step} setStep={setStep} />;
-        footerLeft = `Onboarding — step ${step + 1} of ${ONB_STEPS.length}`;
+        detailContent = <OnboardingSetup />;
+        footerLeft = 'Onboarding — company step template';
     } else if (tab.view === 'asset-onboard') {
         listContent = <div className="p-4 text-sm text-gray-500">Onboard a new asset into inventory — identify it, place it at a location, and add it.</div>;
         detailContent = <AssetOnboard onDone={() => { setListVersion((v) => v + 1); setTabKey('devices'); }} />;
