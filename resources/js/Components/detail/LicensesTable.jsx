@@ -10,7 +10,7 @@ const LICENSE_FIELDS = [
     { key: 'seats_total', label: 'Seats purchased (blank = unknown)', type: 'number' },
     // The accounts consuming the seats — this is what "held by" derives from.
     { key: 'login_ids', label: 'Accounts (logins) on this license', type: 'multi-select-search',
-      optionsEndpoint: '/data/login-options', optionsKey: 'login_options', pickPlaceholder: 'Add an account…' },
+      optionsEndpoint: '/data/login-options', optionsKey: 'login_options', pickPlaceholder: 'Search accounts to add…' },
     { key: 'account_number', label: 'Account #' },
     { key: 'serial_number', label: 'Serial #' },
     { key: 'amount', label: 'Amount ($)' },
