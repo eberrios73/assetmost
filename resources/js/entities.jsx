@@ -1,10 +1,33 @@
-import { DeviceIcon, PersonIcon, VendorIcon, RoomIcon, ClientIcon } from '@/Components/Icons';
+import { DeviceIcon, PersonIcon, VendorIcon, RoomIcon, ClientIcon, KeyIcon } from '@/Components/Icons';
 import DeviceDetail from '@/Components/detail/DeviceDetail';
 import PersonDetail from '@/Components/detail/PersonDetail';
 import VendorDetail from '@/Components/detail/VendorDetail';
 import RoomDetail from '@/Components/detail/RoomDetail';
 import LocationDetail from '@/Components/detail/LocationDetail';
 import CompanyDetail from '@/Components/detail/CompanyDetail';
+import AccountDetail from '@/Components/detail/AccountDetail';
+
+// One field list for accounts, used by both add and edit — the same credential
+// either way. Password reveal goes through the gated /secret endpoint.
+const ACCOUNT_FIELDS = [
+    { key: 'login_name', label: 'Name', required: true },
+    { key: 'login_id', label: 'Login ID' },
+    { key: 'login_pass', label: 'Password (blank = keep)', type: 'password',
+      revealEndpoint: (id) => `/data/logins/${id}/secret`, revealKey: 'password' },
+    { key: 'vendor_id', label: 'Vendor', type: 'select-search', optionsEndpoint: '/data/vendor-options' },
+    { key: 'sharing', label: 'Sharing', type: 'select', required: true, options: [
+        { value: 'personal', label: 'Personal — one human' },
+        { value: 'pooled', label: 'Pooled — one at a time' },
+        { value: 'shared', label: 'Shared — many at once' },
+    ] },
+    { key: 'holder_ids', label: 'Assigned to', type: 'multi-select-search',
+      optionsEndpoint: '/data/person-options', pickPlaceholder: 'Search people to add…' },
+    { key: 'url', label: 'URL' },
+    { key: 'type', label: 'Type' },
+    { key: 'notes', label: 'Notes', type: 'textarea' },
+    { key: 'is_restricted', label: 'Restricted', type: 'checkbox' },
+    { key: 'is_active', label: 'Active', type: 'checkbox' },
+];
 
 /** One config per entity; screens/groups compose these. */
 export const ENTITIES = {
@@ -45,6 +68,16 @@ export const ENTITIES = {
             { key: 'department', label: 'Department' }, { key: 'cell', label: 'Cell' },
             { key: 'ext', label: 'Ext' }, { key: 'active', label: 'Active', type: 'checkbox' },
         ] },
+    },
+    accounts: {
+        noun: 'an account',
+        listEndpoint: '/data/accounts', detailEndpoint: (id) => `/data/accounts/${id}`,
+        icon: <KeyIcon />, idLabel: 'Account ID',
+        filter: { key: 'sharing', label: 'sharing', optionsEndpoint: '/data/sharing-options' },
+        sort: [{ key: 'login_name', label: 'Name' }, { key: 'login_id', label: 'Login ID' }, { key: 'type', label: 'Type' }, { key: 'sharing', label: 'Sharing' }],
+        render: (a) => <AccountDetail a={a} />,
+        add: { endpoint: '/data/accounts', title: 'Add Account', fields: ACCOUNT_FIELDS },
+        edit: { fields: ACCOUNT_FIELDS },
     },
     vendors: {
         noun: 'a vendor',
@@ -158,6 +191,9 @@ export const ENTITIES = {
 export const GROUPS = {
     people: { title: 'People', tabs: [
         { key: 'staff', label: 'Staff', entity: 'people' },
+        // Accounts = credentials that aren't someone's directory email: service accounts,
+        // pooled seats, shared mailboxes — plus who holds each.
+        { key: 'accounts', label: 'Accounts', entity: 'accounts' },
         { key: 'vendors', label: 'Vendors', entity: 'vendors' },
         { key: 'onboarding', label: 'Onboarding', view: 'onboarding' },
     ] },
