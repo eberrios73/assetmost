@@ -78,7 +78,9 @@ export default function Workspace({ group }) {
                 filter={entity.filter ? { key: entity.filter.key, label: entity.filter.label, options: filterOptions } : null}
                 sortOptions={entity.sort || []} selectedId={selectedId} onSelect={chooseId} onStats={setStats} reloadKey={reloadKey} />
         );
-        detailContent = detail ? entity.render(detail) : <Center>Select {entity.noun} on the left</Center>;
+        // render(record, refetch) — refetch lets a detail screen that edits its own
+        // children (rooms inside a location) refresh itself without a page reload.
+        detailContent = detail ? entity.render(detail, refetchDetail) : <Center>Select {entity.noun} on the left</Center>;
         footerLeft = `Records Displayed: ${stats.shown} of ${stats.total}`;
         footerRight = (
             <span className="flex gap-4 text-gray-400">

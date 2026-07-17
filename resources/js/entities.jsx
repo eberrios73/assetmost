@@ -86,7 +86,7 @@ export const ENTITIES = {
         listEndpoint: '/data/locations', detailEndpoint: (id) => `/data/locations/${id}`,
         icon: <RoomIcon />, idLabel: 'Location ID',
         sort: [{ key: 'name', label: 'Name' }, { key: 'city', label: 'City' }, { key: 'type', label: 'Type' }],
-        render: (l) => <LocationDetail l={l} />,
+        render: (l, refetch) => <LocationDetail l={l} onChanged={refetch} />,
         add: {
             endpoint: '/data/locations', title: 'Add Location',
             fields: [
@@ -163,8 +163,9 @@ export const GROUPS = {
     ] },
     assets: { title: 'Assets', tabs: [
         { key: 'devices', label: 'Devices', entity: 'devices' },
+        // Rooms have no tab: a room only means something inside its location, so they're
+        // managed on the location's screen. (A Vehicles tab may take this slot later.)
         { key: 'locations', label: 'Locations', entity: 'locations' },
-        { key: 'rooms', label: 'Rooms', entity: 'rooms' },
         { key: 'onboard', label: 'Onboard', view: 'asset-onboard' },
     ] },
     tasks: { title: 'Tasks', tabs: [{ key: 'tasks', label: 'Tasks', view: 'tasks' }] },

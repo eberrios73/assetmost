@@ -44,7 +44,9 @@ function MultiPicker({ ids, endpoint, knownLabels, onChange, placeholder = 'Addâ
  * Create or edit a record in a right-side sliding drawer (keeps the list visible
  * behind it). method 'POST' = create, 'PATCH' = edit. Driven by `fields`.
  */
-export default function RecordModal({ title, endpoint, method = 'POST', fields, initial = {}, onClose, onSaved }) {
+/** `extra` is merged into the submitted body as-is â€” for parent-chained keys the form
+ *  deliberately has no field for (e.g. location_id when adding a room FROM a location). */
+export default function RecordModal({ title, endpoint, method = 'POST', fields, initial = {}, extra = {}, onClose, onSaved }) {
     const [values, setValues] = useState(() =>
         Object.fromEntries(fields.map((f) => [
             f.key,
@@ -83,7 +85,7 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
         const res = await fetch(endpoint, {
             method, credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf },
-            body: JSON.stringify(values),
+            body: JSON.stringify({ ...extra, ...values }),
         });
         setSaving(false);
         if (res.ok) { onSaved(await res.json().catch(() => ({}))); return; }

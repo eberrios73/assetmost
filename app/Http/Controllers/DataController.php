@@ -655,7 +655,7 @@ class DataController extends Controller
 
     public function location(\App\Models\Location $location): JsonResponse
     {
-        $location->load(['rooms:id,location_id,name,room_type'])->loadCount('devices');
+        $location->load(['rooms:id,location_id,name,room_type,room_number,capacity'])->loadCount('devices');
         return response()->json($location);
     }
 
