@@ -1,13 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useJson } from '@/Components/detail/Field';
 import RecordModal from '@/Components/RecordModal';
 
 const LICENSE_FIELDS = [
     { key: 'name', label: 'Name', required: true },
     { key: 'vendor_id', label: 'Vendor', type: 'select-search', optionsEndpoint: '/data/vendor-options' },
-    // seats_total is deliberately optional — real counts get filled in over time, and
-    // "unknown" must not read as "none available".
-    { key: 'seats_total', label: 'Seats purchased (blank = unknown)', type: 'number' },
+    { key: 'product_id', label: 'Product', type: 'select-search', optionsEndpoint: '/data/product-options' },
     { key: 'account_number', label: 'Account #' },
     { key: 'serial_number', label: 'Serial #' },
     { key: 'amount', label: 'Amount ($)' },
@@ -17,27 +15,19 @@ const LICENSE_FIELDS = [
     { key: 'notes', label: 'Notes', type: 'textarea' },
 ];
 
-/** Seats: "2 / 3" with 1 free. Unknown purchase count shows the used count only. */
-function Seats({ used, total, over }) {
-    if (total === null || total === undefined) {
-        return <span className="text-gray-400">{used ?? 0} <span className="text-gray-300">/ ?</span></span>;
-    }
-    return (
-        <span className={over ? 'text-red-600 font-medium' : 'text-gray-500 dark:text-gray-400'}>
-            {used} / {total}
-            {over && <span className="ml-1 text-xs">over</span>}
-        </span>
-    );
-}
-
-/** Shared licenses list. Rows open an editable detail drawer.
- *  `showHolders` (vendor view) shows who holds the seats; otherwise shows the vendor.
- *  Holders are reached through the accounts consuming the seats, so a license can have
- *  several — or none, when seats are bought but not yet provisioned. */
+/**
+ * Licences — what you actually own. Rows open an editable drawer.
+ *
+ * Product is a column here rather than a parent: a vendor's catalog can run to hundreds of
+ * SKUs, so nesting these under products would bury them. Sort/filter by product instead.
+ * `showHolders` (vendor view) shows who holds it; otherwise shows the vendor.
+ */
 export default function LicensesTable({ endpoint, showHolders = false }) {
     const [reload, setReload] = useState(0);
     const { loading, data } = useJson(`${endpoint}?_=${reload}`);
     const [edit, setEdit] = useState(null);
+    const [product, setProduct] = useState('');       // filter
+    const [sort, setSort] = useState({ key: null, dir: 'asc' });
 
     const openEdit = async (id) => {
         const l = await fetch(`/data/licenses/${id}`, { headers: { Accept: 'application/json' } }).then((r) => r.json());
@@ -47,36 +37,54 @@ export default function LicensesTable({ endpoint, showHolders = false }) {
     if (loading) return <p className="text-sm text-gray-400 py-6">Loading…</p>;
     if (!data?.length) return <p className="text-sm text-gray-400 py-6">No licenses.</p>;
 
+    const products = [...new Set(data.map((l) => l.product).filter(Boolean))].sort();
+    let rows = product ? data.filter((l) => l.product === product) : data;
+    if (sort.key) {
+        rows = [...rows].sort((a, b) => {
+            const A = a[sort.key] ?? '', B = b[sort.key] ?? '';
+            const c = typeof A === 'number' && typeof B === 'number' ? A - B : String(A).localeCompare(String(B));
+            return sort.dir === 'asc' ? c : -c;
+        });
+    }
+    const toggleSort = (k) => setSort((s) => ({ key: k, dir: s.key === k && s.dir === 'asc' ? 'desc' : 'asc' }));
+
     const dash = <span className="text-gray-300">—</span>;
-    const cols = showHolders
-        ? ['Held by', 'License', 'Seats', 'Account #', 'Amount', 'Renews']
-        : ['Name', 'Vendor', 'Account #', 'Amount', 'Renews'];
+    const arrow = (k) => (sort.key === k ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : '');
 
     return (
         <>
+            {products.length > 1 && (
+                <div className="flex items-center gap-2 mb-3">
+                    <select value={product} onChange={(e) => setProduct(e.target.value)}
+                        className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs py-1 text-gray-600 dark:text-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">All products</option>
+                        {products.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <span className="text-xs text-gray-400">{rows.length} of {data.length}</span>
+                </div>
+            )}
+
             <table className="w-full text-sm">
                 <thead>
                     <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-200 dark:border-gray-800">
-                        {cols.map((c) => <th key={c} className="py-2 pr-4 font-normal">{c}</th>)}
+                        <Th onClick={() => toggleSort(showHolders ? 'holders' : 'name')}>{showHolders ? 'Held by' : 'Name'}{arrow(showHolders ? 'holders' : 'name')}</Th>
+                        <Th onClick={() => toggleSort('product')}>Product{arrow('product')}</Th>
+                        {!showHolders && <Th onClick={() => toggleSort('vendor')}>Vendor{arrow('vendor')}</Th>}
+                        <Th onClick={() => toggleSort('account_number')}>Account #{arrow('account_number')}</Th>
+                        <Th onClick={() => toggleSort('amount')}>Amount{arrow('amount')}</Th>
+                        <Th onClick={() => toggleSort('renewal_date')}>Renews{arrow('renewal_date')}</Th>
                     </tr>
                 </thead>
-                <tbody>{data.map((l) => (
+                <tbody>{rows.map((l) => (
                     <tr key={l.id} onClick={() => openEdit(l.id)}
                         className="border-b border-gray-50 dark:border-gray-800 cursor-pointer hover:bg-blue-50/40 dark:hover:bg-gray-800/50">
-                        {showHolders ? (
-                            <>
-                                <td className="py-2 pr-4 text-gray-800 dark:text-gray-200">
-                                    {l.holders?.length ? l.holders.join(', ') : <span className="text-gray-300">Unassigned</span>}
-                                </td>
-                                <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.product || l.name || dash}</td>
-                                <td className="py-2 pr-4"><Seats used={l.seats_used} total={l.seats_total} over={l.seats_used > l.seats_total} /></td>
-                            </>
-                        ) : (
-                            <>
-                                <td className="py-2 pr-4 text-gray-800 dark:text-gray-200">{l.name || dash}</td>
-                                <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.product || l.vendor || dash}</td>
-                            </>
-                        )}
+                        <td className="py-2 pr-4 text-gray-800 dark:text-gray-200">
+                            {showHolders
+                                ? (l.holders?.length ? l.holders.join(', ') : <span className="text-gray-300">Unassigned</span>)
+                                : (l.name || dash)}
+                        </td>
+                        <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.product || dash}</td>
+                        {!showHolders && <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.vendor || dash}</td>}
                         <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.account_number || dash}</td>
                         <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.amount ? `$${l.amount}` : dash}</td>
                         <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{l.renewal_date || dash}</td>
@@ -91,5 +99,13 @@ export default function LicensesTable({ endpoint, showHolders = false }) {
                     onSaved={() => { setEdit(null); setReload((r) => r + 1); }} />
             )}
         </>
+    );
+}
+
+function Th({ children, onClick }) {
+    return (
+        <th onClick={onClick} className="py-2 pr-4 font-normal cursor-pointer select-none hover:text-gray-600 dark:hover:text-gray-200">
+            {children}
+        </th>
     );
 }

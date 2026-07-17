@@ -43,6 +43,14 @@ Route::middleware('auth')->group(function () {
     Route::patch('/data/docs/{page}', [$doc, 'update']);
     Route::delete('/data/docs/{page}', [$doc, 'destroy']);
 
+    // Products are a vendor's catalog. What you own is a licence, filtered by product.
+    $prod = \App\Http\Controllers\ProductController::class;
+    Route::get('/data/vendors/{vendor}/products', [$prod, 'forVendor']);
+    Route::post('/data/vendors/{vendor}/products', [$prod, 'store']);
+    Route::patch('/data/products/{product}', [$prod, 'update']);
+    Route::delete('/data/products/{product}', [$prod, 'destroy']);
+    Route::get('/data/product-options', [$prod, 'options']);
+
     // Tasks
     $task = \App\Http\Controllers\TaskController::class;
     Route::get('/data/tasks', [$task, 'index']);
