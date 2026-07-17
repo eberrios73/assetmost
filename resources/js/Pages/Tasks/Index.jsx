@@ -144,7 +144,7 @@ export default function Index() {
         <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 mb-5">
                 <div className="flex">
-                    {['tasks', 'projects'].map((m) => (
+                    {['tasks', 'projects', 'timeline'].map((m) => (
                         <button key={m} onClick={() => setMode(m)}
                             className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px capitalize ${mode === m ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
                             {m}{m === 'projects' && projects.length ? ` (${projects.length})` : ''}
@@ -183,7 +183,7 @@ export default function Index() {
                             <SectionRow label="Current" right={weekTasks.length ? `${avg}% complete` : ''} />
                             {open.length === 0 && !rollingIn.length && <EmptyRow>{weekTasks.length ? 'All clear for this week.' : 'No tasks yet — add one above.'}</EmptyRow>}
                             {open.map((t) => (
-                                <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses}
+                                <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects}
                                     expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
                                     onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                             ))}
@@ -210,7 +210,7 @@ export default function Index() {
                                 <FragmentRows key={g.wk}>
                                     <SubRow label={weekLabel(g.wk, currentWeek)} right={`${g.items.length} done`} />
                                     {g.items.map((t) => (
-                                        <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses}
+                                        <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects}
                                             expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
                                             onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                                     ))}
@@ -221,6 +221,8 @@ export default function Index() {
                     </div>
                     <p className="mt-3 text-xs text-gray-400">↻ carried over from an earlier week — unfinished tasks roll into the current week automatically.</p>
                 </>
+            ) : mode === 'timeline' ? (
+                <Gantt projects={projects} tasks={nonProjects} currentWeek={currentWeek} />
             ) : (
                 <>
                     <AddBar placeholder="Add a project and press Enter…" onAdd={(v) => addTask(v, true)} />
@@ -309,7 +311,7 @@ function SubRow({ label, right }) {
 }
 function EmptyRow({ children }) { return <tr><td colSpan={9} className="px-3 py-3 text-gray-400">{children}</td></tr>; }
 
-function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, onDelete }) {
+function TaskRows({ t, people, patch, projects = [], expanded, onToggle, onProject, onMakeDoc, onDelete }) {
     const carried = t.origin && t.origin < t.week && !t.done;
     return (
         <>
@@ -360,6 +362,14 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
                                     <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
                                 </div>
                                 <div className="flex flex-col gap-2 pt-5 w-40 shrink-0">
+                                    <label className="block">
+                                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Project</span>
+                                        <select value={t.parent_id ?? ''} onChange={(e) => patch(t.id, { parent_id: e.target.value ? Number(e.target.value) : null })}
+                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                                            <option value="">— none —</option>
+                                            {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                        </select>
+                                    </label>
                                     <button onClick={() => onProject(t.id, true)}
                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400 hover:text-indigo-600"><Wrench /> Make project</button>
                                     <TemplateMenu label="Make doc" glyph={<DocGlyph />} onPick={(k) => onMakeDoc(t, k)}
@@ -504,4 +514,129 @@ function DocGlyph() {
 }
 function NoteGlyph() {
     return (<svg className="h-3.5 w-3.5 inline-block align-middle" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h10" /></svg>);
+}
+
+/* ---------------- Timeline (Gantt) ---------------- */
+
+const GANTT_STATUS_BAR = {
+    Done: 'bg-gray-300 dark:bg-gray-600',
+    Blocked: 'bg-red-500',
+    'On hold': 'bg-amber-500',
+    'In progress': 'bg-teal-500',
+    Approved: 'bg-green-500',
+    Proposed: 'bg-indigo-400',
+};
+const GANTT_PRI_BAR = ['bg-blue-400', 'bg-blue-500', 'bg-amber-500', 'bg-red-500'];
+
+/**
+ * Timeline: projects as thick bars spanning their tasks, tasks as thin bars
+ * beneath. A bar runs origin → completion (or today while open), so the chart
+ * IS the aging view — long bars are old work. Pure CSS; no library.
+ */
+function Gantt({ projects, tasks, currentWeek }) {
+    const today = new Date();
+    const start = (t) => parseYmd(t.origin || t.week);
+    const end = (t) => (t.done && t.completed_at ? parseYmd(t.completed_at) : today);
+
+    const rows = [];
+    for (const p of projects) {
+        const children = tasks.filter((t) => t.parent_id === p.id);
+        const starts = [start(p), ...children.map(start)];
+        const ends = [end(p), ...children.map(end)];
+        rows.push({ kind: 'project', item: p, s: new Date(Math.min(...starts)), e: new Date(Math.max(...ends)), children });
+    }
+    const orphans = tasks.filter((t) => !t.parent_id && !t.done);
+    if (!rows.length && !orphans.length) {
+        return <p className="py-8 text-sm text-gray-400 text-center">Nothing to chart yet — add a project or some tasks.</p>;
+    }
+
+    // Range: earliest start snapped to Monday, latest end padded a week.
+    const allS = [...rows.map((r) => r.s), ...orphans.map(start)];
+    const allE = [...rows.map((r) => r.e), ...orphans.map(end)];
+    const lo = mondayOf(new Date(Math.min(...allS, today)));
+    const hi = addDays(mondayOf(new Date(Math.max(...allE, today))), 13);
+    const total = (hi - lo) / 86400000;
+
+    const pos = (s, e) => ({
+        left: `${((s - lo) / 86400000 / total) * 100}%`,
+        width: `${Math.max((((e - s) / 86400000 + 1) / total) * 100, 1.2)}%`,
+    });
+    const weeks = [];
+    for (let d = new Date(lo); d < hi; d = addDays(d, 7)) weeks.push(new Date(d));
+    const todayLeft = `${((today - lo) / 86400000 / total) * 100}%`;
+
+    const Bar = ({ s, e, cls, label, pct }) => (
+        <div className="relative h-full">
+            <div className={`absolute top-1/2 -translate-y-1/2 h-full rounded ${cls}`} style={pos(s, e)} title={label}>
+                {pct != null && pct > 0 && (
+                    <div className="absolute inset-y-0 left-0 rounded bg-black/20" style={{ width: `${Math.min(pct, 100)}%` }} />
+                )}
+            </div>
+        </div>
+    );
+
+    const Row = ({ label, labelCls, barH, children }) => (
+        <div className="flex items-stretch border-b border-gray-50 dark:border-gray-800/70">
+            <div className={`w-56 shrink-0 px-3 py-1.5 text-sm truncate ${labelCls}`}>{label}</div>
+            <div className={`relative flex-1 ${barH}`}>
+                {/* week gridlines */}
+                {weeks.map((w, i) => (
+                    <div key={i} className="absolute inset-y-0 border-l border-gray-100 dark:border-gray-800/60" style={{ left: `${((w - lo) / 86400000 / total) * 100}%` }} />
+                ))}
+                <div className="absolute inset-y-0 border-l-2 border-red-400/70" style={{ left: todayLeft }} title="today" />
+                {children}
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="overflow-x-auto">
+            <div className="min-w-[860px] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                {/* header: week labels */}
+                <div className="flex items-stretch bg-gray-100 dark:bg-gray-800/70 text-[11px] uppercase tracking-wide text-gray-400">
+                    <div className="w-56 shrink-0 px-3 py-2">Project / Task</div>
+                    <div className="relative flex-1 py-2">
+                        {weeks.map((w, i) => (
+                            <span key={i} className="absolute pl-1 whitespace-nowrap" style={{ left: `${((w - lo) / 86400000 / total) * 100}%` }}>
+                                {fmt(w)}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+
+                {rows.map(({ item: p, s, e, children }) => {
+                    const st = p.status || (p.pct >= 100 ? 'Done' : p.pct > 0 ? 'In progress' : 'Proposed');
+                    return (
+                        <FragmentRows key={p.id}>
+                            <Row label={p.title} labelCls="font-medium text-gray-800 dark:text-gray-100" barH="h-8 py-1">
+                                <Bar s={s} e={e} cls={`${GANTT_STATUS_BAR[st] || GANTT_STATUS_BAR.Proposed} opacity-90`} label={`${p.title} · ${st} · ${p.pct || 0}%`} pct={p.pct} />
+                            </Row>
+                            {children.map((t) => (
+                                <Row key={t.id} label={<span className="pl-4 text-gray-500 dark:text-gray-400">{t.title}</span>} labelCls="" barH="h-5 py-[3px]">
+                                    <Bar s={start(t)} e={end(t)} cls={`${t.done ? 'bg-gray-300 dark:bg-gray-600' : GANTT_PRI_BAR[t.pri] || GANTT_PRI_BAR[0]} opacity-80`} label={`${t.title} · ${t.pct || 0}%`} pct={t.pct} />
+                                </Row>
+                            ))}
+                        </FragmentRows>
+                    );
+                })}
+
+                {orphans.length > 0 && (
+                    <>
+                        <div className="flex bg-gray-50 dark:bg-gray-900/60 text-[11px] uppercase tracking-wide text-gray-400">
+                            <div className="px-3 py-1">No project — open tasks</div>
+                        </div>
+                        {orphans.map((t) => (
+                            <Row key={t.id} label={<span className="text-gray-600 dark:text-gray-300">{t.title}</span>} labelCls="" barH="h-5 py-[3px]">
+                                <Bar s={start(t)} e={end(t)} cls={`${GANTT_PRI_BAR[t.pri] || GANTT_PRI_BAR[0]} opacity-80`} label={`${t.title} · ${t.pct || 0}%`} pct={t.pct} />
+                            </Row>
+                        ))}
+                    </>
+                )}
+            </div>
+            <p className="mt-3 text-xs text-gray-400">
+                Bars run from a task's origin to its completion (or today while open) — length IS age. Darker fill = % complete. Red line = today.
+                Assign tasks to a project from the task's detail row (▸).
+            </p>
+        </div>
+    );
 }
