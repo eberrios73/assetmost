@@ -222,7 +222,7 @@ export default function Index() {
                     <p className="mt-3 text-xs text-gray-400">↻ carried over from an earlier week — unfinished tasks roll into the current week automatically.</p>
                 </>
             ) : mode === 'timeline' ? (
-                <Gantt projects={projects} tasks={nonProjects} currentWeek={currentWeek} />
+                <Gantt projects={projects} tasks={nonProjects} currentWeek={currentWeek} patch={patch} />
             ) : (
                 <>
                     <AddBar placeholder="Add a project and press Enter…" onAdd={(v) => addTask(v, true)} />
@@ -535,20 +535,25 @@ const GANTT_STATUS_BAR = {
     Proposed: 'bg-indigo-400',
 };
 const GANTT_PRI_BAR = ['bg-blue-400', 'bg-blue-500', 'bg-amber-500', 'bg-red-500'];
-const ROW_H = { project: 34, task: 26, sect: 26 };   // fixed px so connectors can do math
+const ROW_H = { project: 34, task: 26, sect: 26 };   // fixed px so connector/drag math is exact
 
 /**
- * Timeline: projects as thick bars spanning their tasks, tasks as thin bars,
- * dependency chains drawn as elbow connectors (pred end → successor start).
- * Bars run origin → completion (or today while open), so length IS age.
- * Fixed row heights make the connector geometry exact. Pure CSS, no library.
+ * Timeline: projects thick, tasks thin, chains dotted. Interactive:
+ *  - drag the ○ handle at a bar's end onto another bar → that task runs AFTER it
+ *  - drag a task's bar onto a project (or the No-project section) → refile it
+ *  - click an arrowhead → unlink
+ * Bars do NOT drag along the time axis: they run origin → completion, which is
+ * a record, not a plan. Pure CSS + pointer events; no library.
  */
-function Gantt({ projects, tasks, currentWeek }) {
+function Gantt({ projects, tasks, currentWeek, patch }) {
+    const canvasRef = useRef(null);
+    const listRef = useRef([]);
+    const [drag, setDrag] = useState(null);   // {type:'link'|'move', source, x1,y1, xPct,yPx}
+
     const today = new Date();
     const start = (t) => parseYmd(t.origin || t.week);
     const end = (t) => (t.done && t.completed_at ? parseYmd(t.completed_at) : today);
 
-    // Flat render list with per-row pixel offsets (header excluded).
     const list = [];
     for (const p of projects) {
         const children = tasks.filter((t) => t.parent_id === p.id);
@@ -562,45 +567,89 @@ function Gantt({ projects, tasks, currentWeek }) {
         list.push({ kind: 'sect', label: 'No project — open tasks' });
         orphans.forEach((t) => list.push({ kind: 'task', item: t }));
     }
-    if (!list.length) {
-        return <p className="py-8 text-sm text-gray-400 text-center">Nothing to chart yet — add a project or some tasks.</p>;
-    }
 
     let y = 0;
-    const yMid = {};                                  // task/project id -> row center px
+    const yMid = {};
     for (const r of list) { r.y = y; if (r.item) yMid[r.item.id] = y + ROW_H[r.kind] / 2; y += ROW_H[r.kind]; }
     const bodyH = y;
+    listRef.current = list;
 
     const allS = list.filter((r) => r.item).map((r) => r.s || start(r.item));
     const allE = list.filter((r) => r.item).map((r) => r.e || end(r.item));
-    const lo = mondayOf(new Date(Math.min(...allS, today)));
-    const hi = addDays(mondayOf(new Date(Math.max(...allE, today))), 13);
+    const lo = mondayOf(new Date(Math.min(...(allS.length ? allS : [today]), today)));
+    const hi = addDays(mondayOf(new Date(Math.max(...(allE.length ? allE : [today]), today))), 13);
     const total = (hi - lo) / 86400000;
-    const X = (d) => ((d - lo) / 86400000 / total) * 100;              // date -> %
+    const X = (d) => ((d - lo) / 86400000 / total) * 100;
     const weeks = [];
     for (let d = new Date(lo); d < hi; d = addDays(d, 7)) weeks.push(new Date(d));
 
-    // Dependency connectors: pred bar end → successor bar start, elbow at the successor's x.
+    const byId = (id) => tasks.find((o) => o.id === id) || projects.find((o) => o.id === id);
+    // Linking succ AFTER pred cycles only if pred already (transitively) runs after succ.
+    const wouldCycle = (pred, succ) => {
+        let cur = pred;
+        for (let i = 0; cur && i < 100; i++) {
+            if (cur.depends_on_id === succ.id) return true;
+            cur = cur.depends_on_id ? byId(cur.depends_on_id) : null;
+        }
+        return false;
+    };
+
     const chains = [];
     for (const r of list) {
         const t = r.kind === 'task' ? r.item : null;
         if (!t?.depends_on_id || !(t.depends_on_id in yMid)) continue;
-        const pred = tasks.find((o) => o.id === t.depends_on_id) || projects.find((o) => o.id === t.depends_on_id);
+        const pred = byId(t.depends_on_id);
         if (!pred) continue;
-        chains.push({ key: `${pred.id}-${t.id}`, x1: X(end(pred)), y1: yMid[pred.id], x2: X(start(t)), y2: yMid[t.id] });
+        chains.push({ succ: t, pred, x1: X(end(pred)), y1: yMid[pred.id], x2: X(start(t)), y2: yMid[t.id] });
     }
 
-    const Bar = ({ s, e, cls, label, pct, thin }) => (
-        <div className={`absolute rounded ${cls} ${thin ? 'h-3' : 'h-5'}`}
-            style={{ left: `${X(s)}%`, width: `${Math.max(((e - s) / 86400000 + 1) / total * 100, 1.2)}%`, top: '50%', transform: 'translateY(-50%)' }}
-            title={label}>
-            {pct != null && pct > 0 && <div className="absolute inset-y-0 left-0 rounded bg-black/20" style={{ width: `${Math.min(pct, 100)}%` }} />}
-        </div>
+    const pt = (e) => {
+        const r = canvasRef.current.getBoundingClientRect();
+        return { xPct: ((e.clientX - r.left) / r.width) * 100, yPx: e.clientY - r.top };
+    };
+    const rowAt = (yPx) => listRef.current.find((r) => yPx >= r.y && yPx < r.y + ROW_H[r.kind]);
+
+    useEffect(() => {
+        if (!drag) return;
+        const mv = (e) => setDrag((d) => (d ? { ...d, ...pt(e) } : d));
+        const up = (e) => {
+            const { yPx } = pt(e);
+            const target = rowAt(yPx);
+            setDrag(null);
+            if (!target) return;
+            if (drag.type === 'link') {
+                if (target.kind === 'task' && target.item.id !== drag.source.id && !wouldCycle(drag.source, target.item)) {
+                    patch(target.item.id, { depends_on_id: drag.source.id });
+                }
+            } else if (drag.type === 'move') {
+                if (target.kind === 'project' && target.item.id !== drag.source.parent_id) {
+                    patch(drag.source.id, { parent_id: target.item.id });
+                } else if (target.kind === 'task' && target.item.parent_id && target.item.parent_id !== drag.source.parent_id) {
+                    patch(drag.source.id, { parent_id: target.item.parent_id });   // dropped among a project's tasks
+                } else if ((target.kind === 'sect' || (target.kind === 'task' && !target.item.parent_id)) && drag.source.parent_id) {
+                    patch(drag.source.id, { parent_id: null });
+                }
+            }
+        };
+        window.addEventListener('pointermove', mv);
+        window.addEventListener('pointerup', up, { once: true });
+        return () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [drag?.type, drag?.source?.id]);
+
+    if (!list.length) {
+        return <p className="py-8 text-sm text-gray-400 text-center">Nothing to chart yet — add a project or some tasks.</p>;
+    }
+
+    const hoverRow = drag ? rowAt(drag.yPx ?? -1) : null;
+    const hoverValid = hoverRow && (
+        drag?.type === 'link' ? (hoverRow.kind === 'task' && hoverRow.item.id !== drag.source.id && !wouldCycle(drag.source, hoverRow.item))
+            : (hoverRow.kind === 'project' || hoverRow.kind === 'sect' || hoverRow.kind === 'task')
     );
 
     return (
         <div className="overflow-x-auto">
-            <div className="min-w-[860px] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+            <div className={`min-w-[860px] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden ${drag ? 'select-none cursor-grabbing' : ''}`}>
                 <div className="flex items-stretch bg-gray-100 dark:bg-gray-800/70 text-[11px] uppercase tracking-wide text-gray-400">
                     <div className="w-56 shrink-0 px-3 py-2">Project / Task</div>
                     <div className="relative flex-1 py-2">
@@ -610,7 +659,6 @@ function Gantt({ projects, tasks, currentWeek }) {
                     </div>
                 </div>
 
-                {/* body: label column + one shared timeline canvas so connectors can cross rows */}
                 <div className="flex">
                     <div className="w-56 shrink-0">
                         {list.map((r, i) => (
@@ -623,43 +671,75 @@ function Gantt({ projects, tasks, currentWeek }) {
                             </div>
                         ))}
                     </div>
-                    <div className="relative flex-1" style={{ height: bodyH }}>
+                    <div ref={canvasRef} className="relative flex-1" style={{ height: bodyH }}>
                         {weeks.map((w, i) => (
                             <div key={i} className="absolute inset-y-0 border-l border-gray-100 dark:border-gray-800/60" style={{ left: `${X(w)}%` }} />
                         ))}
                         <div className="absolute inset-y-0 border-l-2 border-red-400/70" style={{ left: `${X(today)}%` }} title="today" />
+
+                        {/* drop-target highlight while dragging */}
+                        {drag && hoverRow && (
+                            <div className={`absolute inset-x-0 ${hoverValid ? 'bg-blue-100/60 dark:bg-blue-500/15' : 'bg-red-100/40 dark:bg-red-500/10'}`}
+                                style={{ top: hoverRow.y, height: ROW_H[hoverRow.kind] }} />
+                        )}
+
                         {list.map((r, i) => {
                             if (r.kind === 'sect') return <div key={i} className="absolute inset-x-0 bg-gray-50 dark:bg-gray-900/60" style={{ top: r.y, height: ROW_H.sect }} />;
                             const t = r.item;
+                            const isProject = r.kind === 'project';
+                            const s = isProject ? r.s : start(t);
+                            const e = isProject ? r.e : end(t);
+                            const cls = isProject
+                                ? `${GANTT_STATUS_BAR[t.status || (t.pct >= 100 ? 'Done' : t.pct > 0 ? 'In progress' : 'Proposed')] || GANTT_STATUS_BAR.Proposed} opacity-90`
+                                : `${t.done ? 'bg-gray-300 dark:bg-gray-600' : GANTT_PRI_BAR[t.pri] || GANTT_PRI_BAR[0]} opacity-80`;
                             return (
-                                <div key={i} className="absolute inset-x-0" style={{ top: r.y, height: ROW_H[r.kind] }}>
-                                    {r.kind === 'project' ? (
-                                        <Bar s={r.s} e={r.e} pct={t.pct}
-                                            cls={`${GANTT_STATUS_BAR[t.status || (t.pct >= 100 ? 'Done' : t.pct > 0 ? 'In progress' : 'Proposed')] || GANTT_STATUS_BAR.Proposed} opacity-90`}
-                                            label={`${t.title} · ${t.pct || 0}%`} />
-                                    ) : (
-                                        <Bar thin s={start(t)} e={end(t)} pct={t.pct}
-                                            cls={`${t.done ? 'bg-gray-300 dark:bg-gray-600' : GANTT_PRI_BAR[t.pri] || GANTT_PRI_BAR[0]} opacity-80`}
-                                            label={`${t.title} · ${t.pct || 0}%`} />
-                                    )}
+                                <div key={i} className="absolute inset-x-0 group/lane" style={{ top: r.y, height: ROW_H[r.kind] }}>
+                                    <div className={`absolute rounded ${cls} ${isProject ? 'h-5' : 'h-3 cursor-grab active:cursor-grabbing'}`}
+                                        style={{ left: `${X(s)}%`, width: `${Math.max(((e - s) / 86400000 + 1) / total * 100, 1.2)}%`, top: '50%', transform: 'translateY(-50%)' }}
+                                        title={`${t.title} · ${t.pct || 0}%${isProject ? '' : ' — drag onto a project to refile; drag the ○ to chain'}`}
+                                        onPointerDown={isProject ? undefined : (ev) => { ev.preventDefault(); setDrag({ type: 'move', source: t, ...pt(ev) }); }}>
+                                        {(t.pct || 0) > 0 && <div className="absolute inset-y-0 left-0 rounded bg-black/20" style={{ width: `${Math.min(t.pct, 100)}%` }} />}
+                                        {/* link handle at the bar's end */}
+                                        <span onPointerDown={(ev) => { ev.stopPropagation(); ev.preventDefault(); setDrag({ type: 'link', source: t, x1: X(end2(t, isProject, r)), y1: yMid[t.id], ...pt(ev) }); }}
+                                            title="drag to another bar: it will run AFTER this"
+                                            className="absolute -right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-gray-400 bg-white dark:bg-gray-900 opacity-0 group-hover/lane:opacity-100 cursor-crosshair" />
+                                    </div>
                                 </div>
                             );
                         })}
-                        {/* the little chains: horizontal stub at pred's row, vertical drop, arrowhead at successor start */}
+
+                        {/* the chains */}
                         {chains.map((c) => (
-                            <FragmentRows key={c.key}>
-                                <div className="absolute border-t-2 border-dotted border-gray-400/80" style={{ top: c.y1, left: `${Math.min(c.x1, c.x2)}%`, width: `${Math.max(Math.abs(c.x2 - c.x1), 0.4)}%` }} />
-                                <div className="absolute border-l-2 border-dotted border-gray-400/80" style={{ left: `${c.x2}%`, top: Math.min(c.y1, c.y2), height: Math.abs(c.y2 - c.y1) - 6 }} />
-                                <div className="absolute h-0 w-0 border-x-4 border-x-transparent border-t-[6px] border-t-gray-400" style={{ left: `calc(${c.x2}% - 3.5px)`, top: c.y2 - 8 }} />
+                            <FragmentRows key={`${c.pred.id}-${c.succ.id}`}>
+                                <div className="absolute border-t-2 border-dotted border-gray-400/80 pointer-events-none" style={{ top: c.y1, left: `${Math.min(c.x1, c.x2)}%`, width: `${Math.max(Math.abs(c.x2 - c.x1), 0.4)}%` }} />
+                                <div className="absolute border-l-2 border-dotted border-gray-400/80 pointer-events-none" style={{ left: `${c.x2}%`, top: Math.min(c.y1, c.y2), height: Math.abs(c.y2 - c.y1) - 6 }} />
+                                <button onClick={() => { if (confirm(`Unlink "${c.succ.title}" from "${c.pred.title}"?`)) patch(c.succ.id, { depends_on_id: null }); }}
+                                    title="click to unlink"
+                                    className="absolute h-0 w-0 border-x-4 border-x-transparent border-t-[6px] border-t-gray-400 hover:border-t-red-500 cursor-pointer"
+                                    style={{ left: `calc(${c.x2}% - 3.5px)`, top: c.y2 - 8 }} />
                             </FragmentRows>
                         ))}
+
+                        {/* live link preview while dragging */}
+                        {drag?.type === 'link' && drag.xPct != null && (
+                            <>
+                                <div className="absolute border-t-2 border-dotted border-blue-500 pointer-events-none" style={{ top: drag.y1, left: `${Math.min(drag.x1, drag.xPct)}%`, width: `${Math.abs(drag.xPct - drag.x1)}%` }} />
+                                <div className="absolute border-l-2 border-dotted border-blue-500 pointer-events-none" style={{ left: `${drag.xPct}%`, top: Math.min(drag.y1, drag.yPx), height: Math.abs(drag.yPx - drag.y1) }} />
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
             <p className="mt-3 text-xs text-gray-400">
-                Bars run origin → completion (or today while open) — length IS age. Darker fill = % complete. Red line = today.
-                Dotted chains show "after" links; set them (and the project) from a task's detail row (▸).
+                Drag a bar's ○ onto another bar to chain it (runs after). Drag a task bar onto a project to refile it. Click an arrowhead to unlink.
+                Bars run origin → completion — length IS age; darker fill = % complete; red line = today.
             </p>
         </div>
     );
+}
+
+// End-of-bar x for the link handle origin (project spans use the computed row span).
+function end2(t, isProject, row) {
+    if (isProject) return row.e;
+    return t.done && t.completed_at ? parseYmd(t.completed_at) : new Date();
 }
