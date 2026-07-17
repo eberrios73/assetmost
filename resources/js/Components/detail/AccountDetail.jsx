@@ -16,7 +16,15 @@ const SHARING = {
  */
 export default function AccountDetail({ a }) {
     const serviceCols = [
-        { key: 'name', label: 'Service', width: '30%', className: 'text-gray-800 dark:text-gray-200' },
+        // One column for both: a use of the credential is a service (Adobe) OR a
+        // device (Mail_Arch_Srv) — `target` is whichever this login points at.
+        { key: 'target', label: 'Service / Device', width: '30%', className: 'text-gray-800 dark:text-gray-200',
+          render: (s) => (
+              <span className="inline-flex items-center gap-1.5">
+                  {s.target}
+                  {s.is_device && <span className="rounded bg-gray-100 dark:bg-gray-800 px-1 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">device</span>}
+              </span>
+          ) },
         { key: 'vendor', label: 'Vendor', width: '22%' },
         { key: 'type', label: 'Type', width: '18%' },
         { key: 'url', label: 'URL', width: '15%',

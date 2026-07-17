@@ -109,11 +109,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/person-options', [$dc, 'personOptions']);
     Route::get('/data/login-options', [$dc, 'loginOptions']);
     // Accounts = floating credential identities (People > Accounts). One row per
-    // credential; service logins point at it.
-    Route::get('/data/accounts', [$dc, 'accounts']);
-    Route::post('/data/accounts', [$dc, 'storeAccount']);
-    Route::get('/data/accounts/{account}', [$dc, 'account']);
-    Route::patch('/data/accounts/{account}', [$dc, 'updateAccount']);
+    // credential; service logins point at it. The registry is a map of the realm's
+    // admin credentials, so the whole group sits behind a re-entered password.
+    Route::post('/data/accounts-unlock', [$dc, 'unlockAccounts'])->middleware('throttle:6,1');
+    Route::middleware(\App\Http\Middleware\ConfirmAccountsAccess::class)->group(function () use ($dc) {
+        Route::get('/data/accounts', [$dc, 'accounts']);
+        Route::post('/data/accounts', [$dc, 'storeAccount']);
+        Route::get('/data/accounts/{account}', [$dc, 'account']);
+        Route::patch('/data/accounts/{account}', [$dc, 'updateAccount']);
+    });
     Route::get('/data/sharing-options', [$dc, 'sharingOptions']);
     Route::get('/data/logins/{login}', [$dc, 'login']);
     Route::patch('/data/logins/{login}', [$dc, 'updateLogin']);

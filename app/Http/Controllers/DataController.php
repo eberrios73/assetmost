@@ -882,7 +882,7 @@ class DataController extends Controller
     /** One credential: how it's shared, who holds it, and the services it's used in. */
     public function account(\App\Models\Account $account): JsonResponse
     {
-        $account->loadMissing(['holders:id,name,last,active', 'logins.vendor:vendorID,name']);
+        $account->loadMissing(['holders:id,name,last,active', 'logins.vendor:vendorID,name', 'logins.device:deviceID,asset_tag,computer_name']);
         return response()->json([
             'id' => $account->id,
             'identifier' => $account->identifier,
@@ -894,8 +894,13 @@ class DataController extends Controller
                 'id' => $u->id, 'label' => trim("{$u->name} {$u->last}").($u->active ? '' : ' (inactive)'),
             ])->all(),
             'holders' => $account->holders->map(fn ($u) => trim("{$u->name} {$u->last}"))->all(),
+            // A use of the credential is a service OR a device — ITAdmin's uses are
+            // mostly servers. `target` fuses them for display; both raw fields ride along.
             'services' => $account->logins->map(fn ($l) => [
-                'id' => $l->id, 'name' => $l->login_name, 'vendor' => $l->vendor?->name,
+                'id' => $l->id,
+                'target' => ($l->device?->asset_tag ?: $l->device?->computer_name) ?: $l->login_name,
+                'is_device' => $l->device !== null,
+                'name' => $l->login_name, 'vendor' => $l->vendor?->name,
                 'type' => $l->type, 'url' => $l->url,
                 'is_active' => (bool) $l->is_active, 'is_restricted' => (bool) $l->is_restricted,
             ])->values()->all(),
@@ -954,6 +959,22 @@ class DataController extends Controller
         $account->update($data);
 
         return response()->json($account->fresh());
+    }
+
+    /** Unlock the Accounts registry by re-entering your own password. Throttled. */
+    public function unlockAccounts(Request $request): JsonResponse
+    {
+        $request->validate(['password' => 'required|string']);
+
+        if (! \Illuminate\Support\Facades\Hash::check($request->string('password'), auth()->user()->password)) {
+            \Illuminate\Support\Facades\Log::warning('accounts.unlock.failed', ['by' => auth()->id()]);
+            return response()->json(['errors' => ['password' => ['That password is not correct.']]], 422);
+        }
+
+        $request->session()->put('accounts_confirmed_at', time());
+        \Illuminate\Support\Facades\Log::info('accounts.unlocked', ['by' => auth()->id()]);
+
+        return response()->json(['ok' => true]);
     }
 
     /** The ways a FLOATING account can be held (personal belongs to logins, not here). */

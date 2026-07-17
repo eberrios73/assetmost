@@ -67,6 +67,10 @@ export const ENTITIES = {
         noun: 'an account',
         listEndpoint: '/data/accounts', detailEndpoint: (id) => `/data/accounts/${id}`,
         icon: <KeyIcon />, idLabel: 'Account ID',
+        // A map of the realm's admin credentials — the list itself is the sensitive
+        // thing. Re-enter your password on every visit; the server enforces its own
+        // window on top (423 without a fresh unlock).
+        guard: { reason: 'The account registry maps privileged credentials across your realm. Re-enter your password to open it.' },
         filter: { key: 'sharing', label: 'sharing', optionsEndpoint: '/data/sharing-options' },
         sort: [{ key: 'identifier', label: 'Email / username' }, { key: 'sharing', label: 'Sharing' }],
         render: (a) => <AccountDetail a={a} />,

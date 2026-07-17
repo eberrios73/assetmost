@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import EntityList from '@/Components/EntityList';
 import RecordModal from '@/Components/RecordModal';
+import PasswordGate from '@/Components/ui/PasswordGate';
 import AssetOnboard from '@/Components/AssetOnboard';
 import { ENTITIES, GROUPS } from '@/entities';
 import { getLast, setLast } from '@/lib/lastView';
@@ -25,6 +26,9 @@ export default function Workspace({ group }) {
     const [editing, setEditing] = useState(false);
     const [listVersion, setListVersion] = useState(0);
     const [step, setStep] = useState(0);
+    // Guarded tabs (Accounts) re-prompt on EVERY entry — switching away re-locks.
+    const [unlocked, setUnlocked] = useState(false);
+    useEffect(() => setUnlocked(false), [tabKey]);
 
     const refetchDetail = () => {
         if (entity && selectedId) fetch(entity.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setDetail);
@@ -72,7 +76,11 @@ export default function Workspace({ group }) {
     );
 
     let listContent, detailContent, footerLeft, footerRight;
-    if (entity) {
+    if (entity?.guard && !unlocked) {
+        listContent = <PasswordGate reason={entity.guard.reason} onUnlocked={() => setUnlocked(true)} />;
+        detailContent = <Center>Unlock to view {tab.label.toLowerCase()}</Center>;
+        footerLeft = `${tab.label} — locked`;
+    } else if (entity) {
         listContent = (
             <EntityList endpoint={entity.listEndpoint} icon={entity.icon}
                 filter={entity.filter ? { key: entity.filter.key, label: entity.filter.label, options: filterOptions } : null}
