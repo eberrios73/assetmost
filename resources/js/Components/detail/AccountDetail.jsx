@@ -4,6 +4,8 @@ const SHARING = {
     personal: 'Personal — one human',
     pooled: 'Pooled — one at a time, reassignable',
     shared: 'Shared — many at once (a mailbox)',
+    service: 'Service — runs the system, no human holder',
+    breakglass: 'Break glass — sealed emergency access',
 };
 
 /**
@@ -35,6 +37,11 @@ export default function AccountDetail({ a }) {
                         <span key={name} className="rounded-full bg-blue-50 dark:bg-blue-500/15 px-2.5 py-1 text-xs text-blue-700 dark:text-blue-300">{name}</span>
                     ))}
                 </div>
+            ) : a.sharing === 'service' ? (
+                // No holder is the CORRECT state here — don't nag to assign one.
+                <p className="mb-6 text-sm text-gray-400">No one — this account runs the system, it isn't held.</p>
+            ) : a.sharing === 'breakglass' ? (
+                <p className="mb-6 text-sm text-amber-600 dark:text-amber-400">Sealed — emergency use only. Every reveal is logged.</p>
             ) : (
                 <p className="mb-6 text-sm text-gray-400">
                     Nobody{a.sharing === 'pooled' ? ' — an available seat' : ''}. Assign people with Edit.

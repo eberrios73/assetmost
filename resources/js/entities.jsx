@@ -18,6 +18,8 @@ const ACCOUNT_FIELDS = [
         { value: 'personal', label: 'Personal — one human' },
         { value: 'pooled', label: 'Pooled — one at a time' },
         { value: 'shared', label: 'Shared — many at once' },
+        { value: 'service', label: 'Service — runs the system, no human holder' },
+        { value: 'breakglass', label: 'Break glass — sealed emergency access' },
     ] },
     { key: 'holder_ids', label: 'Assigned to', type: 'multi-select-search',
       optionsEndpoint: '/data/person-options', pickPlaceholder: 'Search people to add…' },

@@ -23,7 +23,12 @@ class Login extends Model
 {
     use BelongsToCompany;
 
-    public const SHARING = ['personal', 'pooled', 'shared'];
+    // personal = one human | pooled = one at a time | shared = many at once
+    // service  = held by NOBODY on purpose — it runs the system (a Perforce domain
+    //            admin, a backup agent). "Unassigned" is its correct state, not a gap.
+    // breakglass = sealed emergency access. Nobody uses it day-to-day; restricted
+    //            always, and revealing one is the audit event that matters most.
+    public const SHARING = ['personal', 'pooled', 'shared', 'service', 'breakglass'];
 
     protected $primaryKey = 'loginID';
     protected $guarded = ['loginID'];

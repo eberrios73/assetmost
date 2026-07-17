@@ -556,7 +556,7 @@ class DataController extends Controller
             'login_name' => 'nullable|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
-            'sharing' => 'nullable|in:personal,pooled,shared',
+            'sharing' => 'nullable|in:'.implode(',', \App\Models\Login::SHARING),
             'is_active' => 'boolean', 'is_restricted' => 'boolean',
             'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
@@ -566,6 +566,10 @@ class DataController extends Controller
         $data = $v->validated();
         if (empty($data['login_pass'])) {
             unset($data['login_pass']); // blank = keep existing secret
+        }
+        // Break glass is restricted by definition — not overridable from the form.
+        if (($data['sharing'] ?? null) === 'breakglass') {
+            $data['is_restricted'] = true;
         }
         // Holders live on the pivot, not the row. Absent key = untouched; [] = unassign all.
         if (array_key_exists('holder_ids', $data)) {
@@ -856,7 +860,7 @@ class DataController extends Controller
         // accmgr001, distribution lists). A person's identity login belongs on their
         // staff page; listing it twice would make this registry unreadable.
         $q->where(function ($w) {
-            $w->whereIn('sharing', ['pooled', 'shared'])
+            $w->whereIn('sharing', ['pooled', 'shared', 'service', 'breakglass'])
               ->orWhereNull('login_id')->orWhere('login_id', '')
               ->orWhereNotExists(fn ($s) => $s->selectRaw('1')->from('users')->whereColumn('users.email', 'logins.login_id'));
         });
@@ -911,7 +915,7 @@ class DataController extends Controller
             'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255',
             'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
-            'sharing' => 'nullable|in:personal,pooled,shared',
+            'sharing' => 'nullable|in:'.implode(',', \App\Models\Login::SHARING),
             'url' => 'nullable|string|max:255', 'type' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'is_active' => 'boolean', 'is_restricted' => 'boolean',
@@ -927,6 +931,11 @@ class DataController extends Controller
         unset($data['holder_ids']);
         $data['sharing'] ??= 'personal';
         $data['is_active'] = (bool) ($data['is_active'] ?? true);
+        // Break glass is restricted BY DEFINITION — an unsealed emergency credential
+        // is just a password lying around. Not overridable from the form.
+        if ($data['sharing'] === 'breakglass') {
+            $data['is_restricted'] = true;
+        }
 
         $login = \App\Models\Login::create($data);
         if ($holderIds) {
@@ -936,13 +945,15 @@ class DataController extends Controller
         return response()->json($login->fresh(), 201);
     }
 
-    /** The three ways an account can be held, for the list filter. */
+    /** The ways an account can be held, for the list filter and drawer. */
     public function sharingOptions(): JsonResponse
     {
         return response()->json([
             ['value' => 'personal', 'label' => 'Personal — one human'],
             ['value' => 'pooled', 'label' => 'Pooled — one at a time'],
             ['value' => 'shared', 'label' => 'Shared — many at once'],
+            ['value' => 'service', 'label' => 'Service — runs the system, no human holder'],
+            ['value' => 'breakglass', 'label' => 'Break glass — sealed emergency access'],
         ]);
     }
 
