@@ -2,6 +2,19 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import BrandMark from '@/Components/BrandMark';
 import ThemeToggle from '@/Components/ThemeToggle';
+import RecordModal from '@/Components/RecordModal';
+
+/** Fields for the inline "Add company" in the switcher. */
+const COMPANY_FIELDS = [
+    { key: 'name', label: 'Name', required: true },
+    // Drives asset tags (HC -> PG-WS-1001). Required, because a company without one
+    // can't issue a tag and you'd only discover that at first device intake.
+    { key: 'tag_prefix', label: 'Tag prefix (e.g. PG)', required: true, maxLength: 4 },
+    { key: 'domain', label: 'Domain' },
+    { key: 'email', label: 'Email', type: 'email' },
+    { key: 'city', label: 'City' },
+    { key: 'state', label: 'State', maxLength: 2 },
+];
 
 /**
  * AppShell: global header (row 1) + two-column body (row 2).
@@ -63,28 +76,57 @@ export default function AppShell({ nav = null, detail = null, active = null, foo
     );
 }
 
+const ADD_COMPANY = '__add__';
+
+/**
+ * Active-company switcher, with "Add a company…" in the list itself.
+ *
+ * The switcher is where you think about companies, so it's where you should be able to
+ * make one. It also renders with a single company on purpose: hiding it below two meant a
+ * fresh install had no switcher and therefore no way to add a second company — a dead end
+ * you could only escape by knowing the /companies URL.
+ */
 function CompanySwitcher({ tenant }) {
     const companies = tenant?.companies || [];
     const active = tenant?.activeId ?? '';
-    // nothing to switch between with one company
-    if (companies.length < 2) return null;
+    const [adding, setAdding] = useState(false);
 
     const change = (e) => {
-        router.post('/switch-company', { company_id: e.target.value || null }, { preserveScroll: true });
+        const v = e.target.value;
+        if (v === ADD_COMPANY) { setAdding(true); return; }
+        router.post('/switch-company', { company_id: v || null }, { preserveScroll: true });
     };
 
     return (
-        <select
-            value={active}
-            onChange={change}
-            className="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 text-sm py-1.5 pr-8 text-gray-700 dark:text-gray-200 focus:border-blue-500 focus:ring-blue-500"
-            title="Active company"
-        >
-            <option value="">All companies</option>
-            {companies.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-        </select>
+        <>
+            <select
+                value={active}
+                onChange={change}
+                className="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-800 text-sm py-1.5 pr-8 text-gray-700 dark:text-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                title="Active company"
+            >
+                {companies.length > 1 && <option value="">All companies</option>}
+                {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+                <option disabled>──────────</option>
+                <option value={ADD_COMPANY}>+ Add a company…</option>
+            </select>
+
+            {adding && (
+                <RecordModal
+                    title="Add Company" endpoint="/data/companies" method="POST" fields={COMPANY_FIELDS}
+                    onClose={() => setAdding(false)}
+                    onSaved={(c) => {
+                        setAdding(false);
+                        // Switch straight to it — you made it because you want to work in it.
+                        // reload() refreshes the switcher's own list from shared props.
+                        if (c?.id) router.post('/switch-company', { company_id: c.id }, { preserveScroll: true });
+                        else router.reload();
+                    }}
+                />
+            )}
+        </>
     );
 }
 
