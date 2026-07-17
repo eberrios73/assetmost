@@ -16,14 +16,13 @@ export default function AccountDetail({ a }) {
         <div className="max-w-3xl">
             <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">{a.login_name}</h2>
             <p className="text-sm text-gray-500 mb-4">
-                {[a.login_id, a.vendor].filter(Boolean).join(' · ')}
+                {a.login_id}
                 {a.is_restricted && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">restricted</span>}
             </p>
 
             <dl className="grid grid-cols-2 gap-x-8 mb-6">
                 <Field label="Sharing" value={SHARING[a.sharing] || a.sharing} />
                 <Field label="Type" value={a.type} />
-                <Field label="Vendor" value={a.vendor} />
                 <Field label="URL" value={a.url} />
                 <Field label="Active" value={a.is_active ? 'Yes' : 'No'} />
                 <Field label="Notes" value={a.notes} />

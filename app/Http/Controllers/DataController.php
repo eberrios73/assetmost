@@ -876,7 +876,7 @@ class DataController extends Controller
         return $this->page($q, $request, fn ($l) => [
             'id' => $l->id,
             'primary' => $l->login_name,
-            'secondary' => implode(' · ', array_filter([$l->login_id, $l->vendor?->name])),
+            'secondary' => $l->login_id,
             // Personal is the norm, so only the exceptions get a badge.
             'badge' => $l->sharing !== 'personal' ? $l->sharing : ($l->holders->count() > 1 ? 'multi' : null),
         ]);

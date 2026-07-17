@@ -14,7 +14,6 @@ const ACCOUNT_FIELDS = [
     { key: 'login_id', label: 'Login ID' },
     { key: 'login_pass', label: 'Password (blank = keep)', type: 'password',
       revealEndpoint: (id) => `/data/logins/${id}/secret`, revealKey: 'password' },
-    { key: 'vendor_id', label: 'Vendor', type: 'select-search', optionsEndpoint: '/data/vendor-options' },
     { key: 'sharing', label: 'Sharing', type: 'select', required: true, options: [
         { value: 'personal', label: 'Personal — one human' },
         { value: 'pooled', label: 'Pooled — one at a time' },
