@@ -961,6 +961,17 @@ class DataController extends Controller
         return response()->json($account->fresh());
     }
 
+    /** Floating-account identifiers for pickers. Identifier + id ONLY — the gated
+     *  registry endpoints hold everything else. */
+    public function accountOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Account::query()->where('is_active', true)->orderBy('identifier')
+                ->get(['id', 'identifier'])
+                ->map(fn ($a) => ['id' => $a->id, 'label' => $a->identifier])
+        );
+    }
+
     /** Unlock the Accounts registry by re-entering your own password. Throttled. */
     public function unlockAccounts(Request $request): JsonResponse
     {

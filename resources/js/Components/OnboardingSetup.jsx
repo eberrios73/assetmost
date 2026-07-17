@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AddButton from '@/Components/ui/AddButton';
+import { MultiPicker } from '@/Components/RecordModal';
 
 const CATEGORIES = ['accounts', 'machine', 'access', 'training', 'other'];
 
@@ -94,6 +95,7 @@ export default function OnboardingSetup() {
 
     return (
         <div className="max-w-3xl">
+            <RunCard />
             <div className="flex items-center justify-between mb-1">
                 <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">Onboarding steps</h2>
                 <div className="flex items-center gap-2">
@@ -162,5 +164,89 @@ function StepCard({ step: s, index, count, nested = false, onChange, onRemove, o
                 <ol className="space-y-1 px-2.5 pb-2.5">{s.subtasks.map((sub, j) => renderSub(sub, j))}</ol>
             )}
         </li>
+    );
+}
+
+
+/**
+ * The wizard. Fill in the person, add vendors to the list (autofilled from the
+ * vendors you already have — each becomes a created credential in the registry
+ * plus a task), pick floating accounts to assign, hit run. Atomic server-side:
+ * abandonment leaves nothing behind.
+ */
+function RunCard() {
+    const empty = { first: '', last: '', username: '', email: '', title: '', department: '', start_date: '' };
+    const [form, setForm] = useState(empty);
+    const [vendorIds, setVendorIds] = useState([]);
+    const [accountIds, setAccountIds] = useState([]);
+    const [busy, setBusy] = useState(false);
+    const [result, setResult] = useState(null);
+    const [error, setError] = useState(null);
+    const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+    const run = async () => {
+        setBusy(true); setError(null);
+        try {
+            const r = await api('/data/onboarding-run', 'POST', { ...form, vendor_ids: vendorIds, account_ids: accountIds });
+            setResult(r); setForm(empty); setVendorIds([]); setAccountIds([]);
+        } catch (e) {
+            setError(Object.values(e?.errors || {}).flat()[0] || e?.message || 'Could not run onboarding.');
+        }
+        setBusy(false);
+    };
+
+    if (result) {
+        return (
+            <div className="mb-6 rounded-lg border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-500/10 p-4">
+                <p className="text-sm font-medium text-green-800 dark:text-green-300 mb-1">Onboarding created</p>
+                <ul className="text-sm text-green-700 dark:text-green-400 space-y-0.5">
+                    <li>Person added to the directory (sign-in stays off until granted).</li>
+                    <li>{result.credentials.length} credential{result.credentials.length === 1 ? '' : 's'} generated and stored in the registry{result.credentials.length ? `: ${result.credentials.map((c) => c.vendor).join(', ')}` : ''}.</li>
+                    {result.floating.length > 0 && <li>Floating accounts assigned: {result.floating.join(', ')}.</li>}
+                    <li>{result.tasks} tasks created under the project — chained and planned around the start date.</li>
+                </ul>
+                <div className="mt-3 flex gap-2">
+                    <a href="/tasks" className="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">Open the task project</a>
+                    <button onClick={() => setResult(null)} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">Onboard another</button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="mb-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-3">Start an onboarding</h2>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+                <Fld label="First name *"><input value={form.first} onChange={set('first')} className={INP} /></Fld>
+                <Fld label="Last name *"><input value={form.last} onChange={set('last')} className={INP} /></Fld>
+                <Fld label="Email *"><input type="email" value={form.email} onChange={set('email')} className={INP} /></Fld>
+                <Fld label="Username (for Domain/AD)"><input value={form.username} onChange={set('username')} className={INP} /></Fld>
+                <Fld label="Title"><input value={form.title} onChange={set('title')} className={INP} /></Fld>
+                <Fld label="Department"><input value={form.department} onChange={set('department')} className={INP} /></Fld>
+                <Fld label="Start date (DOH) *"><input type="date" value={form.start_date} onChange={set('start_date')} className={INP} /></Fld>
+            </div>
+            <Fld label="Create accounts for these vendors — each becomes a registry credential + a task">
+                <MultiPicker ids={vendorIds} endpoint="/data/vendor-options" onChange={setVendorIds} placeholder="Search vendors to add…" />
+            </Fld>
+            <div className="mt-3">
+                <Fld label="Assign floating accounts (pooled seats, shared mailboxes)">
+                    <MultiPicker ids={accountIds} endpoint="/data/account-options" onChange={setAccountIds} placeholder="Search floating accounts…" />
+                </Fld>
+            </div>
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            <div className="mt-4">
+                <AddButton label={busy ? 'Creating…' : 'Run onboarding'} onClick={busy ? () => {} : run} />
+            </div>
+        </div>
+    );
+}
+
+const INP = 'w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500';
+function Fld({ label, children }) {
+    return (
+        <label className="block">
+            <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">{label}</span>
+            {children}
+        </label>
     );
 }

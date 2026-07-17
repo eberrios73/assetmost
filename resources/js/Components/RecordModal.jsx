@@ -7,7 +7,7 @@ import { EyeIcon, EyeOffIcon } from '@/Components/Icons';
  * `knownLabels` seeds names for ids that came with the record (the options
  * endpoint also has them, but this avoids a flash of bare ids on open).
  */
-function MultiPicker({ ids, endpoint, knownLabels, onChange, placeholder = 'Add…' }) {
+export function MultiPicker({ ids, endpoint, knownLabels = [], onChange, placeholder = 'Add…' }) {
     const [options, setOptions] = useState(knownLabels);
 
     useEffect(() => {
