@@ -9,9 +9,10 @@ const SHARING = {
 };
 
 /**
- * A credential account seen from the account side: what it is, how it's held,
- * who holds it, and the seats it consumes. Person-centric access lives on the
- * staff screen; this is the same data pivoted.
+ * A FLOATING account: an assignable credential. artist001 can be assigned to any
+ * employee and reassigned later; a person's own email never can — which is why
+ * identity logins live on the person and only assignable ones live here. The
+ * assignment is the thing this screen tracks.
  */
 export default function AccountDetail({ a }) {
     return (
@@ -31,7 +32,7 @@ export default function AccountDetail({ a }) {
                 <Field label="Notes" value={a.notes} />
             </dl>
 
-            <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">Held by</h3>
+            <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-200">Assigned to</h3>
             {a.holders?.length ? (
                 <div className="mb-6 flex flex-wrap gap-1.5">
                     {a.holders.map((name) => (
@@ -45,7 +46,7 @@ export default function AccountDetail({ a }) {
                 <p className="mb-6 text-sm text-amber-600 dark:text-amber-400">Sealed — emergency use only. Every reveal is logged.</p>
             ) : (
                 <p className="mb-6 text-sm text-gray-400">
-                    Nobody{a.sharing === 'pooled' ? ' — an available seat' : ''}. Assign people with Edit.
+                    Unassigned{a.sharing === 'pooled' ? ' — available to hand out' : ''}. Assign someone with Edit.
                 </p>
             )}
 
