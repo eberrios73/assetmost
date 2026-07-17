@@ -75,7 +75,7 @@ export const ENTITIES = {
         listEndpoint: '/data/accounts', detailEndpoint: (id) => `/data/accounts/${id}`,
         icon: <KeyIcon />, idLabel: 'Account ID',
         filter: { key: 'sharing', label: 'sharing', optionsEndpoint: '/data/sharing-options' },
-        sort: [{ key: 'login_name', label: 'Name' }, { key: 'login_id', label: 'Login ID' }, { key: 'type', label: 'Type' }, { key: 'sharing', label: 'Sharing' }],
+        sort: [{ key: 'login_id', label: 'Email / username' }, { key: 'login_name', label: 'Service' }, { key: 'type', label: 'Type' }, { key: 'sharing', label: 'Sharing' }],
         render: (a) => <AccountDetail a={a} />,
         add: { endpoint: '/data/accounts', title: 'Add Account', fields: ACCOUNT_FIELDS },
         edit: { fields: ACCOUNT_FIELDS },

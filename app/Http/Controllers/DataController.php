@@ -853,7 +853,7 @@ class DataController extends Controller
     public function accounts(Request $request): JsonResponse
     {
         $q = \App\Models\Login::query()->with(['vendor:vendorID,name', 'holders:id,name,last']);
-        $this->sort($q, $request, ['login_name', 'login_id', 'type', 'sharing'], 'login_name');
+        $this->sort($q, $request, ['login_id', 'login_name', 'type', 'sharing'], 'login_id');
 
         // Only role/service credentials live here. A PERSONAL account that somebody
         // holds is that person's — it lives on their staff page (heather.adbe@ belongs
@@ -881,8 +881,10 @@ class DataController extends Controller
 
         return $this->page($q, $request, fn ($l) => [
             'id' => $l->id,
-            'primary' => $l->login_name,
-            'secondary' => $l->login_id,
+            // The account IS the email/username. login_name ("Adobe") is what it's
+            // for — second line, never the headline.
+            'primary' => $l->login_id ?: $l->login_name,
+            'secondary' => $l->login_id ? $l->login_name : null,
             // Personal is the norm, so only the exceptions get a badge.
             'badge' => $l->sharing !== 'personal' ? $l->sharing : ($l->holders->count() > 1 ? 'multi' : null),
         ]);

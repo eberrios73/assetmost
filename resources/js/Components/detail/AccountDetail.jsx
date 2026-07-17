@@ -16,9 +16,10 @@ const SHARING = {
 export default function AccountDetail({ a }) {
     return (
         <div className="max-w-3xl">
-            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">{a.login_name}</h2>
+            {/* The account IS the email/username; the service it's for is the subtitle. */}
+            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">{a.login_id || a.login_name}</h2>
             <p className="text-sm text-gray-500 mb-4">
-                {a.login_id}
+                {a.login_id ? a.login_name : null}
                 {a.is_restricted && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">restricted</span>}
             </p>
 
