@@ -118,17 +118,25 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         run: (e) => e.chain().focus().insertContent(`/${r.slug} `).run(),
     }));
 
-    // /install <software>: search the indexed installers share. Whatever's typed can
-    // always be inserted (works before the share is indexed too).
+    // /install <platform> <software>: the first word picks the platform (mac/windows),
+    // the rest narrows by name — "/install mac" lists the Mac software, "/install mac
+    // office" narrows to Office. Whatever's typed can always be inserted (works before
+    // the share is indexed too).
+    const PLAT = { mac: 'mac', macos: 'mac', osx: 'mac', apple: 'mac', win: 'windows', windows: 'windows', pc: 'windows' };
     let items;
     if (menu?.mode === 'install') {
+        const words = menu.query.split(/\s+/).filter(Boolean);
+        let platform = null;
+        if (words.length && PLAT[words[0]]) { platform = PLAT[words[0]]; words.shift(); }
+        const nameQ = words.join(' ');
         const picks = installers
-            .filter((i) => !menu.query || i.name.toLowerCase().includes(menu.query))
+            .filter((i) => !platform || (i.platform || '').toLowerCase() === platform)
+            .filter((i) => !nameQ || i.name.toLowerCase().includes(nameQ))
             .slice(0, 8)
             .map((i) => ({ key: `inst:${i.id}`, label: i.name, hint: `${i.platform}${i.arch ? ' ' + i.arch + '-bit' : ''}`,
                 run: (e) => e.chain().focus().insertContent(`/install ${i.name} `).run() }));
         // Works before the share is indexed: keep whatever was typed as the reference.
-        if (menu.query) picks.push({ key: 'inst:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
+        if (nameQ) picks.push({ key: 'inst:free', label: `Use "${nameQ}"`, hint: 'insert as typed',
             run: (e) => e.chain().focus().insertContent(`/install ${menu.query} `).run() });
         items = picks;
     } else {
