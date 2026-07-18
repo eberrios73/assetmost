@@ -54,6 +54,10 @@ class MachineOnboardController extends Controller
             'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255',
             'serial_num' => 'nullable|string|max:255',
+            // Files from the installers share to pull + set up on this machine
+            // (software installers and VPN configs).
+            'installers' => 'nullable|array',
+            'installers.*' => 'string|max:500',
         ]);
 
         $template = OnboardingTemplate::query()->where('company_id', $companyId)
@@ -138,7 +142,7 @@ class MachineOnboardController extends Controller
         return response()->json([
             'asset_tag' => $device->asset_tag,
             'project_id' => $project->id,
-            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant']),
+            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant'], $data['installers'] ?? []),
         ], 201);
     }
 
@@ -205,10 +209,23 @@ class MachineOnboardController extends Controller
     }
 
     /** The idempotent bootstrap script — platform decided by the runbook variant. */
-    private function script(Device $device, string $token, string $base, string $variant = ''): string
+    private function script(Device $device, string $token, string $base, string $variant = '', array $installers = []): string
     {
         $tag = $device->asset_tag;
         $domain = $device->company?->local_domain ?: 'your.domain';
+        $repo = rtrim($device->company?->installers_url ?: '', '/');   // Web Station base for curl
+
+        // Build the fetch+install block for the chosen files (software + VPN configs).
+        $macFetch = '';
+        $winFetch = '';
+        foreach ($installers as $rel) {
+            $rel = ltrim($rel, '/');
+            if ($rel === '' || ! $repo) continue;
+            $url = $repo . '/' . str_replace('%2F', '/', rawurlencode($rel));
+            $file = basename($rel);
+            $macFetch .= self::macInstall($url, $file);
+            $winFetch .= self::winInstall($url, $file);
+        }
 
         if (preg_match('/mac/i', $variant)) {
             $sh = <<<'SH'
@@ -236,16 +253,19 @@ else
   report 'FileVault' true 'Already on'
 fi
 
-# 3. Updates
+# 3. Pull + set up software and VPN configs from the installers share
+__FETCH__
+
+# 4. Updates
 softwareupdate --install --all 2>/dev/null
 report 'updates' true 'softwareupdate pass attempted'
 
-echo 'Bootstrap done - finish the remaining checklist in AssetMost (MDM enrollment, software, hardening).'
+echo 'Bootstrap done - finish the remaining checklist in AssetMost (MDM enrollment, hardening).'
 SH;
-            return str_replace(['__TAG__', '__TOKEN__', '__BASE__'], [$tag, $token, $base], $sh);
+            return str_replace(['__TAG__', '__TOKEN__', '__BASE__', '__FETCH__'], [$tag, $token, $base, $macFetch ?: '# (no installers selected)'], $sh);
         }
 
-        return <<<PS
+        $ps = <<<PS
 # AssetMost bootstrap — {$tag} — safe to re-run; it continues where it left off.
 # Run in an elevated PowerShell. Windows PowerShell 5.1 compatible.
 \$T = '{$token}'
@@ -286,11 +306,67 @@ if (\$key) {
     } catch { Report 'BitLocker' \$false \$_.Exception.Message }
 }
 
-# 4. Updates (best effort; finish in Settings if needed)
+# 4. Pull + set up software and VPN configs from the installers share
+__FETCH__
+
+# 5. Updates (best effort; finish in Settings if needed)
 try { Install-Module PSWindowsUpdate -Force -Scope CurrentUser -ErrorAction Stop; Get-WindowsUpdate -AcceptAll -Install -IgnoreReboot } catch {}
 Report 'Apply all updates' \$true 'Windows Update pass attempted'
 
 Write-Host 'Bootstrap done — finish the remaining checklist in AssetMost.' -ForegroundColor Green
+PS;
+        return str_replace('__FETCH__', $winFetch ?: '# (no installers selected)', $ps);
+    }
+
+    /**
+     * Mac curl+install for one file from the installers share. Handles the types
+     * that live there: .pkg (installer), .dmg (mount, copy .app, unmount),
+     * .ovpn (import into Viscosity — the fleet's VPN client), .app inside a .zip.
+     */
+    private static function macInstall(string $url, string $file): string
+    {
+        $u = addslashes($url);
+        $f = addslashes($file);
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $body = match ($ext) {
+            'pkg' => "sudo installer -pkg \"\$T\" -target / && ok=1",
+            'dmg' => "M=\$(hdiutil attach \"\$T\" -nobrowse | grep -o '/Volumes/.*' | head -1); "
+                   . "cp -R \"\$M\"/*.app /Applications/ 2>/dev/null && ok=1; hdiutil detach \"\$M\" >/dev/null 2>&1",
+            'ovpn' => "mkdir -p \"/Users/\$SUDO_USER/Library/Application Support/Viscosity/OpenVPN\"; "
+                    . "open \"\$T\" && ok=1   # Viscosity imports the config on open",
+            default => "ok=1   # downloaded to \$T; set up manually",
+        };
+        return <<<SH
+
+# {$file}
+T="/tmp/{$f}"; ok=0
+if curl -fsSL "{$u}" -o "\$T"; then
+  {$body}
+fi
+[ "\$ok" = 1 ] && report 'software' true 'Installed {$f}' || report 'software' false 'Failed {$f}'
+rm -f "\$T" 2>/dev/null
+
+SH;
+    }
+
+    /** Windows curl+install for one file: .exe/.msi silent, .ovpn into OpenVPN config. */
+    private static function winInstall(string $url, string $file): string
+    {
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $body = match ($ext) {
+            'msi' => "Start-Process msiexec -ArgumentList '/i',\"\$T\",'/qn' -Wait; \$ok=\$true",
+            'exe' => "Start-Process \"\$T\" -ArgumentList '/S','/silent','/quiet' -Wait; \$ok=\$true",
+            'ovpn' => "Copy-Item \"\$T\" 'C:\\Program Files\\OpenVPN\\config\\' -Force; \$ok=\$true",
+            default => "\$ok=\$true   # downloaded; set up manually",
+        };
+        return <<<PS
+
+# {$file}
+\$T = "\$env:TEMP\\{$file}"; \$ok = \$false
+try { Invoke-WebRequest "{$url}" -OutFile \$T -UseBasicParsing; {$body} } catch {}
+if (\$ok) { Report 'software' \$true 'Installed {$file}' } else { Report 'software' \$false 'Failed {$file}' }
+Remove-Item \$T -ErrorAction SilentlyContinue
+
 PS;
     }
 }

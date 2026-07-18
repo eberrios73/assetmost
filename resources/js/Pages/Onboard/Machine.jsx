@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import AddButton from '@/Components/ui/AddButton';
 
@@ -42,6 +42,9 @@ export default function Machine({ variants = [], types = [] }) {
     const [variant, setVariant] = useState(() => pickVariant(initialType));
     const setTypeId = (id) => { setTypeIdRaw(id); setVariant(pickVariant(id)); };
     const [form, setForm] = useState({ brand: '', model: '', serial_num: '' });
+    const [installers, setInstallers] = useState([]);   // available from the share
+    const [picked, setPicked] = useState([]);           // relative_paths to install
+    useEffect(() => { fetch('/data/installers', { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setInstallers).catch(() => {}); }, []);
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -50,7 +53,7 @@ export default function Machine({ variants = [], types = [] }) {
     const generate = async () => {
         setBusy(true); setError(null);
         try {
-            setResult(await api('/onboard/generate', { variant, device_type_id: typeId, ...form }));
+            setResult(await api('/onboard/generate', { variant, device_type_id: typeId, ...form, installers: picked }));
         } catch (e) {
             setError(Object.values(e?.errors || {}).flat()[0] || e?.message || 'Could not generate.');
         }
@@ -96,6 +99,23 @@ export default function Machine({ variants = [], types = [] }) {
                             </label>
                         ))}
                     </div>
+                    {installers.length > 0 && (
+                        <div>
+                            <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">Install on this machine (software & VPN configs from the share)</span>
+                            <div className="max-h-44 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800">
+                                {installers.map((i) => (
+                                    <label key={i.relative_path} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                                        <input type="checkbox" checked={picked.includes(i.relative_path)}
+                                            onChange={(e) => setPicked((p) => e.target.checked ? [...p, i.relative_path] : p.filter((x) => x !== i.relative_path))}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                        <span className="text-gray-700 dark:text-gray-200">{i.name}</span>
+                                        <span className="ml-auto text-xs text-gray-400">{i.relative_path.split('/')[0]}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <p className="mt-1 text-xs text-gray-400">The script curls each from {`http://…/`} and installs it — .pkg/.dmg/.exe run, .ovpn imports into the VPN client.</p>
+                        </div>
+                    )}
                     {error && <p className="text-sm text-red-600">{error}</p>}
                     <AddButton label={busy ? 'Generating…' : 'Issue tag & generate script'} onClick={busy ? () => {} : generate} />
                 </div>
