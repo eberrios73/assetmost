@@ -84,6 +84,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/roles/reset', [$sc, 'resetRoles']);
     Route::post('/settings/identity-providers', [$sc, 'saveProvider']);
     Route::post('/settings/provisioner-defs', [$sc, 'savePluginDef']);
+    Route::post('/settings/installers-path', [$sc, 'saveInstallersPath']);
+    Route::post('/settings/installers-scan', [$sc, 'scanInstallers']);
     // /m365 was its own screen; Microsoft is now one identity provider among three.
     Route::get('/m365', fn () => redirect()->route('settings.index'))->name('m365.index');
 

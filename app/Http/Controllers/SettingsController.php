@@ -27,6 +27,12 @@ class SettingsController extends Controller
             'companies' => Company::query()->withoutGlobalScopes()
                 ->orderBy('name')
                 ->get(['id', 'name', 'tag_prefix', 'domain', 'city', 'state', 'active']),
+            'installers' => [
+                'mount' => env('INSTALLERS_MOUNT', '/mnt/installers'),
+                'count' => \Illuminate\Support\Facades\DB::table('installers')->count(),
+                'last_scan' => \Illuminate\Support\Facades\DB::table('installers')->max('indexed_at'),
+                'companies' => Company::query()->withoutGlobalScopes()->orderBy('name')->get(['id','name','installers_path']),
+            ],
             'providers' => IdentityProvider::query()->get(),
             'providerTypes' => IdentityProvider::PROVIDERS
                 + \App\Models\ProvisionerDefinition::query()->where('enabled', true)->pluck('name', 'plugin_key')->all(),
@@ -84,6 +90,31 @@ class SettingsController extends Controller
         Log::info('access.matrix.reset', ['by' => auth()->id()]);
 
         return response()->json(['matrix' => Access::matrix()]);
+    }
+
+    /** Set a company's installers share path (the human-facing UNC/smb URL). */
+    public function saveInstallersPath(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
+        $data = $request->validate(['company_id' => 'required|exists:companies,id', 'path' => 'nullable|string|max:500']);
+        Company::query()->withoutGlobalScopes()->whereKey($data['company_id'])->update(['installers_path' => $data['path'] ?: null]);
+        return response()->json(['ok' => true]);
+    }
+
+    /** Scan the mounted installers share into the index. The directory IS the catalog. */
+    public function scanInstallers(): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
+        $mount = env('INSTALLERS_MOUNT', '/mnt/installers');
+        if (! is_dir($mount)) {
+            return response()->json(['ok' => false, 'error' => "Share not mounted at {$mount}. Mount it read-only on the server first (see the note below)."], 422);
+        }
+        \Illuminate\Support\Facades\Artisan::call('installers:index');
+        return response()->json([
+            'ok' => true,
+            'count' => \Illuminate\Support\Facades\DB::table('installers')->count(),
+            'last_scan' => \Illuminate\Support\Facades\DB::table('installers')->max('indexed_at'),
+        ]);
     }
 
     /** Add or replace a declarative provisioning plugin (paste-in JSON). */
