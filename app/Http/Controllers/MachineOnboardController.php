@@ -185,28 +185,35 @@ class MachineOnboardController extends Controller
         $catalog = DB::table('installers')->get();
         $vpnRe = '/\.(ovpn|ovpn12|mobileconfig|tblk|visc|visz|conf|wg)$/i';
         $plat = ['mac' => 'Mac', 'macos' => 'Mac', 'osx' => 'Mac', 'apple' => 'Mac', 'win' => 'Windows', 'windows' => 'Windows', 'pc' => 'Windows'];
+        $stripExt = fn ($n) => strtolower(preg_replace('/\.[a-z0-9]+$/i', '', $n));
         $out = [];
         foreach ($m as $tok) {
             $type = strtolower($tok[1]);
             $arg = trim($tok[2]);
-            if ($arg === '') continue;
-
-            if ($type === 'vpn') {
-                $file = $catalog->first(fn ($i) => preg_match($vpnRe, $i->name)
-                    && (strcasecmp($i->name, $arg) === 0 || stripos($i->name, $arg) !== false));
-                $kind = 'vpn';
-            } else {
+            $platform = null;
+            if ($type === 'install') {
                 $words = preg_split('/\s+/', $arg);
-                $platform = null;
                 if (isset($plat[strtolower($words[0])])) { $platform = $plat[strtolower($words[0])]; array_shift($words); }
-                $name = trim(implode(' ', $words));
-                if ($name === '') continue;
-                $file = $catalog->first(fn ($i) => ! preg_match($vpnRe, $i->name)
-                    && (! $platform || $i->platform === $platform)
-                    && (strcasecmp($i->name, $name) === 0 || stripos($i->name, $name) !== false));
-                $kind = 'software';
+                $arg = trim(implode(' ', $words));
             }
-            if ($file) $out[$file->relative_path] = ['name' => $file->name, 'relative_path' => $file->relative_path, 'platform' => $file->platform, 'kind' => $kind];
+            if ($arg === '') continue;
+            $q = strtolower($arg);
+
+            // Best match: the catalog file whose extension-stripped name overlaps the typed
+            // argument — bidirectional so shorthand ("Office") and picker-inserted full names
+            // (with trailing prose) both resolve; the longest overlap wins (most specific).
+            $best = null; $bestLen = -1;
+            foreach ($catalog as $i) {
+                $isVpn = (bool) preg_match($vpnRe, $i->name);
+                if ($type === 'vpn' ? ! $isVpn : $isVpn) continue;
+                if ($type === 'install' && $platform && $i->platform !== $platform) continue;
+                $fn = $stripExt($i->name);
+                if ($fn !== '' && (str_contains($q, $fn) || str_contains($fn, $q)) && strlen($fn) > $bestLen) {
+                    $best = $i; $bestLen = strlen($fn);
+                }
+            }
+            if ($best) $out[$best->relative_path] = ['name' => $best->name, 'relative_path' => $best->relative_path,
+                'platform' => $best->platform, 'kind' => $type === 'vpn' ? 'vpn' : 'software'];
         }
         return array_values($out);
     }
