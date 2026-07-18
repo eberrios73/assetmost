@@ -491,18 +491,18 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         <div className="relative" ref={wrapRef}>
             {inTable && editor && tblPos?.table && (
                 <>
-                    {/* + on the bottom edge: add row. + on the right edge: add column. */}
+                    {/* + centered ON the bottom border: add row. + on the right border: add column. */}
                     {handle({ top: tblPos.table.bottom - 10, left: tblPos.table.left + tblPos.table.width / 2 - 10 },
                         'add a row', '+', () => editor.chain().focus().addRowAfter().run())}
                     {handle({ top: tblPos.table.top + tblPos.table.height / 2 - 10, left: tblPos.table.right - 10 },
                         'add a column', '+', () => editor.chain().focus().addColumnAfter().run())}
-                    {/* − rides the CURRENT row / column, just outside the frame. */}
-                    {tblPos.row && handle({ top: tblPos.row.top + tblPos.row.height / 2 - 10, left: tblPos.table.left - 24 },
+                    {/* − centered ON the border too: left border at the current row, top border at the current column. */}
+                    {tblPos.row && handle({ top: tblPos.row.top + tblPos.row.height / 2 - 10, left: tblPos.table.left - 10 },
                         'delete this row', '−', () => editor.chain().focus().deleteRow().run(), true)}
-                    {tblPos.cell && handle({ top: Math.max(tblPos.table.top - 24, 2), left: tblPos.cell.left + tblPos.cell.width / 2 - 10 },
+                    {tblPos.cell && handle({ top: tblPos.table.top - 10, left: tblPos.cell.left + tblPos.cell.width / 2 - 10 },
                         'delete this column', '−', () => editor.chain().focus().deleteColumn().run(), true)}
-                    {/* the table handle: top-left corner, removes the table */}
-                    {handle({ top: Math.max(tblPos.table.top - 24, 2), left: tblPos.table.left - 24 },
+                    {/* the table handle: top-RIGHT corner, removes the table */}
+                    {handle({ top: tblPos.table.top - 10, left: tblPos.table.right - 10 },
                         'delete the whole table', '×', () => editor.chain().focus().deleteTable().run(), true)}
                 </>
             )}
