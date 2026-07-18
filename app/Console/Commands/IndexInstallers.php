@@ -8,20 +8,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Index the installers by listing them over HTTP from the Synology Web Station.
+ * Index the installers via the Synology FileStation API.
  *
- * companies.installers_path holds the base URL (or host/path — http:// is added).
- * The web server's directory listing IS the catalog: whatever files are there
- * are what /install offers. When a machine installs, its bootstrap curls the
- * file to a tmp folder, runs it, and cleans up — nothing is mounted.
+ * companies.installers_path holds host + the share path, e.g.
+ *   files.example.com/X Technology/Installers
+ * The app logs in to DSM (host:port), lists that folder and its subfolders, and
+ * records every file. The folder IS the catalog. At install time the bench pulls
+ * a file with the same API's download endpoint to a tmp folder, runs it, cleans up.
  *
- * HTTP basic-auth credentials come from env (INSTALLERS_HTTP_USER /
- * INSTALLERS_HTTP_PASS) and are NEVER stored in code or the database.
+ * Credentials come from env (INSTALLERS_HTTP_USER / INSTALLERS_HTTP_PASS) and are
+ * NEVER stored in code or the database. DSM port defaults to 5000 (INSTALLERS_DSM_PORT).
  */
 class IndexInstallers extends Command
 {
     protected $signature = 'installers:index {--path=}';
-    protected $description = 'Index the installers over HTTP into the installers table';
+    protected $description = 'Index the installers from the Synology FileStation into the installers table';
 
     public function handle(): int
     {
@@ -50,95 +51,88 @@ class IndexInstallers extends Command
         return self::SUCCESS;
     }
 
-    /** Base URL from the stored path (http:// added if missing, trailing slash ensured). */
-    public static function baseUrl(string $path): string
+    /** Split "host/share/path" into [http base, "/share/path"]. */
+    public static function split(string $path): array
     {
-        if (! preg_match('#^https?://#i', $path)) {
-            $path = 'http://' . ltrim($path, '/');
-        }
-        return rtrim($path, '/') . '/';
+        $path = preg_replace('#^https?://#i', '', trim($path));
+        $slash = strpos($path, '/');
+        $host = $slash === false ? $path : substr($path, 0, $slash);
+        $folder = $slash === false ? '/' : '/' . ltrim(substr($path, $slash + 1), '/');
+        $port = env('INSTALLERS_DSM_PORT', 5000);
+        // host may already carry a port
+        $base = str_contains($host, ':') ? "http://{$host}" : "http://{$host}:{$port}";
+        return [$base, $folder];
     }
 
-    /**
-     * Walk the Web Station directory listing over HTTP (one level of subfolders).
-     * Returns [rows, errorOrNull].
-     */
+    /** @return array{0: array, 1: ?string} [rows, errorOrNull] */
     public static function scan(string $path): array
     {
-        $base = self::baseUrl($path);
+        [$base, $folder] = self::split($path);
         $user = env('INSTALLERS_HTTP_USER');
         $pass = env('INSTALLERS_HTTP_PASS');
+        if (! $user) {
+            return [[], 'Set INSTALLERS_HTTP_USER / INSTALLERS_HTTP_PASS on the server first.'];
+        }
 
-        $get = function (string $url) use ($user, $pass) {
-            $req = Http::timeout(12)->withOptions(['verify' => false]);
-            if ($user) $req = $req->withBasicAuth($user, $pass ?? '');
-            return $req->get($url);
+        $auth = Http::timeout(12)->withOptions(['verify' => false])->get("{$base}/webapi/auth.cgi", [
+            'api' => 'SYNO.API.Auth', 'version' => 3, 'method' => 'login',
+            'account' => $user, 'passwd' => $pass, 'session' => 'FileStation', 'format' => 'sid',
+        ]);
+        $sid = $auth->json('data.sid');
+        if (! $sid) {
+            return [[], 'Synology login failed (code ' . ($auth->json('error.code') ?? $auth->status()) . '). Check the account/password in .env.'];
+        }
+
+        $list = function (string $dir) use ($base, $sid) {
+            $r = Http::timeout(15)->withOptions(['verify' => false])->get("{$base}/webapi/entry.cgi", [
+                'api' => 'SYNO.FileStation.List', 'version' => 2, 'method' => 'list',
+                'folder_path' => $dir, '_sid' => $sid,
+            ]);
+            return $r->json('data.files') ?? [];
         };
 
-        $root = $get($base);
-        if ($root->status() === 401) {
-            return [[], 'The installers URL needs a login — set INSTALLERS_HTTP_USER / INSTALLERS_HTTP_PASS on the server.'];
-        }
-        if (! $root->ok()) {
-            return [[], "Could not read {$base} (HTTP {$root->status()}). Enable directory listing in Web Station for that folder."];
-        }
-
         $rows = [];
-        foreach (self::links($root->body()) as $entry) {
-            if ($entry['dir']) {
-                // one level deep: list the subfolder's files
-                $sub = $get($base . rawurlencode(rtrim($entry['name'], '/')) . '/');
-                if ($sub->ok()) {
-                    foreach (self::links($sub->body()) as $f) {
-                        if ($f['dir']) continue;
-                        $rel = rtrim($entry['name'], '/') . '/' . $f['name'];
-                        $rows[$rel] = self::row($f['name'], $rel);
-                    }
+        $add = function (array $f, string $platformHint) use (&$rows) {
+            $name = $f['name'] ?? '';
+            if ($name === '' || $name[0] === '.') return;
+            $rel = ltrim(($f['path'] ?? $name), '/');
+            $rows[$rel] = [
+                'name' => $name,
+                'relative_path' => $rel,
+                'platform' => self::platform($name, $platformHint),
+                'arch' => preg_match('/(^|[^0-9])(32|x86)([^0-9]|$)/i', $name) ? '32'
+                    : (preg_match('/(^|[^0-9])(arm64|aarch64|64|x64)([^0-9]|$)/i', $name) ? '64' : null),
+                'is_dir' => ! empty($f['isdir']) ? 1 : 0,
+                'size_bytes' => $f['additional']['size'] ?? null,
+            ];
+        };
+
+        foreach ($list($folder) as $f) {
+            if (! empty($f['isdir'])) {
+                // one level deep: list Mac/, Windows/, etc.
+                $hint = strtolower($f['name']);
+                foreach ($list($f['path']) as $sub) {
+                    $add($sub, $hint);
                 }
             } else {
-                $rows[$entry['name']] = self::row($entry['name'], $entry['name']);
+                $add($f, '');
             }
         }
-        return [array_values(array_filter($rows)), null];
+
+        // best-effort logout
+        Http::timeout(6)->withOptions(['verify' => false])->get("{$base}/webapi/auth.cgi", [
+            'api' => 'SYNO.API.Auth', 'version' => 3, 'method' => 'logout', 'session' => 'FileStation',
+        ]);
+
+        return [array_values($rows), null];
     }
 
-    /** Parse <a href> links from a directory-listing page. Skips parent/sort links. */
-    private static function links(string $html): array
-    {
-        if (! preg_match_all('/<a\s[^>]*href="([^"]+)"[^>]*>/i', $html, $m)) return [];
-        $out = [];
-        foreach ($m[1] as $href) {
-            $href = html_entity_decode($href);
-            if ($href === '' || $href[0] === '?' || $href[0] === '#') continue;   // sort/anchor links
-            if (str_starts_with($href, '/') || str_contains($href, '://')) continue; // absolute / parent
-            if (str_starts_with($href, '..')) continue;
-            $name = rawurldecode($href);
-            $out[] = ['name' => rtrim($name, '/') . (str_ends_with($href, '/') ? '/' : ''), 'dir' => str_ends_with($href, '/')];
-        }
-        return $out;
-    }
-
-    private static function row(string $name, string $rel): ?array
-    {
-        $name = rtrim($name, '/');
-        if ($name === '' || $name[0] === '.') return null;
-        return [
-            'name' => $name,
-            'relative_path' => $rel,
-            'platform' => self::platform($name, $rel),
-            'arch' => preg_match('/(^|[^0-9])(32|x86)([^0-9]|$)/i', $name) ? '32'
-                : (preg_match('/(^|[^0-9])(64|x64)([^0-9]|$)/i', $name) ? '64' : null),
-            'is_dir' => 0,
-            'size_bytes' => null,
-        ];
-    }
-
-    private static function platform(string $name, string $path): string
+    private static function platform(string $name, string $folderHint): string
     {
         if (preg_match('/\.(dmg|pkg|app|mpkg)$/i', $name)) return 'Mac';
         if (preg_match('/\.(exe|msi|appx|msix)$/i', $name)) return 'Windows';
-        if (preg_match('#(^|/)(mac|macos|osx|apple)(/|$)#i', $path)) return 'Mac';
-        if (preg_match('#(^|/)(win|windows|pc)(/|$)#i', $path)) return 'Windows';
+        if (str_contains($folderHint, 'mac') || str_contains($folderHint, 'osx') || str_contains($folderHint, 'apple')) return 'Mac';
+        if (str_contains($folderHint, 'win') || str_contains($folderHint, 'pc')) return 'Windows';
         return 'other';
     }
 }
