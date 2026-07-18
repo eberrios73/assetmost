@@ -124,11 +124,13 @@ export default function OnboardingSetup({ kind, variant, onVariant }) {
         </div>
     );
 
+    // Same underline style as the sub-tabs (Devices / Locations / Onboard / Onboarding),
+    // so the app has one tab language, not three.
     const tabBar = (
-        <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 p-0.5 text-sm">
+        <div className="flex">
             {[['info', 'Info'], ['steps', 'Steps'], ['script', 'Script']].map(([k, label]) => (
                 <button key={k} onClick={() => setTab(k)}
-                    className={`px-3 py-1 rounded-md ${tab === k ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                    className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${tab === k ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     {label}
                 </button>
             ))}
@@ -139,9 +141,9 @@ export default function OnboardingSetup({ kind, variant, onVariant }) {
 
     return (
         <div className="max-w-3xl">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-4 flex items-end justify-between gap-3 border-b border-gray-200 dark:border-gray-800">
                 {tabBar}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pb-1.5">
                     {saved && <span className="text-xs text-green-600">{saved}</span>}
                     {variantSelector}
                 </div>
