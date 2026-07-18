@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import AddButton from '@/Components/ui/AddButton';
 import { MultiPicker } from '@/Components/RecordModal';
 import SearchSelect from '@/Components/SearchSelect';
-
-const CATEGORIES = ['accounts', 'machine', 'access', 'training', 'other'];
+import DocEditor from '@/Components/DocEditor';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -65,7 +64,8 @@ const api = async (url, method = 'GET', body) => {
  * The workflow editor — a filtered lens on ONE workflow doc. Tabbed:
  *   Info   — what it is (open in Docs, active toggle, duplicate), the run wizard
  *            for people workflows, task preview, or the import sources when empty.
- *   Steps  — the step editor. Steps are the SOURCE; the doc body is regenerated.
+ *   SOP    — THE DOC ITSELF, in the same DocEditor as Docs (one renderer, one
+ *            look, slash commands included); steps recompile from it on save.
  *   Script — device workflows: the bootstrap script this SOP produces.
  * The `workflow` summary comes from the left-column list (Workspace).
  */
@@ -73,6 +73,7 @@ export default function OnboardingSetup({ workflow, onChanged }) {
     const wfId = workflow.id;
     const [wf, setWf] = useState(null);              // full detail
     const [steps, setSteps] = useState(null);
+    const [bodyRev, setBodyRev] = useState(0);       // re-key the editor when body reloads
     const [preview, setPreview] = useState(null);    // 'load' | {rows:[...]}
     const [pasting, setPasting] = useState(false);
     const [text, setText] = useState('');
@@ -83,6 +84,7 @@ export default function OnboardingSetup({ workflow, onChanged }) {
         api(`/data/workflows/${wfId}`).then((r) => {
             setWf(r);
             setSteps(r.steps?.steps?.length ? r.steps.steps : null);
+            setBodyRev((v) => v + 1);
         }).catch(() => {});
     };
     useEffect(() => { load(); }, [wfId]);
@@ -96,20 +98,21 @@ export default function OnboardingSetup({ workflow, onChanged }) {
         await api(`/data/workflows/${wfId}/steps`, 'PUT', { steps: { version: 1, steps: next } });
         setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
     };
+    // The SOP tab saves the doc body itself; the server recompiles the steps from it.
+    const saveBody = async (html) => {
+        const r = await api(`/data/docs/${wfId}`, 'PATCH', { body: html });
+        setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
+        if (r?.recompiled && steps === null) load();
+    };
     const adopt = async () => { await api(`/data/workflows/${wfId}/adopt`, 'POST'); load(); setTab('steps'); };
     const importDoc = async (pageId) => { if (!pageId) return; await api(`/data/workflows/${wfId}/parse-doc`, 'POST', { page_id: pageId }); load(); setTab('steps'); };
     const toggleActive = async () => { await api(`/data/workflows/${wfId}`, 'PATCH', { active: !wf.active }); load(); onChanged?.(); };
     const duplicate = async () => { await api(`/data/workflows/${wfId}/duplicate`, 'POST'); onChanged?.(); };
 
-    // list surgery helpers — operate on top-level or a parent's subtasks uniformly
-    const replace = (list, id, fn) => list.map((s) => (s.id === id ? fn(s) : { ...s, subtasks: replace(s.subtasks || [], id, fn) }));
-    const removeById = (list, id) => list.filter((s) => s.id !== id).map((s) => ({ ...s, subtasks: removeById(s.subtasks || [], id) }));
-    const move = (list, i, dir) => { const n = [...list]; const j = i + dir; if (j < 0 || j >= n.length) return list; [n[i], n[j]] = [n[j], n[i]]; return n; };
-
     // Same underline style as the sub-tabs, so the app has one tab language.
     const tabBar = (
         <div className="flex">
-            {[['info', 'Info'], ['steps', 'Steps'], ['script', 'Script']].map(([k, label]) => (
+            {[['info', 'Info'], ['steps', 'SOP'], ['script', 'Script']].map(([k, label]) => (
                 <button key={k} onClick={() => setTab(k)}
                     className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${tab === k ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     {label}
@@ -195,37 +198,20 @@ export default function OnboardingSetup({ workflow, onChanged }) {
             )}
 
             {tab === 'steps' && (
-                steps === null ? (
+                (steps === null && !wf.body) ? (
                     <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No steps yet. Head to <button onClick={() => setTab('info')} className="text-blue-600 hover:underline">Info</button> to adopt the standard SOP, import from a doc, or paste your own.
+                        Nothing here yet. Head to <button onClick={() => setTab('info')} className="text-blue-600 hover:underline">Info</button> to adopt the standard SOP, import from a doc, or paste your own.
                     </div>
                 ) : (
                     <div>
                         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-                            Steps are the source — the doc's text follows them. They become the task project, chained in this order. Placeholders
+                            This IS the doc — the same page, same editor as Docs. Type <code className="text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">/</code> for
+                            commands (<code className="text-xs">/install</code> <code className="text-xs">/vpn</code> <code className="text-xs">/mdm</code> <code className="text-xs">/form</code>);
+                            steps and tasks compile from what you write. Placeholders
                             <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code>
                             fill in at run time.
                         </p>
-                        <div className="mb-3 flex items-center gap-2">
-                            <AddButton label="Add step" onClick={() => save([...steps, { id: uid(), title: 'New step', instructions: '', category: 'other', automatable: false, subtasks: [] }])} />
-                            <button onClick={() => { setPasting(true); setTab('info'); }}
-                                className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Re-paste SOP</button>
-                        </div>
-                        <ol className="space-y-2">
-                            {steps.map((s, i) => (
-                                <StepCard key={s.id} step={s} index={i} count={steps.length}
-                                    onChange={(fn) => save(replace(steps, s.id, fn))}
-                                    onRemove={() => save(removeById(steps, s.id))}
-                                    onMove={(dir) => save(move(steps, i, dir))}
-                                    onAddSub={() => save(replace(steps, s.id, (x) => ({ ...x, subtasks: [...(x.subtasks || []), { id: uid(), title: 'New subtask', instructions: '', category: s.category, automatable: false, subtasks: [] }] })))}
-                                    renderSub={(sub, j) => (
-                                        <StepCard key={sub.id} step={sub} index={j} count={(s.subtasks || []).length} nested
-                                            onChange={(fn) => save(replace(steps, sub.id, fn))}
-                                            onRemove={() => save(removeById(steps, sub.id))}
-                                            onMove={(dir) => save(replace(steps, s.id, (x) => ({ ...x, subtasks: move(x.subtasks, j, dir) })))} />
-                                    )} />
-                            ))}
-                        </ol>
+                        <DocEditor key={`${wf.id}:${bodyRev}`} pageId={wf.id} initialBody={wf.body} onSave={saveBody} />
                     </div>
                 )
             )}
@@ -317,52 +303,6 @@ function ScriptPanel({ wf }) {
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-950 p-4 font-mono text-xs leading-relaxed text-green-300 focus:border-blue-500 focus:ring-blue-500" />
             )}
         </div>
-    );
-}
-
-function StepCard({ step: s, index, count, nested = false, onChange, onRemove, onMove, onAddSub, renderSub }) {
-    const [open, setOpen] = useState(false);
-    return (
-        <li className={`rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 ${nested ? 'ml-8' : ''}`}>
-            <div className="flex items-center gap-2 p-2.5">
-                <span className="w-6 text-center text-xs text-gray-400">{index + 1}</span>
-                <input value={s.title} onChange={(e) => onChange((x) => ({ ...x, title: e.target.value }))}
-                    className="flex-1 border-0 bg-transparent p-0 text-sm text-gray-800 dark:text-gray-100 focus:ring-0" />
-                <select value={s.category} onChange={(e) => onChange((x) => ({ ...x, category: e.target.value }))}
-                    className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-xs py-1 text-gray-500 dark:text-gray-400">
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <button onClick={() => onMove(-1)} disabled={index === 0} className="px-1 text-gray-400 hover:text-gray-700 disabled:opacity-30">↑</button>
-                <button onClick={() => onMove(1)} disabled={index === count - 1} className="px-1 text-gray-400 hover:text-gray-700 disabled:opacity-30">↓</button>
-                <button onClick={() => setOpen((o) => !o)} title="instructions" className={`px-1 ${open || s.instructions ? 'text-blue-600' : 'text-gray-300 hover:text-gray-500'}`}>≡</button>
-                {!nested && onAddSub && <button onClick={onAddSub} title="add subtask" className="px-1 text-gray-400 hover:text-blue-600">↳+</button>}
-                <button onClick={onRemove} title="remove" className="px-1 text-gray-300 hover:text-red-600">×</button>
-            </div>
-            {open && (
-                <div className="border-t border-gray-100 dark:border-gray-800 p-2.5 space-y-1.5">
-                    <input value={s.why || ''} placeholder="Why — one line. What breaks if this is skipped."
-                        onChange={(e) => onChange((x) => ({ ...x, why: e.target.value }))}
-                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:border-blue-500 focus:ring-blue-500" />
-                    <textarea rows={3} value={s.instructions} placeholder="How — your SOP's wording, verbatim. Paths, commands, GPO names."
-                        onChange={(e) => onChange((x) => ({ ...x, instructions: e.target.value }))}
-                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:border-blue-500 focus:ring-blue-500" />
-                    <input value={s.done_when || ''} placeholder="Done when — something OBSERVABLE. e.g. recovery key visible in AD."
-                        onChange={(e) => onChange((x) => ({ ...x, done_when: e.target.value }))}
-                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:border-blue-500 focus:ring-blue-500" />
-                    <input value={s.record || ''} placeholder="Record — what enters the registry/inventory. e.g. key escrowed against asset tag."
-                        onChange={(e) => onChange((x) => ({ ...x, record: e.target.value }))}
-                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:border-blue-500 focus:ring-blue-500" />
-                    <label className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <input type="checkbox" checked={!!s.automatable} onChange={(e) => onChange((x) => ({ ...x, automatable: e.target.checked }))}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        Automatable later (API/script) — stays a manual task until wired
-                    </label>
-                </div>
-            )}
-            {renderSub && (s.subtasks || []).length > 0 && (
-                <ol className="space-y-1 px-2.5 pb-2.5">{s.subtasks.map((sub, j) => renderSub(sub, j))}</ol>
-            )}
-        </li>
     );
 }
 

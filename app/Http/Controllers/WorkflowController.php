@@ -61,6 +61,9 @@ class WorkflowController extends Controller
             'wizard' => (bool) $page->workflow_wizard,
             'steps' => $steps,
             'sop_meta' => $steps['meta'] ?? null,
+            // The SOP tab edits the page itself in the same DocEditor as Docs —
+            // one renderer everywhere; steps recompile from the body on save.
+            'body' => $page->body,
         ]);
     }
 
