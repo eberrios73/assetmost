@@ -127,7 +127,7 @@ export default function Index() {
             </div>
             <div className="px-3 py-2 flex items-center justify-between">
                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pages</span>
-                <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(null, k)}
+                <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(selectedId ?? null, k)}
                     className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
             </div>
             <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
@@ -170,19 +170,7 @@ export default function Index() {
                 <input value={page.title} onChange={(e) => saveTitle(e.target.value)}
                     className="flex-1 text-3xl font-bold text-gray-900 dark:text-white border-0 focus:ring-0 px-0 placeholder-gray-300" placeholder="Untitled" />
                 <div className="mt-2 shrink-0 flex items-center gap-2">
-                    <select value={page.parent_id || ''} title="Move under…"
-                        onChange={async (e) => {
-                            const v = e.target.value ? Number(e.target.value) : null;
-                            await api(`/data/docs/${selectedId}`, 'PATCH', { parent_id: v });
-                            setPage((p) => ({ ...p, parent_id: v }));
-                            loadTree();
-                        }}
-                        className="max-w-[180px] rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">— top level —</option>
-                        {flatten(tree).filter((n) => n.id !== page.id).map((n) => (
-                            <option key={n.id} value={n.id}>{'\u00A0'.repeat((n.depth || 0) * 2)}{n.title}</option>
-                        ))}
-                    </select>
+                    
                     <select value={page.category || ''} onChange={(e) => saveCategory(e.target.value)} title="Category"
                         className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Uncategorized</option>
@@ -222,8 +210,8 @@ function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onTog
                             className={`group flex items-center pr-2 hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} style={{ paddingLeft: `${6 + depth * 14}px` }}>
                             {hasKids ? (
                                 <button onClick={() => onToggle(n.id)} title={isCollapsed ? 'Expand' : 'Collapse'}
-                                    className="w-4 shrink-0 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">{isCollapsed ? '▸' : '▾'}</button>
-                            ) : <span className="w-4 shrink-0" />}
+                                    className="w-5 shrink-0 text-[15px] leading-none text-gray-500 hover:text-gray-800 dark:hover:text-gray-100">{isCollapsed ? '›' : '⌄'}</button>
+                            ) : <span className="w-5 shrink-0" />}
                             <button onClick={() => onSelect(n.id)} className="flex-1 min-w-0 flex items-center gap-1.5 text-left py-1.5 text-sm text-gray-700 dark:text-gray-300">
                                 <DocIcon className="h-4 w-4 shrink-0 text-gray-400" /><span className="truncate">{n.title}</span>
                             </button>
