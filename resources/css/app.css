@@ -153,3 +153,16 @@ section.sop-step {
 .sop-step-content table col:first-child { width: 6.5rem; }
 .sop-step-content table { table-layout: fixed; }
 .sop-step-content ul { padding-left: 0; }
+
+/* Substep chrome (reorder/remove) — the wrapper is layout-invisible so list
+   items everywhere else render exactly as before. */
+.sop-sub-content { display: contents; }
+.sop-sub-chrome {
+    position: absolute; top: 0.35rem; right: 0.5rem;
+    display: flex; gap: 0.125rem; align-items: center;
+    user-select: none;
+}
+.sop-sub-chrome button { padding: 0 0.25rem; color: #9ca3af; font-size: 0.8rem; line-height: 1.4; }
+.sop-sub-chrome button:hover { color: #374151; }
+.dark .sop-sub-chrome button:hover { color: #e5e7eb; }
+.sop-step-content ul > li { padding-right: 4.5rem; }

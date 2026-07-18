@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Node, mergeAttributes } from '@tiptap/core';
+import ListItem from '@tiptap/extension-list-item';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Table } from '@tiptap/extension-table';
@@ -9,6 +10,78 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import CodeBlock from '@tiptap/extension-code-block';
 import { marked } from 'marked';
 import { useEffect, useRef, useState } from 'react';
+
+// Shared node-view chrome helpers (step cards + substep mini-cards).
+const mkBtn = (label, title, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = label; b.title = title;
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', fn);
+    return b;
+};
+// Swap a node with its previous/next sibling (steps in the doc, substeps in a list).
+const moveSibling = (editor, getPos, dir) => {
+    const pos = getPos();
+    const $pos = editor.state.doc.resolve(pos);
+    const index = $pos.index();
+    const parent = $pos.parent;
+    if (dir < 0 && index === 0) return;
+    if (dir > 0 && index >= parent.childCount - 1) return;
+    const self = parent.child(index);
+    const sib = parent.child(index + dir);
+    const tr = editor.state.tr.delete(pos, pos + self.nodeSize);
+    tr.insert(dir < 0 ? pos - sib.nodeSize : pos + sib.nodeSize, self);
+    editor.view.dispatch(tr);
+};
+
+/**
+ * Substeps get their own mini-card chrome (reorder, remove) — but ONLY inside a
+ * step card; list items in plain docs render exactly as before (the wrapper is
+ * display:contents, invisible to layout and never serialized).
+ */
+const SopListItem = ListItem.extend({
+    addNodeView() {
+        return ({ editor, getPos }) => {
+            const li = document.createElement('li');
+            const content = document.createElement('div');
+            content.className = 'sop-sub-content';
+
+            const $pos = editor.state.doc.resolve(getPos());
+            let inStep = false;
+            for (let d = $pos.depth; d > 0; d--) {
+                if ($pos.node(d).type.name === 'sopStep') { inStep = true; break; }
+            }
+            if (!inStep) {
+                li.appendChild(content);
+                return { dom: li, contentDOM: content };
+            }
+
+            const chrome = document.createElement('div');
+            chrome.className = 'sop-sub-chrome';
+            chrome.contentEditable = 'false';
+            const removeSub = () => {
+                const pos = getPos();
+                const $p = editor.state.doc.resolve(pos);
+                const parent = $p.parent;
+                if (parent.childCount === 1) {
+                    // Last substep: take the empty list with it (an empty <ul> is invalid).
+                    const pPos = $p.before($p.depth);
+                    editor.chain().deleteRange({ from: pPos, to: pPos + parent.nodeSize }).run();
+                } else {
+                    const self = parent.child($p.index());
+                    editor.chain().deleteRange({ from: pos, to: pos + self.nodeSize }).run();
+                }
+            };
+            chrome.append(
+                mkBtn('↑', 'move substep up', () => moveSibling(editor, getPos, -1)),
+                mkBtn('↓', 'move substep down', () => moveSibling(editor, getPos, 1)),
+                mkBtn('×', 'remove substep', removeSub),
+            );
+            li.append(chrome, content);
+            return { dom: li, contentDOM: content };
+        };
+    },
+});
 
 /**
  * A workflow step as a CARD in the doc — the structured editor's model rendered
@@ -37,32 +110,12 @@ const SopStep = Node.create({
             chrome.className = 'sop-step-chrome';
             chrome.contentEditable = 'false';
 
-            const btn = (label, title, fn) => {
-                const b = document.createElement('button');
-                b.type = 'button'; b.textContent = label; b.title = title;
-                b.addEventListener('mousedown', (e) => e.preventDefault());
-                b.addEventListener('click', fn);
-                return b;
-            };
-            const moveStep = (dir) => {
-                const pos = getPos();
-                const $pos = editor.state.doc.resolve(pos);
-                const index = $pos.index();
-                const parent = $pos.parent;
-                if (dir < 0 && index === 0) return;
-                if (dir > 0 && index >= parent.childCount - 1) return;
-                const self = parent.child(index);
-                const sib = parent.child(index + dir);
-                const tr = editor.state.tr.delete(pos, pos + self.nodeSize);
-                tr.insert(dir < 0 ? pos - sib.nodeSize : pos + sib.nodeSize, self);
-                editor.view.dispatch(tr);
-            };
             let collapsed = false;
             chrome.append(
-                btn('↑', 'move step up', () => moveStep(-1)),
-                btn('↓', 'move step down', () => moveStep(1)),
-                btn('≡', 'collapse / expand', () => { collapsed = !collapsed; card.classList.toggle('sop-collapsed', collapsed); }),
-                btn('↳+', 'add substep', () => {
+                mkBtn('↑', 'move step up', () => moveSibling(editor, getPos, -1)),
+                mkBtn('↓', 'move step down', () => moveSibling(editor, getPos, 1)),
+                mkBtn('≡', 'collapse / expand', () => { collapsed = !collapsed; card.classList.toggle('sop-collapsed', collapsed); }),
+                mkBtn('↳+', 'add substep', () => {
                     const pos = getPos();
                     const n = editor.state.doc.nodeAt(pos);
                     if (!n) return;
@@ -73,7 +126,7 @@ const SopStep = Node.create({
                         editor.chain().focus().insertContentAt(end, '<ul><li><p></p></li></ul>').run();
                     }
                 }),
-                btn('×', 'remove step', () => {
+                mkBtn('×', 'remove step', () => {
                     const pos = getPos();
                     const n = editor.state.doc.nodeAt(pos);
                     if (n) editor.chain().deleteRange({ from: pos, to: pos + n.nodeSize }).run();
@@ -196,7 +249,8 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
 
     const editor = useEditor({
         extensions: [
-            StarterKit.configure({ codeBlock: false }),
+            StarterKit.configure({ codeBlock: false, listItem: false }),
+            SopListItem,
             CodeBlockWithCopy,
             SopStep,
             Placeholder.configure({ placeholder: "Type '/' for commands, or just start writing…" }),
