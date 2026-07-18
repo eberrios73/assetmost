@@ -383,10 +383,10 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             .filter((i) => !nameQ || i.name.toLowerCase().includes(nameQ))
             .slice(0, 8)
             .map((i) => ({ key: `inst:${i.id}`, label: i.name, hint: `${i.platform}${i.arch ? ' ' + i.arch + '-bit' : ''}`,
-                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/install  `) }));
+                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/install ${i.name} `) }));
         // Works before the share is indexed: keep whatever was typed as the reference.
         if (nameQ) picks.push({ key: 'inst:free', label: `Use "${nameQ}"`, hint: 'insert as typed',
-            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/install  `) });
+            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/install ${menu.query} `) });
         items = picks;
     } else if (menu?.mode === 'vpn') {
         const picks = installers
@@ -394,18 +394,18 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             .filter((i) => !menu.query || i.name.toLowerCase().includes(menu.query))
             .slice(0, 8)
             .map((i) => ({ key: `vpn:${i.id}`, label: i.name.replace(VPN_RE, ''), hint: 'VPN profile — download + install',
-                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/vpn  `) }));
+                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/vpn ${i.name} `) }));
         if (menu.query) picks.push({ key: 'vpn:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
-            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/vpn  `) });
+            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/vpn ${menu.query} `) });
         items = picks;
     } else if (menu?.mode === 'mdm') {
         // A fixed list, not the share — /mdm names the MDM the bootstrap script enrolls into.
         const MDM = ['Jamf', 'Intune', 'Kandji', 'Mosyle', 'Addigy', 'Workspace ONE'];
         const picks = MDM.filter((n) => !menu.query || n.toLowerCase().includes(menu.query))
             .map((n) => ({ key: `mdm:${n}`, label: n, hint: 'Enroll into this MDM (read from the SOP)',
-                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm  `) }));
+                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${n} `) }));
         if (menu.query) picks.push({ key: 'mdm:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
-            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm  `) });
+            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${menu.query} `) });
         items = picks;
     } else if (menu?.mode === 'form') {
         // /form <new|edit> <kind>: the step's generated task carries the record form —
@@ -416,7 +416,7 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             key: `form:${mode}:${k}`,
             label: `${mode === 'new' ? 'New' : 'Edit'} ${k}`,
             hint: mode === 'new' ? `The task gets an "Add ${k}" form` : `The task gets a pick-and-edit ${k} form`,
-            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/form   `),
+            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/form ${mode} ${k} `),
         }))).filter((it) => !menu.query || it.label.toLowerCase().includes(menu.query));
     } else {
         // Discoverable openers so a partial "/inst" or "/vp" surfaces the command;
