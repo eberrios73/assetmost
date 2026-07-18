@@ -84,9 +84,26 @@ class DocController extends Controller
             'id' => $page->id, 'parent_id' => $page->parent_id,
             'title' => $page->title, 'body' => $page->body, 'icon' => $page->icon,
             'category' => $page->category,
+            // A workflow page renders with its Info | SOP | Script tabs in Docs too.
+            'workflow_type' => $page->workflow_type,
             'updated_at' => $page->updated_at,
             'editor' => $page->editor ? trim("{$page->editor->name} {$page->editor->last}") : null,
         ]);
+    }
+
+    /** Search every page the user can see — title first, then body. */
+    public function search(Request $request): JsonResponse
+    {
+        $q = trim($request->string('q')->toString());
+        if ($q === '') return response()->json([]);
+        $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
+        return response()->json(
+            DocPage::query()
+                ->where(fn ($w) => $w->where('title', 'like', $like)->orWhere('body', 'like', $like))
+                ->orderByRaw('title LIKE ? DESC', [$like])->orderBy('title')
+                ->limit(25)
+                ->get(['id', 'title', 'category', 'space_id'])
+        );
     }
 
     public function store(Request $request): JsonResponse

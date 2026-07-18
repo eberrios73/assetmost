@@ -3,8 +3,9 @@ import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import DocEditor from '@/Components/DocEditor';
+import OnboardingSetup from '@/Components/OnboardingSetup';
 import TemplateMenu from '@/Components/TemplateMenu';
-import { buildDocBody, templateCategory, DOC_CATEGORIES, CATEGORY_STYLE } from '@/docTemplates';
+import { buildDocBody, templateCategory, DOC_TEMPLATES, DOC_CATEGORIES, CATEGORY_STYLE } from '@/docTemplates';
 import { getLast, setLast } from '@/lib/lastView';
 
 const NEW_TITLES = { sop: 'New SOP', troubleshooting: 'New troubleshooting guide', incident: 'New incident report', freeform: 'Untitled' };
@@ -33,6 +34,10 @@ export default function Index() {
     const [page, setPage] = useState(null);
     const [status, setStatus] = useState('');
     const [filter, setFilter] = useState('');   // category filter; '' = all (tree view)
+    const [navTab, setNavTab] = useState('docs');   // docs | templates
+    const [searchQ, setSearchQ] = useState('');
+    const [searchResults, setSearchResults] = useState(null);
+    const searchTimer = useRef(null);
     const [collapsed, setCollapsed] = useState(() => new Set(readCollapsed()));
     const collapseInit = useRef(localStorage.getItem(COLLAPSE_KEY) !== null);
     const titleTimer = useRef(null);
@@ -118,6 +123,20 @@ export default function Index() {
         openPage(null); loadTree();
     };
 
+    // Search every page (title first, then body), debounced; results replace the tree.
+    const runSearch = (q) => {
+        setSearchQ(q);
+        clearTimeout(searchTimer.current);
+        if (!q.trim()) { setSearchResults(null); return; }
+        searchTimer.current = setTimeout(() => {
+            api(`/data/docs-search?q=${encodeURIComponent(q.trim())}`).then((r) => setSearchResults(Array.isArray(r) ? r : []));
+        }, 250);
+    };
+    const openResult = (r) => {
+        if (r.space_id && !sameId(r.space_id, spaceId)) { setSpaceId(r.space_id); setLast(spaceScope, r.space_id); }
+        openPage(r.id);
+    };
+
     const flat = flatten(tree).filter((n) => n.category === filter);
 
     const nav = (
@@ -125,42 +144,81 @@ export default function Index() {
             <div className="p-2 border-b border-gray-100 dark:border-gray-800">
                 <SpaceSwitcher spaces={spaces} space={space} onPick={chooseSpace} onNew={newSpace} />
             </div>
-            <div className="px-3 py-2 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pages</span>
-                <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(selectedId ?? null, k)}
-                    className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
-            </div>
-            <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
-                <select value={filter} onChange={(e) => setFilter(e.target.value)}
-                    className="flex-1 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
-                    <option value="">All pages</option>
-                    {DOC_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-                {!filter && (
-                    <button onClick={() => setAllCollapsed(collapsed.size === 0)}
-                        title={collapsed.size === 0 ? 'Collapse all' : 'Expand all'}
-                        className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-1">
-                        {collapsed.size === 0 ? '⊟' : '⊞'}
+            <div className="flex border-b border-gray-200 dark:border-gray-800 px-2 pt-1">
+                {[['docs', 'Docs'], ['templates', 'Templates']].map(([k, label]) => (
+                    <button key={k} onClick={() => setNavTab(k)}
+                        className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${navTab === k ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                        {label}
                     </button>
-                )}
+                ))}
             </div>
-            <div className="flex-1 overflow-y-auto py-1"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { const id = Number(e.dataTransfer.getData('doc-id')); if (id) moveDoc(id, null); }}>
-                {filter ? (
-                    flat.length ? flat.map((n) => (
-                        <button key={n.id} onClick={() => openPage(n.id)}
-                            className={`group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}>
-                            <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
-                            <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{n.title}</span>
-                            <CategoryBadge category={n.category} />
+            {navTab === 'templates' ? (
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Every new page starts from one of these. Pick one to create a page in {space?.name || 'this space'}.</p>
+                    {DOC_TEMPLATES.map((t) => (
+                        <button key={t.key} onClick={() => { setNavTab('docs'); newPage(null, t.key); }}
+                            className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <span className="flex items-center justify-between gap-2">
+                                <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{t.label}</span>
+                                <CategoryBadge category={t.category} />
+                            </span>
+                            <span className="block mt-0.5 text-xs text-gray-500 dark:text-gray-400">{t.hint}</span>
                         </button>
-                    )) : <div className="p-4 text-sm text-gray-400">No {filter} pages.</div>
-                ) : (
-                    tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} collapsed={collapsed} onToggle={toggleCollapse} onMove={moveDoc} />
-                        : <div className="p-4 text-sm text-gray-400">No pages yet. Create one.</div>
-                )}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <>
+                    <div className="px-3 py-2 flex items-center justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pages</span>
+                        <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(selectedId ?? null, k)}
+                            className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
+                    </div>
+                    <div className="px-3 pb-2">
+                        <input value={searchQ} onChange={(e) => runSearch(e.target.value)} placeholder="Search all docs…"
+                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                    </div>
+                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                        <select value={filter} onChange={(e) => setFilter(e.target.value)}
+                            className="flex-1 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">All pages</option>
+                            {DOC_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        {!filter && (
+                            <button onClick={() => setAllCollapsed(collapsed.size === 0)}
+                                title={collapsed.size === 0 ? 'Collapse all' : 'Expand all'}
+                                className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-1">
+                                {collapsed.size === 0 ? '⊟' : '⊞'}
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex-1 overflow-y-auto py-1"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { const id = Number(e.dataTransfer.getData('doc-id')); if (id) moveDoc(id, null); }}>
+                        {searchResults !== null ? (
+                            searchResults.length ? searchResults.map((r) => (
+                                <button key={r.id} onClick={() => openResult(r)}
+                                    className={`group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === r.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}>
+                                    <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                                    <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{r.title}</span>
+                                    <CategoryBadge category={r.category} />
+                                </button>
+                            )) : <div className="p-4 text-sm text-gray-400">Nothing matches "{searchQ}".</div>
+                        ) : filter ? (
+                            flat.length ? flat.map((n) => (
+                                <button key={n.id} onClick={() => openPage(n.id)}
+                                    className={`group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}>
+                                    <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                                    <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{n.title}</span>
+                                    <CategoryBadge category={n.category} />
+                                </button>
+                            )) : <div className="p-4 text-sm text-gray-400">No {filter} pages.</div>
+                        ) : (
+                            tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} collapsed={collapsed} onToggle={toggleCollapse} onMove={moveDoc} />
+                                : <div className="p-4 text-sm text-gray-400">No pages yet. Create one.</div>
+                        )}
+                    </div>
+                </>
+            )}
         </div>
     );
 
@@ -170,7 +228,7 @@ export default function Index() {
                 <input value={page.title} onChange={(e) => saveTitle(e.target.value)}
                     className="flex-1 text-3xl font-bold text-gray-900 dark:text-white border-0 focus:ring-0 px-0 placeholder-gray-300" placeholder="Untitled" />
                 <div className="mt-2 shrink-0 flex items-center gap-2">
-                    
+
                     <select value={page.category || ''} onChange={(e) => saveCategory(e.target.value)} title="Category"
                         className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Uncategorized</option>
@@ -179,7 +237,13 @@ export default function Index() {
                     <button onClick={del} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-red-600">Delete</button>
                 </div>
             </div>
-            <DocEditor key={page.id} pageId={page.id} initialBody={page.body} onSave={saveBody} />
+            {page.workflow_type ? (
+                // A workflow page carries its whole engine surface here too — the same
+                // Info | SOP | Script tabs as the onboarding side. One page, one look.
+                <OnboardingSetup key={page.id} workflow={{ id: page.id }} onChanged={loadTree} />
+            ) : (
+                <DocEditor key={page.id} pageId={page.id} initialBody={page.body} onSave={saveBody} />
+            )}
         </div>
     ) : (
         <div className="h-full flex items-center justify-center text-gray-400 text-sm">Select or create a page</div>

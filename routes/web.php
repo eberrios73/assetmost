@@ -46,6 +46,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/data/spaces/{space}', [$doc, 'updateSpace']);
     Route::delete('/data/spaces/{space}', [$doc, 'destroySpace']);
     Route::get('/data/docs', [$doc, 'tree']);
+    Route::get('/data/docs-search', [$doc, 'search']);
     Route::post('/data/docs', [$doc, 'store']);
     Route::get('/data/docs/{page}', [$doc, 'show']);
     Route::patch('/data/docs/{page}', [$doc, 'update']);

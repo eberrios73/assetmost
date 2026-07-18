@@ -43,28 +43,42 @@ const TROUBLESHOOTING = `
 <h2>Escalation</h2><p></p>
 `.trim();
 
+// Same 2-column label/value ease as the SOP: fill the cells, add or remove rows.
 const INCIDENT = `
+<h2>Incident summary</h2>
 <table><tbody>
-<tr><th>Severity</th><td>Sev3</td><th>Status</th><td>Investigating</td></tr>
-<tr><th>Detected</th><td></td><th>Resolved</th><td></td></tr>
-<tr><th>Owner</th><td></td><th>Reported by</th><td></td></tr>
+<tr><td><p><strong>Severity:</strong></p></td><td><p>Sev3</p></td></tr>
+<tr><td><p><strong>Status:</strong></p></td><td><p>Investigating</p></td></tr>
+<tr><td><p><strong>Incident start date:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Incident end date:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Executive summary / Description:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Symptoms, if any:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Source of detection:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Owner:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Reported by:</strong></p></td><td><p></p></td></tr>
 </tbody></table>
-<h2>Summary</h2><p></p>
-<h2>Impact</h2><p></p>
-<h2>Affected systems / users</h2><ul><li></li></ul>
-<h2>Timeline</h2>
+<h2>Impact assessment</h2>
 <table><tbody>
-<tr><th>Time</th><th>Event / action</th><th>By</th></tr>
+<tr><td><p><strong>Affected users:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Affected services:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Affected devices / assets:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Other impact details:</strong></p></td><td><p></p></td></tr>
+</tbody></table>
+<h2>Timeline of events</h2>
+<table><tbody>
+<tr><th>Date</th><th>Event</th><th>By</th></tr>
 <tr><td></td><td></td><td></td></tr>
 <tr><td></td><td></td><td></td></tr>
 </tbody></table>
-<h2>Root cause</h2><p></p>
-<h2>Resolution</h2><p></p>
+<h2>Analysis</h2>
+<table><tbody>
+<tr><td><p><strong>Root cause of the incident:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Similar incidents:</strong></p></td><td><p></p></td></tr>
+</tbody></table>
+<h2>Remediation actions</h2>
+<ol><li><p></p></li></ol>
 <h2>Follow-up actions</h2>
-<table><tbody>
-<tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr>
-<tr><td></td><td></td><td></td><td></td></tr>
-</tbody></table>
+<ol><li><p></p></li></ol>
 `.trim();
 
 export const DOC_TEMPLATES = [
