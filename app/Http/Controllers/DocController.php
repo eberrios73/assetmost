@@ -135,19 +135,17 @@ class DocController extends Controller
         }
         $page->update($data + ['updated_by' => auth()->id()]);
 
-        // If this page is the MASTER of a runbook/onboarding template, editing the
-        // document IS editing the runbook — recompile the template from it now, so the
-        // wizard follows the doc without a manual re-parse. (References like
-        // /eprotection stay as text here; they resolve when a machine is built.)
+        // If this page IS a workflow, editing the document is editing the runbook —
+        // re-import the steps from the body now, so the wizard follows the doc without
+        // a manual re-parse. (References like /eprotection stay as text here; they
+        // resolve when a machine is built.) A body the parser can't read leaves the
+        // existing steps untouched — the engine never loses its input to a bad edit.
         $recompiled = false;
-        if (array_key_exists('body', $data)) {
-            $tpl = \App\Models\OnboardingTemplate::where('source_page_id', $page->id)->first();
-            if ($tpl) {
-                $parsed = \App\Support\SopDocParser::parse($page->body ?? '');
-                if (! empty($parsed['steps'])) {
-                    $tpl->update(['steps' => json_encode($parsed), 'name' => $page->title]);
-                    $recompiled = true;
-                }
+        if (array_key_exists('body', $data) && $page->workflow_type) {
+            $parsed = \App\Support\SopDocParser::parse($page->body ?? '');
+            if (! empty($parsed['steps'])) {
+                $page->forceFill(['workflow_steps' => json_encode($parsed)])->save();
+                $recompiled = true;
             }
         }
 

@@ -7,7 +7,7 @@ import RecordModal from '@/Components/RecordModal';
 import PasswordGate from '@/Components/ui/PasswordGate';
 import AssetOnboard from '@/Components/AssetOnboard';
 import OnboardingSetup from '@/Components/OnboardingSetup';
-import { ENTITIES, GROUPS, ONBOARD_KINDS } from '@/entities';
+import { ENTITIES, GROUPS } from '@/entities';
 import { getLast, setLast } from '@/lib/lastView';
 
 const ONB_STEPS = ['User info', 'Services', 'Active Directory', 'Hardware', 'Software', 'Security'];
@@ -29,11 +29,19 @@ export default function Workspace({ group }) {
     const [step, setStep] = useState(0);
     // Guarded tabs (Accounts) re-prompt on EVERY entry — switching away re-locks.
     const [unlocked, setUnlocked] = useState(false);
-    // Onboarding: which procedure (kind) is selected in the left-column list, and its
-    // department variant. Lifted here so the left list drives the wizard on the right.
-    const [onbKind, setOnbKind] = useState(null);
-    const [onbVariant, setOnbVariant] = useState('');
-    useEffect(() => { setUnlocked(false); setOnbKind(null); setOnbVariant(''); }, [tabKey]);
+    // Onboarding tabs are filtered views over the workflow docs: fetch the group's
+    // slice (people|device) and let the left-column list drive the editor on the right.
+    const [workflows, setWorkflows] = useState([]);
+    const [wfId, setWfId] = useState(null);
+    const [wfVersion, setWfVersion] = useState(0);
+    useEffect(() => { setUnlocked(false); setWfId(null); }, [tabKey]);
+    useEffect(() => {
+        if (tab.view !== 'onboarding') return;
+        fetch(`/data/workflows?type=${tab.wtype}`, { headers: { Accept: 'application/json' } })
+            .then((r) => (r.ok ? r.json() : []))
+            .then((d) => setWorkflows(Array.isArray(d) ? d : []))
+            .catch(() => setWorkflows([]));
+    }, [tabKey, group, tenant?.activeId, wfVersion]);
 
     const refetchDetail = () => {
         if (entity && selectedId) fetch(entity.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setDetail);
@@ -103,20 +111,33 @@ export default function Workspace({ group }) {
             </span>
         );
     } else if (tab.view === 'onboarding') {
-        const kinds = tab.kinds || Object.keys(ONBOARD_KINDS);
-        const activeKind = kinds.includes(onbKind) ? onbKind : kinds[0];
+        // Only ACTIVE workflows show; device baselines (form-factor ones) nest under
+        // "Device Setup", the rest (Endpoint protection, the people workflows) sit flat.
+        const activeWf = workflows.filter((w) => w.active);
+        const baselines = tab.wtype === 'device' ? activeWf.filter((w) => w.form_factor) : [];
+        const flat = tab.wtype === 'device' ? activeWf.filter((w) => !w.form_factor) : activeWf;
+        const sel = activeWf.find((w) => w.id === wfId) || baselines[0] || flat[0] || null;
+        const wfBtn = (w) => (
+            <button key={w.id} onClick={() => setWfId(w.id)}
+                className={`w-full rounded-md px-3 py-2 text-left text-sm ${sel?.id === w.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                {w.title}
+            </button>
+        );
         listContent = (
             <div className="p-3 space-y-1">
-                {kinds.map((k) => (
-                    <button key={k} onClick={() => { setOnbKind(k); setOnbVariant(''); }}
-                        className={`w-full rounded-md px-3 py-2 text-left text-sm ${activeKind === k ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                        {ONBOARD_KINDS[k]}
-                    </button>
-                ))}
+                {baselines.length > 0 && (
+                    <>
+                        <p className="px-3 pt-1 pb-0.5 text-xs uppercase tracking-wide text-gray-400">Device Setup</p>
+                        <div className="ml-3 space-y-1">{baselines.map(wfBtn)}</div>
+                    </>
+                )}
+                {flat.map(wfBtn)}
             </div>
         );
-        detailContent = <OnboardingSetup kind={activeKind} variant={onbVariant} onVariant={setOnbVariant} />;
-        footerLeft = `${ONBOARD_KINDS[activeKind]} — company step template`;
+        detailContent = sel
+            ? <OnboardingSetup key={sel.id} workflow={sel} onChanged={() => setWfVersion((v) => v + 1)} />
+            : <Center>No active workflows here yet.</Center>;
+        footerLeft = sel ? `${sel.title} — workflow` : 'Workflows';
     } else if (tab.view === 'asset-onboard') {
         listContent = <div className="p-4 text-sm text-gray-500">Onboard a new asset into inventory — identify it, place it at a location, and add it.</div>;
         detailContent = <AssetOnboard onDone={() => { setListVersion((v) => v + 1); setTabKey('devices'); }} />;

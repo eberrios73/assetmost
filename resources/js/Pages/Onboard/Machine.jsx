@@ -20,31 +20,31 @@ const api = async (url, body) => {
  * the script below does the machine's share of the work — reporting each step
  * back so the checklist ticks itself.
  */
-export default function Machine({ variants = [], types = [] }) {
+export default function Machine({ workflows = [], types = [] }) {
     // The machine tells us its platform (we're ON it); the type you pick tells us
     // the kind. The proper runbook follows — override only if we guessed wrong.
     const platform = /mac/i.test(navigator.platform || navigator.userAgent) ? 'Mac' : 'Windows';
-    const pickVariant = (typeIdSel) => {
+    const pickWorkflow = (typeIdSel) => {
         const t = types.find((x) => x.id === typeIdSel);
         const name = (t?.name || '').toLowerCase();
-        const score = (v) => {
-            const hay = `${v.variant} ${v.name}`.toLowerCase();
+        const score = (w) => {
+            const hay = `${w.form_factor} ${w.name}`.toLowerCase();
             let s = 0;
             if (/server/.test(name) && /server/.test(hay)) s += 4;
             if (/laptop/.test(name) && /laptop/.test(hay)) s += 3;
             if (hay.includes(platform.toLowerCase())) s += 2;
             return s;
         };
-        return [...variants].sort((a, b) => score(b) - score(a))[0]?.variant ?? '';
+        return [...workflows].sort((a, b) => score(b) - score(a))[0]?.id ?? null;
     };
     const initialType = types.find((t) => t.code === 'WS')?.id ?? types[0]?.id ?? '';
     const [typeId, setTypeIdRaw] = useState(initialType);
-    const [variant, setVariant] = useState(() => pickVariant(initialType));
-    const setTypeId = (id) => { setTypeIdRaw(id); setVariant(pickVariant(id)); };
+    const [workflowId, setWorkflowId] = useState(() => pickWorkflow(initialType));
+    const setTypeId = (id) => { setTypeIdRaw(id); setWorkflowId(pickWorkflow(id)); };
     const [form, setForm] = useState({ brand: '', model: '', serial_num: '' });
     // The runbook is the recipe: what its /install and /vpn tokens resolve to. Change
     // what a machine gets by editing the SOP (Docs), not by picking here.
-    const runbook = variants.find((v) => v.variant === variant);
+    const runbook = workflows.find((w) => w.id === workflowId);
     const installs = runbook?.installs || [];
     const mdm = runbook?.mdm || '';
     const [busy, setBusy] = useState(false);
@@ -55,7 +55,7 @@ export default function Machine({ variants = [], types = [] }) {
     const generate = async () => {
         setBusy(true); setError(null);
         try {
-            setResult(await api('/onboard/generate', { variant, device_type_id: typeId, ...form }));
+            setResult(await api('/onboard/generate', { workflow_id: workflowId, device_type_id: typeId, ...form }));
         } catch (e) {
             setError(Object.values(e?.errors || {}).flat()[0] || e?.message || 'Could not generate.');
         }
@@ -81,9 +81,9 @@ export default function Machine({ variants = [], types = [] }) {
                     <div className="grid grid-cols-2 gap-3">
                         <label className="block">
                             <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">Runbook (auto-picked for {platform})</span>
-                            <select value={variant} onChange={(e) => setVariant(e.target.value)}
+                            <select value={workflowId ?? ''} onChange={(e) => setWorkflowId(Number(e.target.value))}
                                 className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm">
-                                {variants.map((v) => <option key={v.variant} value={v.variant}>{v.name}</option>)}
+                                {workflows.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                             </select>
                         </label>
                         <label className="block">

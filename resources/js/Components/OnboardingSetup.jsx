@@ -20,8 +20,7 @@ function guessCategory(title) {
 /**
  * Paste the company's existing SOP; every line becomes a step, indented (or
  * bulleted-under) lines become subtasks. No AI required — the SOP's own wording
- * IS the instruction text, and the human rearranges. The saved JSON is what the
- * run-wizard turns into a chained task project per new hire.
+ * IS the instruction text, and the human rearranges.
  */
 function parseSop(text) {
     const steps = [];
@@ -63,69 +62,51 @@ const api = async (url, method = 'GET', body) => {
 };
 
 /**
- * The onboarding editor, tabbed so a long runbook isn't one endless scroll:
- *   Info   — the run wizard (hires), the SOP source/metadata, task preview, or the
- *            adopt/compile/paste sources when there are no steps yet.
- *   Steps  — the step editor (the checklist that becomes the task project).
- *   Script — for machine runbooks (Workstation setup), the bootstrap script the SOP
- *            produces, editable. Employee runbooks make a task project, not a script.
- * kind/variant are controlled by the left-column list in Workspace.
+ * The workflow editor — a filtered lens on ONE workflow doc. Tabbed:
+ *   Info   — what it is (open in Docs, active toggle, duplicate), the run wizard
+ *            for people workflows, task preview, or the import sources when empty.
+ *   Steps  — the step editor. Steps are the SOURCE; the doc body is regenerated.
+ *   Script — device workflows: the bootstrap script this SOP produces.
+ * The `workflow` summary comes from the left-column list (Workspace).
  */
-export default function OnboardingSetup({ kind, variant, onVariant }) {
-    const [meta, setMeta] = useState({ kinds: {}, existing: [] });
-    const [loaded, setLoaded] = useState(false);
-    const [steps, setSteps] = useState(null);        // null = nothing saved for this kind/variant
-    const [source, setSource] = useState(null);      // {id,title} of the master Docs page
-    const [sopMeta, setSopMeta] = useState(null);    // {owner, version, status, ...} from the SOP's governance table
+export default function OnboardingSetup({ workflow, onChanged }) {
+    const wfId = workflow.id;
+    const [wf, setWf] = useState(null);              // full detail
+    const [steps, setSteps] = useState(null);
     const [preview, setPreview] = useState(null);    // 'load' | {rows:[...]}
     const [pasting, setPasting] = useState(false);
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
     const [tab, setTab] = useState('steps');         // info | steps | script
-    // Switching procedures leaves paste mode and clears any stale preview.
-    useEffect(() => { setPasting(false); setPreview(null); }, [kind]);
 
+    const load = () => {
+        api(`/data/workflows/${wfId}`).then((r) => {
+            setWf(r);
+            setSteps(r.steps?.steps?.length ? r.steps.steps : null);
+        }).catch(() => {});
+    };
+    useEffect(() => { load(); }, [wfId]);
     useEffect(() => {
         if (preview !== 'load') return;
-        api(`/data/onboarding-preview?kind=${kind}&variant=${encodeURIComponent(variant)}`).then((r) => setPreview(r)).catch(() => setPreview(null));
-    }, [preview, kind, variant]);
-
-    const load = (k = kind, v = variant) => {
-        setLoaded(false); setPreview(null);
-        api(`/data/onboarding-template?kind=${k}&variant=${encodeURIComponent(v)}`)
-            .then((r) => { setMeta({ kinds: r.kinds, existing: r.existing }); setSteps(r.steps?.steps ?? null); setSource(r.source ?? null); setSopMeta(r.sop_meta ?? null); setLoaded(true); });
-    };
-    useEffect(() => { load(kind, variant); }, [kind, variant]);
+        api(`/data/workflows/${wfId}/preview`).then(setPreview).catch(() => setPreview(null));
+    }, [preview, wfId]);
 
     const save = async (next) => {
         setSteps(next);
-        await api('/data/onboarding-template', 'PUT', { kind, variant, steps: { version: 1, steps: next } });
+        await api(`/data/workflows/${wfId}/steps`, 'PUT', { steps: { version: 1, steps: next } });
         setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
     };
-    const adoptStarter = async () => { await api('/data/onboarding-adopt-starter', 'POST', { kind, variant }); load(kind, variant); };
-    const parseFromDoc = async (pageId) => { await api('/data/onboarding-parse-doc', 'POST', { page_id: pageId, kind, variant }); load(kind, variant); };
-
-    const variants = ['', ...new Set(meta.existing.filter((e) => e.kind === kind && e.variant).map((e) => e.variant))];
-    const newVariant = () => { const v = prompt('Department variant name (e.g. Design):'); if (v?.trim()) onVariant(v.trim()); };
+    const adopt = async () => { await api(`/data/workflows/${wfId}/adopt`, 'POST'); load(); setTab('steps'); };
+    const importDoc = async (pageId) => { if (!pageId) return; await api(`/data/workflows/${wfId}/parse-doc`, 'POST', { page_id: pageId }); load(); setTab('steps'); };
+    const toggleActive = async () => { await api(`/data/workflows/${wfId}`, 'PATCH', { active: !wf.active }); load(); onChanged?.(); };
+    const duplicate = async () => { await api(`/data/workflows/${wfId}/duplicate`, 'POST'); onChanged?.(); };
 
     // list surgery helpers — operate on top-level or a parent's subtasks uniformly
     const replace = (list, id, fn) => list.map((s) => (s.id === id ? fn(s) : { ...s, subtasks: replace(s.subtasks || [], id, fn) }));
     const removeById = (list, id) => list.filter((s) => s.id !== id).map((s) => ({ ...s, subtasks: removeById(s.subtasks || [], id) }));
     const move = (list, i, dir) => { const n = [...list]; const j = i + dir; if (j < 0 || j >= n.length) return list; [n[i], n[j]] = [n[j], n[i]]; return n; };
 
-    const variantSelector = (
-        <div className="flex items-center gap-2">
-            <span className="text-xs uppercase tracking-wide text-gray-400">Variant</span>
-            <select value={variant} onChange={(e) => e.target.value === '__new__' ? newVariant() : onVariant(e.target.value)}
-                className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-sm py-1.5 text-gray-600 dark:text-gray-300">
-                {variants.map((v) => <option key={v} value={v}>{v || 'Default'}</option>)}
-                <option value="__new__">+ Department variant…</option>
-            </select>
-        </div>
-    );
-
-    // Same underline style as the sub-tabs (Devices / Locations / Onboard / Onboarding),
-    // so the app has one tab language, not three.
+    // Same underline style as the sub-tabs, so the app has one tab language.
     const tabBar = (
         <div className="flex">
             {[['info', 'Info'], ['steps', 'Steps'], ['script', 'Script']].map(([k, label]) => (
@@ -137,35 +118,74 @@ export default function OnboardingSetup({ kind, variant, onVariant }) {
         </div>
     );
 
-    if (!loaded) return <div className="max-w-3xl"><p className="text-sm text-gray-400 py-6">Loading…</p></div>;
+    if (!wf) return <div className="max-w-3xl"><p className="text-sm text-gray-400 py-6">Loading…</p></div>;
 
     return (
         <div className="max-w-3xl">
             <div className="mb-4 flex items-end justify-between gap-3 border-b border-gray-200 dark:border-gray-800">
                 {tabBar}
-                <div className="flex items-center gap-2 pb-1.5">
-                    {saved && <span className="text-xs text-green-600">{saved}</span>}
-                    {variantSelector}
-                </div>
+                {saved && <span className="pb-2 text-xs text-green-600">{saved}</span>}
             </div>
 
             {tab === 'info' && (
                 <div className="space-y-4">
-                    <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">
-                        {meta.kinds[kind]}{variant ? ` — ${variant}` : ''}
-                    </h2>
-                    {kind === 'onboarding' && <RunCard />}
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">{wf.title}</h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    {wf.form_factor || (wf.type === 'people' ? 'People workflow' : 'Device workflow')}
+                                    {wf.shipped ? ' · shipped baseline' : ' · yours'}
+                                </p>
+                            </div>
+                            <a href={`/docs?page=${wf.id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0" title="This workflow IS a Docs page">
+                                Open in Docs
+                            </a>
+                        </div>
+                        <div className="mt-3 flex items-center gap-4 border-t border-gray-100 dark:border-gray-800 pt-3">
+                            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
+                                <input type="checkbox" checked={!!wf.active} onChange={toggleActive}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                Active — shows in the list and can run
+                            </label>
+                            <button onClick={duplicate}
+                                className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                title="Copy this SOP to make a variant (e.g. Other Device -> Access Point)">Duplicate</button>
+                        </div>
+                    </div>
+
+                    {wf.wizard && <RunCard workflowId={wfId} />}
+
                     {(steps === null || pasting) ? (
-                        <PasteSources
-                            pasting={pasting} kindLabel={meta.kinds[kind]?.toLowerCase()}
+                        <ImportSources pasting={pasting} shipped={wf.shipped}
                             text={text} setText={setText}
                             onParse={() => { const parsed = parseSop(text); if (parsed.length) { save(parsed); setPasting(false); setText(''); setTab('steps'); } }}
                             onCancel={steps !== null ? () => setPasting(false) : null}
-                            onPickDoc={(id) => { if (id) { parseFromDoc(id); setTab('steps'); } }}
-                            onAdopt={() => { adoptStarter(); setTab('steps'); }} />
+                            onPickDoc={importDoc} onAdopt={adopt} />
                     ) : (
-                        <SopSummary source={source} sopMeta={sopMeta} preview={preview} setPreview={setPreview}
-                            onReparse={() => parseFromDoc(source.id)} />
+                        <div>
+                            <button onClick={() => setPreview(preview ? null : 'load')}
+                                className="px-3 py-1.5 text-sm rounded-md border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10">
+                                {preview ? 'Hide task preview' : 'Preview tasks'}
+                            </button>
+                            {preview === 'load' && <p className="mt-3 text-sm text-gray-400">Building preview…</p>}
+                            {preview && preview !== 'load' && (
+                                <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-500/5 p-4">
+                                    <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                                        The checklist this becomes — {preview.rows.length} tasks. Steps pulled from a referenced runbook
+                                        (like <code>/eprotection</code>) are marked <span className="rounded bg-amber-100 dark:bg-amber-500/15 px-1 text-[10px] text-amber-700 dark:text-amber-400">linked</span> and stay current.
+                                    </p>
+                                    <ol className="space-y-0.5">
+                                        {preview.rows.map((r, i) => (
+                                            <li key={i} className={`flex items-start gap-2 text-sm ${r.depth ? 'pl-6 text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-medium'}`}>
+                                                <span className="text-gray-300 dark:text-gray-600">{r.depth ? '↳' : '•'}</span>
+                                                <span>{r.title}{r.ref && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:text-amber-400">linked</span>}</span>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
             )}
@@ -173,22 +193,17 @@ export default function OnboardingSetup({ kind, variant, onVariant }) {
             {tab === 'steps' && (
                 steps === null ? (
                     <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        No steps yet. Head to <button onClick={() => setTab('info')} className="text-blue-600 hover:underline">Info</button> to adopt the standard SOP, compile from a doc, or paste your own.
+                        No steps yet. Head to <button onClick={() => setTab('info')} className="text-blue-600 hover:underline">Info</button> to adopt the standard SOP, import from a doc, or paste your own.
                     </div>
                 ) : (
                     <div>
                         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-                            Steps become the task project, chained in this order. Placeholders
+                            Steps are the source — the doc's text follows them. They become the task project, chained in this order. Placeholders
                             <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code>
-                            fill in at run time{kind === 'offboarding' ? ' ({start_date} = last day)' : ''}.
+                            fill in at run time.
                         </p>
                         <div className="mb-3 flex items-center gap-2">
                             <AddButton label="Add step" onClick={() => save([...steps, { id: uid(), title: 'New step', instructions: '', category: 'other', automatable: false, subtasks: [] }])} />
-                            {source && (
-                                <button onClick={() => parseFromDoc(source.id)}
-                                    className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                    title="Re-compile the steps from the doc — the doc wins over manual edits here">Re-parse from doc</button>
-                            )}
                             <button onClick={() => { setPasting(true); setTab('info'); }}
                                 className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Re-paste SOP</button>
                         </div>
@@ -211,30 +226,32 @@ export default function OnboardingSetup({ kind, variant, onVariant }) {
                 )
             )}
 
-            {tab === 'script' && <ScriptPanel kind={kind} variant={variant} />}
+            {tab === 'script' && <ScriptPanel wf={wf} />}
         </div>
     );
 }
 
-/** The adopt / compile-from-doc / paste sources (shown when there are no steps yet). */
-function PasteSources({ pasting, kindLabel, text, setText, onParse, onCancel, onPickDoc, onAdopt }) {
+/** The adopt / import-from-doc / paste sources (when there are no steps yet). */
+function ImportSources({ pasting, shipped, text, setText, onParse, onCancel, onPickDoc, onAdopt }) {
     return (
         <div className="space-y-3">
             {!pasting && (
                 <>
                     <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
-                        <p className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">Compile from a Docs page</p>
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">Import from a Docs page</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                            Your SOP doc is the master — pick it and it parses into steps. Edit the doc later, hit re-parse, the template follows.
+                            Parse an existing doc into this workflow's steps — a one-time import; the steps are yours after.
                         </p>
                         <SearchSelect value={null} endpoint="/data/doc-options" placeholder="Search your Docs pages…" onChange={onPickDoc} />
                     </div>
-                    <div className="rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-500/10 p-4">
-                        <p className="text-sm text-blue-800 dark:text-blue-300 mb-3">
-                            No SOP yet? Adopt the standard {kindLabel} one — it's created as a real Docs page in your wiki, then compiled from there. Yours to edit like any doc.
-                        </p>
-                        <AddButton label="Use the standard SOP" onClick={onAdopt} />
-                    </div>
+                    {shipped && (
+                        <div className="rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-500/10 p-4">
+                            <p className="text-sm text-blue-800 dark:text-blue-300 mb-3">
+                                Start from the shipped baseline — placeholder steps that show what this procedure covers; yours to edit.
+                            </p>
+                            <AddButton label="Use the standard SOP" onClick={onAdopt} />
+                        </div>
+                    )}
                 </>
             )}
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -251,95 +268,39 @@ function PasteSources({ pasting, kindLabel, text, setText, onParse, onCancel, on
     );
 }
 
-/** SOP source + governance metadata, and the task preview (what the steps become). */
-function SopSummary({ source, sopMeta, preview, setPreview, onReparse }) {
-    return (
-        <div className="space-y-3">
-            {source ? (
-                <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 flex items-center justify-between gap-3">
-                    <div>
-                        <a href={`/docs?page=${source.id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline" title="The master SOP document">
-                            Master SOP: {source.title}
-                        </a>
-                        {sopMeta && (sopMeta.version || sopMeta.owner || sopMeta.status) && (
-                            <span className="ml-2 text-xs text-gray-400">
-                                {sopMeta.version ? `v${sopMeta.version}` : ''}{sopMeta.owner ? ` · ${sopMeta.owner}` : ''}
-                                {sopMeta.status && (
-                                    <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${/approved|active/i.test(sopMeta.status) ? 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'}`}>
-                                        {sopMeta.status}
-                                    </span>
-                                )}
-                            </span>
-                        )}
-                    </div>
-                    <button onClick={onReparse}
-                        className="shrink-0 px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                        title="Re-compile the steps from the doc — the doc wins over manual edits here">Re-parse from doc</button>
-                </div>
-            ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">These steps were entered directly (no linked Docs page).</p>
-            )}
-
-            <div>
-                <button onClick={() => setPreview(preview ? null : 'load')}
-                    className="px-3 py-1.5 text-sm rounded-md border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10">
-                    {preview ? 'Hide task preview' : 'Preview tasks'}
-                </button>
-                {preview === 'load' && <p className="mt-3 text-sm text-gray-400">Building preview…</p>}
-                {preview && preview !== 'load' && (
-                    <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-500/5 p-4">
-                        <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
-                            The checklist this becomes — {preview.rows.length} tasks. Steps pulled from a referenced runbook
-                            (like <code>/eprotection</code>) are marked <span className="rounded bg-amber-100 dark:bg-amber-500/15 px-1 text-[10px] text-amber-700 dark:text-amber-400">linked</span> and stay current.
-                        </p>
-                        <ol className="space-y-0.5">
-                            {preview.rows.map((r, i) => (
-                                <li key={i} className={`flex items-start gap-2 text-sm ${r.depth ? 'pl-6 text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-medium'}`}>
-                                    <span className="text-gray-300 dark:text-gray-600">{r.depth ? '↳' : '•'}</span>
-                                    <span>{r.title}{r.ref && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:text-amber-400">linked</span>}</span>
-                                </li>
-                            ))}
-                        </ol>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
 /**
- * The Script tab. Employee runbooks build a task project, not a script. Machine runbooks
- * (Workstation setup / imaging) produce the actual bootstrap script from the SOP — the
- * device specifics stay as placeholders, but the SOP's /install, /vpn and /mdm resolve
- * for real. Editable here (persisting edits is the next step).
+ * The Script tab. People workflows build a task project, not a script. Device
+ * workflows with a form factor produce the real bootstrap script from the SOP —
+ * placeholders for device specifics, but /install, /vpn and /mdm resolve for real.
  */
-function ScriptPanel({ kind, variant }) {
+function ScriptPanel({ wf }) {
     const [script, setScript] = useState('');
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
+    const scriptable = wf.type === 'device' && wf.form_factor;
 
     const gen = () => {
         setLoading(true);
-        api(`/data/onboarding-script?variant=${encodeURIComponent(variant)}`)
+        api(`/data/onboarding-script?workflow=${wf.id}`)
             .then((r) => setScript(r.script || ''))
             .catch((e) => setScript(`# ${Object.values(e?.errors || {}).flat()[0] || e?.message || 'Could not generate a script for this runbook.'}`))
             .finally(() => setLoading(false));
     };
-    useEffect(() => { if (kind === 'imaging') gen(); else setScript(''); }, [kind, variant]);
+    useEffect(() => { if (scriptable) gen(); else setScript(''); }, [wf.id]);
 
-    if (kind === 'onboarding' || kind === 'freelancer' || kind === 'offboarding') {
-        return <p className="text-sm text-gray-500 dark:text-gray-400">Employee onboarding builds a chained <strong>task project</strong>, not a machine script — see <em>Preview tasks</em> under Info.</p>;
+    if (wf.type === 'people') {
+        return <p className="text-sm text-gray-500 dark:text-gray-400">People workflows build a chained <strong>task project</strong>, not a machine script — see <em>Preview tasks</em> under Info.</p>;
     }
-    if (kind === 'eprotection') {
-        return <p className="text-sm text-gray-500 dark:text-gray-400">This runbook is pulled into others with <code>/eprotection</code> and doesn't produce a standalone machine script.</p>;
+    if (!wf.form_factor) {
+        return <p className="text-sm text-gray-500 dark:text-gray-400">This runbook is pulled into others with <code>/{wf.slug || 'ref'}</code> and doesn't produce a standalone machine script.</p>;
     }
 
     return (
         <div className="space-y-2">
             <div className="flex items-start justify-between gap-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Generated from this runbook's steps — <code>{'{ASSET_TAG}'}</code> and friends fill in per machine; the SOP's
-                    <code className="mx-1">/install</code><code className="mr-1">/vpn</code><code>/mdm</code> resolve for real. Editable here (saving edits comes next).
+                    Generated from this workflow's steps — <code>{'{ASSET_TAG}'}</code> and friends fill in per machine; the SOP's
+                    <code className="mx-1">/install</code><code className="mr-1">/vpn</code><code>/mdm</code> resolve for real.
                 </p>
                 <div className="flex gap-2 shrink-0">
                     <button onClick={gen} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Regenerate</button>
@@ -402,12 +363,11 @@ function StepCard({ step: s, index, count, nested = false, onChange, onRemove, o
 }
 
 /**
- * The wizard. Fill in the person, add vendors to the list (autofilled from the
- * vendors you already have — each becomes a created credential in the registry
- * plus a task), pick floating accounts to assign, hit run. Atomic server-side:
- * abandonment leaves nothing behind.
+ * The run wizard for a people workflow. Fill in the person, add vendors (each
+ * becomes a created credential in the registry plus a task), pick floating
+ * accounts, hit run. Atomic server-side: abandonment leaves nothing behind.
  */
-function RunCard() {
+function RunCard({ workflowId }) {
     const empty = { first: '', last: '', username: '', email: '', title: '', department: '', start_date: '' };
     const [form, setForm] = useState(empty);
     const [vendorIds, setVendorIds] = useState([]);
@@ -420,7 +380,7 @@ function RunCard() {
     const run = async () => {
         setBusy(true); setError(null);
         try {
-            const r = await api('/data/onboarding-run', 'POST', { ...form, vendor_ids: vendorIds, account_ids: accountIds });
+            const r = await api(`/data/workflows/${workflowId}/run`, 'POST', { ...form, vendor_ids: vendorIds, account_ids: accountIds });
             setResult(r); setForm(empty); setVendorIds([]); setAccountIds([]);
         } catch (e) {
             setError(Object.values(e?.errors || {}).flat()[0] || e?.message || 'Could not run onboarding.');

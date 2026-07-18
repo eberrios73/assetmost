@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\DocPage;
-use App\Models\OnboardingTemplate;
 
 /**
  * Live references between runbooks: type /eprotection in a step and it resolves
@@ -30,21 +29,23 @@ class RunbookRefs
         foreach (array_unique($m[1]) as $token) {
             $slug = strtolower($token);
 
-            // 1. Templates: kind key is the canonical slug; name matches loosely too.
-            $tpl = OnboardingTemplate::query()->where('company_id', $companyId)
-                ->get(['kind', 'variant', 'name', 'steps', 'source_page_id'])
-                ->first(fn ($t) => $t->kind === $slug
-                    || str_contains(strtolower(str_replace([' ', '-'], '', $t->name)), $slug));
-            if ($tpl) {
-                $steps = json_decode($tpl->steps, true)['steps'] ?? [];
+            // 1. Workflow docs: workflow_slug is the canonical slug; title matches loosely
+            //    too (covers renamed duplicates like "Access Point").
+            $wf = DocPage::withoutGlobalScopes()->where('company_id', $companyId)
+                ->whereNotNull('workflow_type')->where('workflow_active', true)
+                ->get(['id', 'title', 'workflow_slug', 'workflow_steps'])
+                ->first(fn ($p) => $p->workflow_slug === $slug
+                    || str_contains(strtolower(str_replace([' ', '-'], '', $p->title)), $slug));
+            if ($wf) {
+                $steps = json_decode($wf->workflow_steps ?? '', true)['steps'] ?? [];
                 $extra = array_merge($extra, $steps);
-                $link = $tpl->source_page_id ? " ({$base}/docs?page={$tpl->source_page_id})" : '';
-                $text = str_replace("/{$token}", "[{$tpl->name} runbook{$link} — steps included below, current as of generation]", $text);
+                $text = str_replace("/{$token}", "[{$wf->title} runbook ({$base}/docs?page={$wf->id}) — steps included below, current as of generation]", $text);
                 continue;
             }
 
-            // 2. Docs by title (normalized contains).
-            $page = DocPage::query()->get(['id', 'title'])
+            // 2. Plain Docs by title (normalized contains).
+            $page = DocPage::withoutGlobalScopes()->where('company_id', $companyId)
+                ->get(['id', 'title'])
                 ->first(fn ($p) => str_contains(strtolower(str_replace([' ', '-'], '', $p->title)), $slug));
             if ($page) {
                 $text = str_replace("/{$token}", "[See runbook: {$page->title} — {$base}/docs?page={$page->id}]", $text);

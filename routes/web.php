@@ -137,19 +137,23 @@ Route::middleware('auth')->group(function () {
     $mo = \App\Http\Controllers\MachineOnboardController::class;
     Route::get('/onboard', [$mo, 'page'])->name('machine.onboard');
     Route::post('/onboard/generate', [$mo, 'generate']);
-    // Preview the bootstrap script a runbook (Workstation setup SOP) would produce.
+    // Preview the bootstrap script a device workflow would produce.
     Route::get('/data/onboarding-script', [$mo, 'previewScript']);
 
-    // Onboarding v2: per-company step template (paste SOP -> steps -> task project).
-    $oc = \App\Http\Controllers\OnboardingController::class;
-    Route::get('/data/onboarding-template', [$oc, 'template']);
-    Route::put('/data/onboarding-template', [$oc, 'saveTemplate']);
-    Route::post('/data/onboarding-run', [$oc, 'run']);
-    Route::get('/data/onboarding-preview', [$oc, 'preview']);
-    Route::post('/data/onboarding-adopt-starter', [$oc, 'adoptStarter']);
-    Route::post('/data/onboarding-parse-doc', [$oc, 'parseFromDoc']);
-    Route::get('/data/doc-options', [$oc, 'docOptions']);
-    Route::get('/data/runbook-refs', [$oc, 'refOptions']);
+    // The workflow engine — Docs pages with workflow_* columns. The People/Assets
+    // onboarding tabs are filtered views over these; steps are the source of truth.
+    $wf = \App\Http\Controllers\WorkflowController::class;
+    Route::get('/data/workflows', [$wf, 'index']);
+    Route::get('/data/workflows/{page}', [$wf, 'show']);
+    Route::put('/data/workflows/{page}/steps', [$wf, 'saveSteps']);
+    Route::patch('/data/workflows/{page}', [$wf, 'update']);
+    Route::post('/data/workflows/{page}/duplicate', [$wf, 'duplicate']);
+    Route::post('/data/workflows/{page}/adopt', [$wf, 'adopt']);
+    Route::post('/data/workflows/{page}/parse-doc', [$wf, 'parseDoc']);
+    Route::get('/data/workflows/{page}/preview', [$wf, 'preview']);
+    Route::post('/data/workflows/{page}/run', [$wf, 'run']);
+    Route::get('/data/doc-options', [$wf, 'docOptions']);
+    Route::get('/data/runbook-refs', [$wf, 'refOptions']);
     // Identifier-only account options for pickers — deliberately outside the accounts
     // gate: names only, no holders, no services, no secrets.
     Route::get('/data/account-options', [$dc, 'accountOptions']);

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Device;
 use App\Models\DeviceType;
 use App\Models\Login;
-use App\Models\OnboardingTemplate;
 use App\Models\Task;
 use App\Models\User;
 use App\Support\Access;
@@ -33,19 +32,25 @@ class MachineOnboardController extends Controller
     public function page(): \Inertia\Response
     {
         $companyId = app(TenantResolver::class)->id();
-        $variants = OnboardingTemplate::query()
-            ->where('company_id', $companyId)->where('kind', 'imaging')
-            ->get(['variant', 'name', 'steps'])
-            ->map(fn ($t) => [
-                'variant' => $t->variant, 'name' => $t->name,
-                // The runbook IS the recipe: what its /install and /vpn tokens resolve to,
-                // and which MDM its /mdm token enrolls into.
-                'installs' => self::recipe(json_decode($t->steps, true)['steps'] ?? [], $companyId),
-                'mdm' => self::mdm(json_decode($t->steps, true)['steps'] ?? []),
-            ]);
+        // The active device workflows — the machine picks from these runbooks.
+        $workflows = \App\Models\DocPage::query()
+            ->where('workflow_type', 'device')->where('workflow_active', true)
+            ->whereNotNull('form_factor')
+            ->orderBy('form_factor')
+            ->get(['id', 'title', 'form_factor', 'workflow_steps'])
+            ->map(function ($p) use ($companyId) {
+                $steps = json_decode($p->workflow_steps ?? '', true)['steps'] ?? [];
+                return [
+                    'id' => $p->id, 'name' => $p->title, 'form_factor' => $p->form_factor,
+                    // The runbook IS the recipe: what its /install and /vpn tokens resolve to,
+                    // and which MDM its /mdm token enrolls into.
+                    'installs' => self::recipe($steps, $companyId),
+                    'mdm' => self::mdm($steps),
+                ];
+            });
 
         return Inertia::render('Onboard/Machine', [
-            'variants' => $variants,
+            'workflows' => $workflows,
             'types' => DeviceType::query()->where('active', true)->ordered()->get(['id', 'code', 'name']),
         ]);
     }
@@ -58,7 +63,7 @@ class MachineOnboardController extends Controller
         abort_if(! $companyId, 422, 'Pick a company first.');
 
         $data = $request->validate([
-            'variant' => 'required|string|max:100',
+            'workflow_id' => 'required|integer|exists:doc_pages,id',
             'device_type_id' => 'required|integer|exists:device_types,id',
             'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255',
@@ -69,10 +74,12 @@ class MachineOnboardController extends Controller
             'installers.*' => 'string|max:500',
         ]);
 
-        $template = OnboardingTemplate::query()->where('company_id', $companyId)
-            ->where('kind', 'imaging')->where('variant', $data['variant'])->first();
-        abort_if(! $template, 422, 'No runbook for that variant.');
-        $steps = json_decode($template->steps, true)['steps'] ?? [];
+        $template = \App\Models\DocPage::query()
+            ->where('workflow_type', 'device')->where('workflow_active', true)
+            ->find($data['workflow_id']);
+        abort_if(! $template, 422, 'No such device runbook.');
+        $steps = json_decode($template->workflow_steps ?? '', true)['steps'] ?? [];
+        $data['variant'] = $template->form_factor ?? $template->title;   // platform + notify label
 
         [$device, $project] = DB::transaction(function () use ($data, $companyId, $steps, $template) {
             $device = Device::create([
@@ -89,7 +96,7 @@ class MachineOnboardController extends Controller
                 'title' => "Set up {$device->asset_tag}",
                 'is_project' => true, 'status' => 'In progress',
                 'week' => $monday, 'origin' => Carbon::now()->toDateString(),
-                'notes' => trim("{$template->name} · " . implode(' ', array_filter([$data['brand'] ?? '', $data['model'] ?? '', $data['serial_num'] ?? '']))),
+                'notes' => trim("{$template->title} · " . implode(' ', array_filter([$data['brand'] ?? '', $data['model'] ?? '', $data['serial_num'] ?? '']))),
                 'assigned_to' => auth()->id(), 'ord' => $ord++,
             ]);
 
@@ -303,8 +310,8 @@ class MachineOnboardController extends Controller
     }
 
     /**
-     * Produce the bootstrap script a Workstation-setup runbook would generate, without a
-     * real machine — device-specifics ({ASSET_TAG} etc.) stay as placeholders, but the
+     * Produce the bootstrap script a device workflow would generate, without a real
+     * machine — device-specifics ({ASSET_TAG} etc.) stay as placeholders, but the
      * SOP's own /install, /vpn and /mdm all resolve for real. Powers the onboarding
      * screen's Script tab so you can see (and, later, edit) what a machine will run.
      */
@@ -313,19 +320,19 @@ class MachineOnboardController extends Controller
         abort_if(auth()->user()?->role === 'User', 403);
         $companyId = app(TenantResolver::class)->id();
         abort_if(! $companyId, 422, 'Pick a company first.');
-        $variant = $request->string('variant')->toString();
 
-        $template = OnboardingTemplate::query()->where('company_id', $companyId)
-            ->where('kind', 'imaging')->where('variant', $variant)->first();
-        abort_if(! $template, 404, 'No Workstation-setup runbook for that variant yet.');
-        $steps = json_decode($template->steps, true)['steps'] ?? [];
+        $template = \App\Models\DocPage::query()
+            ->where('workflow_type', 'device')
+            ->find((int) $request->query('workflow'));
+        abort_if(! $template, 404, 'No such device runbook.');
+        $steps = json_decode($template->workflow_steps ?? '', true)['steps'] ?? [];
         $files = array_column(self::recipe($steps, $companyId), 'relative_path');
 
         $device = new Device();
         $device->asset_tag = '{ASSET_TAG}';
         $device->setRelation('company', \App\Models\Company::find($companyId));
 
-        $script = $this->script($device, '{TOKEN}', '{BASE_URL}', $variant, $files,
+        $script = $this->script($device, '{TOKEN}', '{BASE_URL}', $template->form_factor ?? $template->title, $files,
             self::mdm($steps), self::mdmProfile($steps, $companyId));
 
         return response()->json(['script' => $script]);
@@ -423,6 +430,37 @@ class MachineOnboardController extends Controller
         }
         $macMdm = self::macMdm($mdm, $profileUrl, $profileFile);
         $winMdm = self::winMdm($mdm);
+
+        // Mobile and generic devices have no shell to script — their runbook is the
+        // checklist (MDM enrollment, web UIs); say so instead of emitting a wrong script.
+        if (preg_match('/mobile|other/i', $variant)) {
+            return "# {$variant} — this runbook doesn't produce a machine script.\n"
+                . "# The checklist project carries the procedure: enrollment happens in the MDM"
+                . ($mdm ? ' (' . ucwords($mdm) . ')' : '') . ", configuration in the device's own console.";
+        }
+
+        if (preg_match('/linux/i', $variant)) {
+            return <<<BASH
+#!/bin/bash
+# AssetMost bootstrap — {$tag} — run with: sudo bash ./bootstrap.sh  (safe to re-run)
+T='{$token}'
+A='{$base}'
+report() { curl -sk -X POST "\$A/onboard/report?t=\$T" -H 'Content-Type: application/json' -d "{\"step\":\"\$1\",\"ok\":\$2,\"note\":\"\$3\"}" >/dev/null 2>&1; }
+
+# 1. Hostname = asset tag
+hostnamectl set-hostname '{$tag}' 2>/dev/null || hostname '{$tag}'
+report 'inventory' true 'Renamed to {$tag}'
+
+# 2. Updates (Debian/Ubuntu or RHEL family)
+if command -v apt-get >/dev/null; then apt-get update -qq && apt-get upgrade -y -qq; else yum update -y -q; fi
+report 'updates' true 'Update pass attempted'
+
+# 3. Baseline hardening helpers (the runbook's checklist is the source — verify each step there)
+command -v ufw >/dev/null && ufw --force enable && report 'hardening' true 'ufw enabled'
+
+echo 'Bootstrap done - finish the remaining checklist in AssetMost (SSH keys, monitoring, backups).'
+BASH;
+        }
 
         if (preg_match('/mac/i', $variant)) {
             $sh = <<<'SH'

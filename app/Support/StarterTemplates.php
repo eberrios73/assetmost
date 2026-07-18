@@ -22,6 +22,52 @@ class StarterTemplates
 {
     public const KINDS = ['onboarding' => 'Employee onboarding', 'freelancer' => 'Freelancer onboarding', 'offboarding' => 'Employee offboarding', 'imaging' => 'Workstation setup', 'eprotection' => 'Endpoint protection'];
 
+    /**
+     * The shipped workflow baselines — installed with the product as real Docs
+     * pages (workflow_shipped=1). Placeholders that teach what each procedure is;
+     * companies edit, deactivate, or duplicate them (Other Device -> Access Point).
+     * The slug is canonical: it's the /ref token and the seeder's idempotency key.
+     */
+    public const CATALOG = [
+        // People — the run wizard creates the person + credentials + task project.
+        'onboarding' => ['title' => 'Employee onboarding', 'type' => 'people', 'form_factor' => null, 'wizard' => true],
+        'freelancer' => ['title' => 'Freelancer onboarding', 'type' => 'people', 'form_factor' => null, 'wizard' => true],
+        'offboarding' => ['title' => 'Employee offboarding', 'type' => 'people', 'form_factor' => null, 'wizard' => false],
+        // Devices — the machine wizard + bootstrap script read these.
+        'windows-workstation' => ['title' => 'Windows Workstation', 'type' => 'device', 'form_factor' => 'Windows Workstation', 'wizard' => false],
+        'windows-laptop' => ['title' => 'Windows Laptop', 'type' => 'device', 'form_factor' => 'Windows Laptop', 'wizard' => false],
+        'mac-workstation' => ['title' => 'Mac Workstation', 'type' => 'device', 'form_factor' => 'Mac Workstation', 'wizard' => false],
+        'mac-laptop' => ['title' => 'Mac Laptop', 'type' => 'device', 'form_factor' => 'Mac Laptop', 'wizard' => false],
+        'windows-server' => ['title' => 'Windows Server', 'type' => 'device', 'form_factor' => 'Windows Server', 'wizard' => false],
+        'linux-server' => ['title' => 'Linux Server', 'type' => 'device', 'form_factor' => 'Linux Server', 'wizard' => false],
+        'mobile-ios' => ['title' => 'Mobile Device - iOS', 'type' => 'device', 'form_factor' => 'Mobile - iOS', 'wizard' => false],
+        'mobile-android' => ['title' => 'Mobile Device - Android', 'type' => 'device', 'form_factor' => 'Mobile - Android', 'wizard' => false],
+        'other-device' => ['title' => 'Other Device', 'type' => 'device', 'form_factor' => 'Other Device', 'wizard' => false],
+        // Referenced by other runbooks as /eprotection; no form factor of its own.
+        'eprotection' => ['title' => 'Endpoint protection', 'type' => 'device', 'form_factor' => null, 'wizard' => false],
+    ];
+
+    /** Steps for a catalog slug (null if unknown). */
+    public static function workflow(string $slug): ?array
+    {
+        return match ($slug) {
+            'onboarding' => self::onboarding(),
+            'freelancer' => self::freelancer(),
+            'offboarding' => self::offboarding(),
+            'windows-workstation' => self::imaging('Windows'),
+            'windows-laptop' => self::laptop(self::imaging('Windows')),
+            'mac-workstation' => self::imaging('Mac'),
+            'mac-laptop' => self::laptop(self::imaging('Mac')),
+            'windows-server' => self::imaging('Server'),
+            'linux-server' => self::linuxServer(),
+            'mobile-ios' => self::mobile('iOS'),
+            'mobile-android' => self::mobile('Android'),
+            'other-device' => self::otherDevice(),
+            'eprotection' => self::eprotection(),
+            default => null,
+        };
+    }
+
     public static function get(string $kind, string $variant = ''): ?array
     {
         return match ($kind) {
@@ -32,6 +78,132 @@ class StarterTemplates
             'eprotection' => self::eprotection(),
             default => null,
         };
+    }
+
+    /** A laptop is the workstation runbook + mobility: VPN and off-LAN readiness before QA. */
+    private static function laptop(array $tpl): array
+    {
+        $s = fn (...$a) => self::step(...$a);
+        $mobility = $s('mobility', 'Mobility: VPN and off-network readiness', 'access', 0, [
+            'why' => 'A laptop that only works on the office LAN is a desktop with a battery.',
+            'how' => 'Pull the VPN profile at the bench - type /vpn in this SOP to pick it from the installers share. Confirm email and core tools work OFF the office network (hotspot test).',
+            'done' => 'VPN connects from an outside network and the daily tools load through it.',
+            'record' => 'VPN profile name noted on the device record.',
+        ]);
+        // Insert before QA (the last step) so the pool-readiness gate stays last.
+        $steps = $tpl['steps'];
+        array_splice($steps, count($steps) - 1, 0, [$mobility]);
+        return ['version' => 1, 'steps' => $steps];
+    }
+
+    private static function linuxServer(): array
+    {
+        $s = fn (...$a) => self::step(...$a);
+        return ['version' => 1, 'steps' => [
+            $s('intake', 'Intake and inventory', 'machine', 0, [
+                'why' => 'A server that is not in inventory does not exist when it goes missing.',
+                'how' => 'Record it in AssetMost (Assets > Onboard). Hostname = asset tag.',
+                'done' => 'Asset tag issued; hostname set.',
+                'record' => 'Device in inventory with tag, serial, model.',
+            ]),
+            $s('provision', 'Provision', 'machine', 0, [], [
+                $s('prov-ip', 'Static IP and DNS record', 'machine', 0, [
+                    'done' => 'Forward and reverse lookups resolve.',
+                ]),
+                $s('prov-roles', 'Roles/services installed and documented', 'machine', 0, [
+                    'record' => 'What this server DOES is written on its device record.',
+                ]),
+            ]),
+            $s('hardening', 'Hardening', 'access', 0, [], [
+                $s('hard-ssh', 'SSH: key auth only, root login off', 'access', 0, [
+                    'done' => 'Password auth refused; a key-based login works.',
+                ]),
+                $s('hard-fw', 'Firewall on with only the needed ports', 'access', 0),
+                $s('hard-updates', 'Unattended security updates enabled', 'machine', 0),
+            ]),
+            $s('svc-accounts', 'Service accounts into the registry', 'accounts', 0, [
+                'why' => 'A server born with undocumented admin credentials is a future breach with a hostname.',
+                'how' => 'Every admin/service credential enters the registry as a SERVICE account (held by nobody - it runs the system).',
+                'done' => 'Each credential resolves in the registry; none exist only in someone\'s head.',
+                'record' => 'Service accounts linked to this device.',
+            ]),
+            $s('protect', 'Protection', 'machine', 0, [], [
+                $s('prot-monitor', 'Monitoring agent reporting', 'machine', 0, [
+                    'done' => 'Server visible in the monitoring console with alerts armed.',
+                ]),
+                $s('prot-backup', 'Backup agent + first successful restore test', 'machine', 0, [
+                    'done' => 'A restore test of one file succeeds.',
+                ]),
+            ]),
+            $s('qa', 'QA before it enters service', 'machine', 0, [
+                'how' => 'Reboot; confirm services come back on their own.',
+                'done' => 'All roles survive a reboot unattended.',
+                'record' => 'Device marked READY in inventory.',
+            ]),
+        ]];
+    }
+
+    private static function mobile(string $os): array
+    {
+        $s = fn (...$a) => self::step(...$a);
+        $enroll = $os === 'iOS'
+            ? 'Supervised via ABM/DEP when company-owned; otherwise the enrollment profile.'
+            : 'Android Enterprise (work profile for BYOD, fully managed for company-owned).';
+        return ['version' => 1, 'steps' => [
+            $s('intake', 'Intake and inventory', 'machine', 0, [
+                'how' => 'Record it in AssetMost with serial and IMEI; issue the asset tag.',
+                'record' => 'Device in inventory with tag, serial, IMEI, carrier/number if any.',
+            ]),
+            $s('enroll', 'MDM enrollment', 'machine', 0, [
+                'why' => 'An unmanaged phone with company mail is a breach in a pocket.',
+                'how' => "Type /mdm in this SOP to name your MDM. {$enroll}",
+                'done' => 'Device appears in the MDM console and receives policy.',
+            ]),
+            $s('policy', 'Passcode and encryption policy applied', 'access', 0, [
+                'done' => 'MDM shows passcode set and encryption on; remote wipe armed.',
+            ]),
+            $s('apps', 'Company apps via MDM', 'machine', 0, [
+                'how' => 'Push mail, chat, and the role\'s apps through the MDM - no personal store sign-ins for company apps.',
+            ]),
+            $s('handoff', 'Hand-off', 'other', 0, [
+                'how' => 'Assign to the person in AssetMost; confirm mail and MFA prompts work on the device.',
+                'done' => 'The user - not the tech - signs into mail and passes an MFA prompt.',
+                'record' => 'Device shows its holder; number recorded.',
+            ]),
+        ]];
+    }
+
+    /** The generic device runbook - duplicate it per class: access point, switch, printer, camera... */
+    private static function otherDevice(): array
+    {
+        $s = fn (...$a) => self::step(...$a);
+        return ['version' => 1, 'steps' => [
+            $s('intake', 'Intake and inventory', 'machine', 0, [
+                'why' => 'This is the generic device runbook - DUPLICATE it for each device class you run (access point, switch, printer, camera) and tailor the steps.',
+                'how' => 'Record it in AssetMost (Assets > Onboard); issue the asset tag and label the unit.',
+                'record' => 'Device in inventory with tag, serial, model, location.',
+            ]),
+            $s('network', 'Network', 'machine', 0, [], [
+                $s('net-ip', 'Static IP or DHCP reservation + DNS record', 'machine', 0, [
+                    'done' => 'The device answers at a name, not a mystery IP.',
+                ]),
+            ]),
+            $s('creds', 'Admin credential into the registry', 'accounts', 0, [
+                'why' => 'Default passwords on infrastructure are how guests become admins.',
+                'how' => 'Change the default admin password; store it in the registry as a SERVICE account linked to this device.',
+                'done' => 'The default password no longer works; the registry credential does.',
+            ]),
+            $s('firmware', 'Firmware current', 'machine', 0, [
+                'done' => 'Running the latest stable firmware; auto-update on if supported.',
+            ]),
+            $s('hardening', 'Hardening', 'access', 0, [
+                'how' => 'Disable unused services (telnet, UPnP, WPS...); management UI restricted to the admin VLAN if possible.',
+            ]),
+            $s('record', 'Record and monitor', 'other', 0, [
+                'how' => 'Location and what it serves on the device record; add to monitoring if it speaks SNMP/ping.',
+                'done' => 'Someone new could find and understand this device from AssetMost alone.',
+            ]),
+        ]];
     }
 
     /**

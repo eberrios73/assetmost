@@ -189,16 +189,6 @@ export const ENTITIES = {
     },
 };
 
-// The onboarding "kinds" (StarterTemplates::KINDS server-side). People vs. asset
-// procedures live under their own group's Onboarding tab — see `kinds` below.
-export const ONBOARD_KINDS = {
-    onboarding: 'Employee onboarding',
-    freelancer: 'Freelancer onboarding',
-    offboarding: 'Employee offboarding',
-    imaging: 'Workstation setup',
-    eprotection: 'Endpoint protection',
-};
-
 /** Top-level groups and their sub-tabs. */
 export const GROUPS = {
     people: { title: 'People', tabs: [
@@ -207,7 +197,9 @@ export const GROUPS = {
         // pooled seats, shared mailboxes — plus who holds each.
         { key: 'accounts', label: 'Accounts', entity: 'accounts' },
         { key: 'vendors', label: 'Vendors', entity: 'vendors' },
-        { key: 'onboarding', label: 'Onboarding', view: 'onboarding', kinds: ['onboarding', 'freelancer', 'offboarding'] },
+        // Onboarding tabs are filtered views over the workflow docs — one engine (Docs),
+        // two lenses: people workflows here, device workflows under Assets.
+        { key: 'onboarding', label: 'Onboarding', view: 'onboarding', wtype: 'people' },
     ] },
     assets: { title: 'Assets', tabs: [
         { key: 'devices', label: 'Devices', entity: 'devices' },
@@ -215,8 +207,7 @@ export const GROUPS = {
         // managed on the location's screen. (A Vehicles tab may take this slot later.)
         { key: 'locations', label: 'Locations', entity: 'locations' },
         { key: 'onboard', label: 'Onboard', view: 'asset-onboard' },
-        // Machine procedures (imaging, endpoint protection) live here, not under People.
-        { key: 'onboarding', label: 'Onboarding', view: 'onboarding', kinds: ['imaging', 'eprotection'] },
+        { key: 'onboarding', label: 'Onboarding', view: 'onboarding', wtype: 'device' },
     ] },
     tasks: { title: 'Tasks', tabs: [{ key: 'tasks', label: 'Tasks', view: 'tasks' }] },
     docs: { title: 'Docs', tabs: [{ key: 'docs', label: 'Docs', view: 'docs' }] },
