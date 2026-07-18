@@ -142,7 +142,7 @@ class DocController extends Controller
             if ($blank) $decoded['steps'] = [];
             $copy->workflow_steps = json_encode($decoded);
             $copy->body = $blank
-                ? \App\Support\SopDocParser::toHtml([], '', $meta) . '<h2>Procedure</h2><section data-sop-step><p><strong>New step</strong></p><p></p></section>'
+                ? self::blankSopBody($meta)
                 : \App\Support\SopDocParser::toHtml($decoded['steps'] ?? [], '', $meta);
         } elseif ($blank) {
             $copy->body = '<p></p>';
@@ -157,6 +157,23 @@ class DocController extends Controller
         ])->save();
 
         return response()->json(['ok' => true, 'id' => $copy->id], 201);
+    }
+
+    /**
+     * The blank SOP scaffold: the FULL header table (empty rows ready to fill —
+     * the compiled renderer skips empty fields, an authoring scaffold must not),
+     * a Procedure heading, and one lean step card.
+     */
+    public static function blankSopBody(array $meta = []): string
+    {
+        $esc = fn ($v) => htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8');
+        $rows = '';
+        foreach (['Why' => '', 'How' => '', 'Scope' => '', 'Tools and Materials' => '', 'Safety Precautions' => '',
+            'Owner' => '', 'Version' => $meta['version'] ?? '1.0', 'Status' => $meta['status'] ?? 'Draft'] as $label => $value) {
+            $rows .= "<tr><td><p><strong>{$label}:</strong></p></td><td><p>{$esc($value)}</p></td></tr>";
+        }
+        return "<table><tbody>{$rows}</tbody></table>"
+            . '<h2>Procedure</h2><section data-sop-step><p><strong>New step</strong></p><p></p></section>';
     }
 
     /** Search every page the user can see — title first, then body. */
