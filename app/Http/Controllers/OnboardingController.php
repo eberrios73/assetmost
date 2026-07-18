@@ -208,7 +208,7 @@ class OnboardingController extends Controller
                     'userID' => $person->id,               // legacy column; ITer reads it
                 ]);
                 $login->holders()->attach($person->id);
-                $credentials[] = ['vendor' => $vendor->name, 'login_id' => $login->login_id];
+                $credentials[] = ['vendor' => $vendor->name, 'vendor_id' => $vendor->vendorID, 'login_id' => $login->login_id];
             }
 
             // 3. Floating accounts they'll hold from day one.
@@ -307,6 +307,29 @@ class OnboardingController extends Controller
                 'tasks' => $taskCount,
             ];
         });
+
+        // Provisioning fires AFTER the transaction: an API outage can never roll back
+        // the hire. Success completes the task with a note; failure leaves the manual
+        // task with the error attached. Automation accelerates, never gates.
+        foreach ($result['credentials'] as $i => $c) {
+            $vendor = Vendor::query()->find($c['vendor_id']);
+            $plug = $vendor ? \App\Support\Provisioning\ProvisionerRegistry::for($vendor, $companyId) : null;
+            if (! $plug) continue;
+            [$prov, $config] = $plug;
+            $task = Task::query()->where('parent_id', $result['project_id'])
+                ->where('title', 'like', "Create {$c['vendor']} account%")->first();
+            try {
+                $summary = $prov->provision($config, $data);
+                $result['credentials'][$i]['provisioned'] = true;
+                $task?->update(['done' => true, 'pct' => 100, 'completed_at' => Carbon::now(),
+                    'notes' => trim(($task->notes ?? '') . "\n\nAuto-provisioned via API: {$summary}")]);
+                Log::info('onboarding.provisioned', ['vendor' => $c['vendor'], 'person' => $result['person_id']]);
+            } catch (\Throwable $e) {
+                $result['credentials'][$i]['provisioned'] = false;
+                $task?->update(['notes' => trim(($task->notes ?? '') . "\n\nAPI attempt failed — create manually. " . $e->getMessage())]);
+                Log::warning('onboarding.provision_failed', ['vendor' => $c['vendor'], 'error' => $e->getMessage()]);
+            }
+        }
 
         return response()->json($result, 201);
     }

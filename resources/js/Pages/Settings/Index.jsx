@@ -7,7 +7,7 @@ import { ENTITIES } from '@/entities';
 
 const SECTIONS = [
     { key: 'companies', label: 'Companies' },
-    { key: 'identity', label: 'Identity providers' },
+    { key: 'identity', label: 'Identity & integrations' },
     { key: 'email', label: 'Email & signatures' },
     { key: 'backups', label: 'Backups' },
     { key: 'roles', label: 'Roles & access' },
@@ -173,8 +173,8 @@ function ProviderCard({ providerKey, label, companyId, existing }) {
                     <Field label={providerKey === 'okta' ? 'Org URL' : 'Domain'} value={form.domain}
                         onChange={(v) => setForm((f) => ({ ...f, domain: v }))}
                         placeholder={providerKey === 'okta' ? 'acme.okta.com' : 'acme.com'} />
-                    {providerKey === 'microsoft' && (
-                        <Field label="Directory (tenant) ID" value={form.tenant_id}
+                    {(providerKey === 'microsoft' || providerKey === 'zoom') && (
+                        <Field label={providerKey === 'zoom' ? 'Zoom Account ID' : 'Directory (tenant) ID'} value={form.tenant_id}
                             onChange={(v) => setForm((f) => ({ ...f, tenant_id: v }))} />
                     )}
                     <Field label="Client ID" value={form.client_id} onChange={(v) => setForm((f) => ({ ...f, client_id: v }))} />

@@ -282,7 +282,7 @@ function RunCard() {
                 <p className="text-sm font-medium text-green-800 dark:text-green-300 mb-1">Onboarding created</p>
                 <ul className="text-sm text-green-700 dark:text-green-400 space-y-0.5">
                     <li>Person added to the directory (sign-in stays off until granted).</li>
-                    <li>{result.credentials.length} credential{result.credentials.length === 1 ? '' : 's'} generated and stored in the registry{result.credentials.length ? `: ${result.credentials.map((c) => c.vendor).join(', ')}` : ''}.</li>
+                    <li>{result.credentials.length} credential{result.credentials.length === 1 ? '' : 's'} generated and stored in the registry{result.credentials.length ? `: ${result.credentials.map((c) => c.vendor + (c.provisioned === true ? ' (auto-created via API)' : '')).join(', ')}` : ''}.</li>
                     {result.floating.length > 0 && <li>Floating accounts assigned: {result.floating.join(', ')}.</li>}
                     <li>{result.tasks} tasks created under the project — chained and planned around the start date.</li>
                 </ul>
