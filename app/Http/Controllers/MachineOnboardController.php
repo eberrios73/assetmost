@@ -198,19 +198,22 @@ class MachineOnboardController extends Controller
             }
             if ($arg === '') continue;
             $q = strtolower($arg);
+            $firstWord = preg_split('/\s+/', $q)[0] ?? '';
 
             // Best match: the catalog file whose extension-stripped name overlaps the typed
-            // argument — bidirectional so shorthand ("Office") and picker-inserted full names
-            // (with trailing prose) both resolve; the longest overlap wins (most specific).
+            // argument — bidirectional (so "Office" shorthand and picker-inserted full names
+            // both resolve) and also on the leading word (so a distinctive shorthand like a
+            // VPN's "1197" resolves even with trailing prose). Longest overlap wins.
             $best = null; $bestLen = -1;
             foreach ($catalog as $i) {
                 $isVpn = (bool) preg_match($vpnRe, $i->name);
                 if ($type === 'vpn' ? ! $isVpn : $isVpn) continue;
                 if ($type === 'install' && $platform && $i->platform !== $platform) continue;
                 $fn = $stripExt($i->name);
-                if ($fn !== '' && (str_contains($q, $fn) || str_contains($fn, $q)) && strlen($fn) > $bestLen) {
-                    $best = $i; $bestLen = strlen($fn);
-                }
+                if ($fn === '') continue;
+                $hit = str_contains($q, $fn) || str_contains($fn, $q)
+                    || (strlen($firstWord) >= 3 && str_contains($fn, $firstWord));
+                if ($hit && strlen($fn) > $bestLen) { $best = $i; $bestLen = strlen($fn); }
             }
             if ($best) $out[$best->relative_path] = ['name' => $best->name, 'relative_path' => $best->relative_path,
                 'platform' => $best->platform, 'kind' => $type === 'vpn' ? 'vpn' : 'software'];
