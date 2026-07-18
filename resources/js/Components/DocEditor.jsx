@@ -59,15 +59,18 @@ const SLASH = [
 /** Notion/Docmost-style canvas: rich text + "/" slash menu. Autosaves HTML (debounced). */
 export default function DocEditor({ pageId, initialBody, onSave }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
-    const [refs, setRefs] = useState([]);   // runbook references: [{slug, name}]
+    const [refs, setRefs] = useState([]);         // runbook references: [{slug, name}]
+    const [installers, setInstallers] = useState([]);   // indexed installers share
     const saveTimer = useRef(null);
     const menuRef = useRef(null);
 
-    // Runbook references you can drop into a doc with "/". Typing /eprotection in a
-    // runbook resolves to the current Endpoint Protection runbook when a machine is built.
+    // Runbook references + installers you can drop into a doc with "/". Typing
+    // /eprotection references the current runbook; /install <name> picks software.
     useEffect(() => {
         fetch('/data/runbook-refs', { headers: { Accept: 'application/json' } })
             .then((r) => r.json()).then(setRefs).catch(() => {});
+        fetch('/data/installers', { headers: { Accept: 'application/json' } })
+            .then((r) => r.json()).then(setInstallers).catch(() => {});
     }, []);
 
     const editor = useEditor({
@@ -94,10 +97,17 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         const { $from, empty } = ed.state.selection;
         if (!empty) return setMenu(null);
         const textBefore = $from.parent.textBetween(0, $from.parentOffset, '\n', '\0');
-        const m = textBefore.match(/^\/(\w*)$/);
+        // "/install office" — a command that takes an argument (the software).
+        const inst = textBefore.match(/\/install\s+([^/]*)$/i);
+        if (inst) {
+            const coords = ed.view.coordsAtPos($from.pos);
+            return setMenu({ mode: 'install', query: inst[1].trim().toLowerCase(), from: $from.pos - inst[0].length, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
+        }
+        // "/word" — commands and runbook references.
+        const m = textBefore.match(/(?:^|\s)\/(\w*)$/);
         if (!m) return setMenu(null);
         const coords = ed.view.coordsAtPos($from.pos);
-        setMenu({ query: m[1].toLowerCase(), from: $from.pos - m[0].length, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
+        setMenu({ mode: 'slash', query: m[1].toLowerCase(), from: $from.pos - m[1].length - 1, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
     };
 
     // Reference items are runbooks: picking one inserts the /slug token as plain text —
@@ -107,8 +117,24 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         isRef: true, slug: r.slug,
         run: (e) => e.chain().focus().insertContent(`/${r.slug} `).run(),
     }));
-    const all = [...SLASH, ...refItems];
-    const items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
+
+    // /install <software>: search the indexed installers share. Whatever's typed can
+    // always be inserted (works before the share is indexed too).
+    let items;
+    if (menu?.mode === 'install') {
+        const picks = installers
+            .filter((i) => !menu.query || i.name.toLowerCase().includes(menu.query))
+            .slice(0, 8)
+            .map((i) => ({ key: `inst:${i.id}`, label: i.name, hint: `${i.platform}${i.arch ? ' ' + i.arch + '-bit' : ''}`,
+                run: (e) => e.chain().focus().insertContent(`/install ${i.name} `).run() }));
+        // Works before the share is indexed: keep whatever was typed as the reference.
+        if (menu.query) picks.push({ key: 'inst:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
+            run: (e) => e.chain().focus().insertContent(`/install ${menu.query} `).run() });
+        items = picks;
+    } else {
+        const all = [...SLASH, ...refItems];
+        items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
+    }
 
     const apply = (item) => {
         if (!editor || !item) return;
