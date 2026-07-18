@@ -249,7 +249,7 @@ function SpaceSwitcher({ spaces, space, onPick, onNew }) {
             <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
                 <SpaceAvatar space={space} />
                 <span className="flex-1 min-w-0 truncate text-left text-sm font-semibold text-gray-800 dark:text-gray-100">{space?.name || 'Spaces'}</span>
-                <span className="text-gray-400 text-xs">▾</span>
+                <span className="text-gray-500 text-[15px] leading-none">⌄</span>
             </button>
             {open && (
                 <div className="absolute z-20 mt-1 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1 max-h-80 overflow-y-auto">

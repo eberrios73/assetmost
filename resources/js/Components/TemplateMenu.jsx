@@ -21,7 +21,7 @@ export default function TemplateMenu({ label = 'New', glyph = null, onPick, comp
         <div className="relative" ref={ref}>
             <button onClick={() => setOpen((o) => !o)}
                 className={className || `inline-flex items-center justify-center gap-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600 ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm'}`}>
-                {glyph}{label} <span className="text-gray-400">▾</span>
+                {glyph}{label} <span className="text-gray-500 text-[13px] leading-none">⌄</span>
             </button>
             {open && (
                 <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
