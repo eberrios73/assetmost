@@ -156,7 +156,7 @@ class MachineOnboardController extends Controller
             'asset_tag' => $device->asset_tag,
             'project_id' => $project->id,
             'recipe' => $recipe,
-            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant'], $files, self::mdm($steps)),
+            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant'], $files, self::mdm($steps), self::mdmProfile($steps, $companyId)),
         ], 201);
     }
 
@@ -190,6 +190,25 @@ class MachineOnboardController extends Controller
         return preg_match('~/mdm\s+([a-z0-9 ]+?)\s*(?:$|\n|/)~im', self::stepsText($steps), $m)
             ? strtolower(trim($m[1]))
             : '';
+    }
+
+    /**
+     * The enrollment profile (.mobileconfig) on the share for the /mdm system, if one is
+     * there — keeps the enrollment credential off the script: the script fetches this file
+     * and installs it instead of hitting the MDM's URL with a username/password. Matched by
+     * the system name, an "enroll" hint, or a JAMF/MDM folder. Returns relative_path or null.
+     */
+    public static function mdmProfile(array $steps, int $companyId): ?string
+    {
+        $mdm = self::mdm($steps);
+        if ($mdm === '') return null;
+        $first = strtolower(preg_split('/\s+/', $mdm)[0] ?? $mdm);
+        $file = DB::table('installers')->get()->first(function ($i) use ($first) {
+            if (! preg_match('/\.mobileconfig$/i', $i->name)) return false;
+            $hay = strtolower($i->name . ' ' . $i->relative_path);
+            return str_contains($hay, $first) || str_contains($hay, 'enroll') || str_contains($hay, 'mdm');
+        });
+        return $file?->relative_path;
     }
 
     public static function recipe(array $steps, int $companyId): array
@@ -302,7 +321,7 @@ class MachineOnboardController extends Controller
     }
 
     /** The idempotent bootstrap script — platform decided by the runbook variant. */
-    private function script(Device $device, string $token, string $base, string $variant = '', array $installers = [], string $mdm = ''): string
+    private function script(Device $device, string $token, string $base, string $variant = '', array $installers = [], string $mdm = '', ?string $mdmProfile = null): string
     {
         $tag = $device->asset_tag;
         $domain = $device->company?->local_domain ?: 'your.domain';
@@ -320,8 +339,16 @@ class MachineOnboardController extends Controller
             $winFetch .= self::winInstall($url, $file);
         }
 
-        // MDM enrollment block from the SOP's /mdm token (empty if none).
-        $macMdm = self::macMdm($mdm);
+        // MDM enrollment block from the SOP's /mdm token (empty if none). If an enrollment
+        // profile is on the share, the script fetches + installs it (no credentials).
+        $profileUrl = '';
+        $profileFile = '';
+        if ($mdmProfile && $repo) {
+            $rel = ltrim($mdmProfile, '/');
+            $profileUrl = $repo . '/' . str_replace('%2F', '/', rawurlencode($rel));
+            $profileFile = basename($rel);
+        }
+        $macMdm = self::macMdm($mdm, $profileUrl, $profileFile);
         $winMdm = self::winMdm($mdm);
 
         if (preg_match('/mac/i', $variant)) {
@@ -422,21 +449,34 @@ PS;
     }
 
     /**
-     * macOS MDM enrollment from the /mdm token. ABM/DEP re-enrollment (`profiles renew`)
-     * is the same command for any Apple MDM — Jamf, Kandji, Mosyle, Addigy, Intune —
-     * so the name is just what we report; non-ABM devices fail gracefully to a note.
+     * macOS MDM enrollment from the /mdm token. Preferred path: fetch the enrollment
+     * profile that lives on the share and open it for the user to approve (keeps the
+     * enrollment credential out of the script entirely). Fallback when no profile is on
+     * the share: ABM/DEP re-enrollment (`profiles renew`), which needs no file.
      */
-    private static function macMdm(string $mdm): string
+    private static function macMdm(string $mdm, string $profileUrl = '', string $profileFile = ''): string
     {
         if ($mdm === '') return '# (no /mdm in the runbook)';
         $name = ucwords($mdm);
 
+        if ($profileUrl !== '') {
+            return <<<SH
+# Enroll into {$name} - fetch the enrollment profile from the share and open it for approval
+if curl -fsSL "{$profileUrl}" -o "/tmp/{$profileFile}" 2>/dev/null; then
+  open "/tmp/{$profileFile}"
+  report 'MDM enrollment' true '{$name} profile staged - approve it in System Settings > Profiles'
+else
+  report 'MDM enrollment' false 'Could not fetch the {$name} enrollment profile from the share'
+fi
+SH;
+        }
+
         return <<<SH
-# Enroll into {$name} - ABM/DEP-assigned devices renew here; otherwise install the enrollment profile from your {$name} portal
+# Enroll into {$name} - ABM/DEP-assigned devices renew here; or drop the enrollment .mobileconfig on the share
 if profiles renew -type enrollment 2>/dev/null; then
   report 'MDM enrollment' true 'Enrollment renewed ({$name})'
 else
-  report 'MDM enrollment' false 'Auto-enroll failed - enroll from your {$name} portal'
+  report 'MDM enrollment' false 'Auto-enroll failed - add the {$name} enrollment profile to the share'
 fi
 SH;
     }
