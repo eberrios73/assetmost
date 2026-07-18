@@ -1,4 +1,4 @@
-import { PlusIcon, DocIcon } from "@/Components/Icons";
+import { PlusIcon, DocIcon, Chevron } from "@/Components/Icons";
 import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
@@ -210,7 +210,7 @@ function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onTog
                             className={`group flex items-center pr-2 hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} style={{ paddingLeft: `${6 + depth * 14}px` }}>
                             {hasKids ? (
                                 <button onClick={() => onToggle(n.id)} title={isCollapsed ? 'Expand' : 'Collapse'}
-                                    className="w-5 shrink-0 text-[15px] leading-none text-gray-500 hover:text-gray-800 dark:hover:text-gray-100">{isCollapsed ? '›' : '⌄'}</button>
+                                    className="w-5 shrink-0 flex justify-center text-gray-500 hover:text-gray-800 dark:hover:text-gray-100"><Chevron open={!isCollapsed} /></button>
                             ) : <span className="w-5 shrink-0" />}
                             <button onClick={() => onSelect(n.id)} className="flex-1 min-w-0 flex items-center gap-1.5 text-left py-1.5 text-sm text-gray-700 dark:text-gray-300">
                                 <DocIcon className="h-4 w-4 shrink-0 text-gray-400" /><span className="truncate">{n.title}</span>
@@ -249,7 +249,7 @@ function SpaceSwitcher({ spaces, space, onPick, onNew }) {
             <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
                 <SpaceAvatar space={space} />
                 <span className="flex-1 min-w-0 truncate text-left text-sm font-semibold text-gray-800 dark:text-gray-100">{space?.name || 'Spaces'}</span>
-                <span className="text-gray-500 text-[15px] leading-none">⌄</span>
+                <Chevron open className="h-4 w-4 text-gray-500" />
             </button>
             {open && (
                 <div className="absolute z-20 mt-1 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1 max-h-80 overflow-y-auto">

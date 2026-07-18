@@ -123,6 +123,45 @@ class OnboardingController extends Controller
         );
     }
 
+    /**
+     * Preview what a runbook generates — the flat task list a machine would get,
+     * with /references resolved to their current steps. This is "see it in action"
+     * without onboarding a real machine.
+     */
+    public function preview(Request $request): JsonResponse
+    {
+        $companyId = app(TenantResolver::class)->id();
+        $kind = $request->string('kind')->toString() ?: 'imaging';
+        $variant = $request->string('variant')->toString();
+        $t = OnboardingTemplate::query()->where('company_id', $companyId)
+            ->where('kind', $kind)->where('variant', $variant)->first();
+        abort_if(! $t, 404);
+        $steps = json_decode($t->steps, true)['steps'] ?? [];
+        $base = $request->getSchemeAndHttpHost();
+
+        $rows = [];
+        foreach ($steps as $step) {
+            $refExtra = [];
+            $note = '';
+            foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when'] as $k => $label) {
+                if (! empty($step[$k])) {
+                    [$resolved, $extra] = \App\Support\RunbookRefs::resolve($step[$k], $companyId, $base);
+                    if ($k === 'instructions') $note = $resolved;
+                    $refExtra = array_merge($refExtra, $extra);
+                }
+            }
+            $rows[] = ['title' => $step['title'], 'note' => $note, 'depth' => 0, 'ref' => false];
+            // referenced runbook's live steps
+            foreach ($refExtra as $r) {
+                $rows[] = ['title' => $r['title'], 'note' => $r['instructions'] ?? '', 'depth' => 1, 'ref' => true];
+            }
+            foreach ($step['subtasks'] ?? [] as $sub) {
+                $rows[] = ['title' => $sub['title'], 'note' => $sub['instructions'] ?? '', 'depth' => 1, 'ref' => false];
+            }
+        }
+        return response()->json(['rows' => $rows]);
+    }
+
     public function saveTemplate(Request $request): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);

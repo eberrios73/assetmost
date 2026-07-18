@@ -70,6 +70,11 @@ export default function OnboardingSetup() {
     const [steps, setSteps] = useState(null);        // null = nothing saved for this kind/variant
     const [source, setSource] = useState(null);      // {id,title} of the master Docs page
     const [sopMeta, setSopMeta] = useState(null);    // {owner, version, status, ...} from the SOP's governance table
+    const [preview, setPreview] = useState(null);    // 'load' | {rows:[...]}
+    useEffect(() => {
+        if (preview !== 'load') return;
+        api(`/data/onboarding-preview?kind=${kind}&variant=${encodeURIComponent(variant)}`).then((r) => setPreview(r)).catch(() => setPreview(null));
+    }, [preview, kind, variant]);
     const [pasting, setPasting] = useState(false);
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
@@ -178,6 +183,10 @@ export default function OnboardingSetup() {
                 </h2>
                 <div className="flex items-center gap-2">
                     {saved && <span className="text-xs text-green-600">{saved}</span>}
+                    <button onClick={() => setPreview(preview ? null : 'load')}
+                        className="px-3 py-1.5 text-sm rounded-md border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10">
+                        {preview ? 'Hide preview' : 'Preview tasks'}
+                    </button>
                     {source && (
                         <>
                             <a href={`/docs?page=${source.id}`} className="text-xs text-blue-600 dark:text-blue-400 hover:underline" title="The master SOP document">
@@ -208,6 +217,24 @@ export default function OnboardingSetup() {
                 <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code>
                 fill in at run time{kind === 'offboarding' ? ' ({start_date} = last day)' : ''}.
             </p>
+
+            {preview && preview !== 'load' && (
+                <div className="mb-4 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-500/5 p-4">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                        This is the checklist a machine gets — {preview.rows.length} tasks. Steps pulled in from a
+                        referenced runbook (like <code>/eprotection</code>) are marked <span className="rounded bg-amber-100 dark:bg-amber-500/15 px-1 text-[10px] text-amber-700 dark:text-amber-400">linked</span> and stay current automatically.
+                    </p>
+                    <ol className="space-y-0.5">
+                        {preview.rows.map((r, i) => (
+                            <li key={i} className={`flex items-start gap-2 text-sm ${r.depth ? 'pl-6 text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-medium'}`}>
+                                <span className="text-gray-300 dark:text-gray-600">{r.depth ? '↳' : '•'}</span>
+                                <span>{r.title}{r.ref && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:text-amber-400">linked</span>}</span>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+            )}
+            {preview === 'load' && <p className="mb-4 text-sm text-gray-400">Building preview…</p>}
 
             <ol className="space-y-2">
                 {steps.map((s, i) => (

@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
-import { TrashIcon } from '@/Components/Icons';
+import { TrashIcon, Chevron } from '@/Components/Icons';
 import { buildDocBody, templateCategory } from '@/docTemplates';
 import TemplateMenu from '@/Components/TemplateMenu';
 import SearchSelect from '@/Components/SearchSelect';
@@ -361,7 +361,7 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
                 </td>
                 <td className="px-1 py-1.5 text-center">
                     <button onClick={onToggle} title="details & notes"
-                        className={`px-1 text-[15px] leading-none ${expanded ? 'text-blue-600' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}>{expanded ? '⌄' : '›'}</button>
+                        className={`px-1 ${expanded ? 'text-blue-600' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><Chevron open={expanded} className="h-3.5 w-3.5" /></button>
                 </td>
                 <td className="px-3 py-1.5 text-center">
                     <button onClick={() => onDelete(t.id, t.title)} title="delete"
@@ -439,7 +439,7 @@ function ProjectRow({ p, open, patch, onToggle }) {
                     <span className="text-xs text-gray-400 w-8 text-right">{p.pct || 0}%</span>
                 </div>
             </td>
-            <td className="px-3 py-2 text-center text-[15px] leading-none text-gray-400">{open ? '⌄' : '›'}</td>
+            <td className="px-3 py-2 text-gray-400"><span className="flex justify-center"><Chevron open={open} className="h-3.5 w-3.5" /></span></td>
         </tr>
     );
 }
