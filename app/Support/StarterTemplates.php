@@ -20,7 +20,7 @@ namespace App\Support;
  */
 class StarterTemplates
 {
-    public const KINDS = ['onboarding' => 'Employee onboarding', 'offboarding' => 'Employee offboarding', 'imaging' => 'Workstation setup'];
+    public const KINDS = ['onboarding' => 'Employee onboarding', 'offboarding' => 'Employee offboarding', 'imaging' => 'Workstation setup', 'eprotection' => 'Endpoint protection'];
 
     public static function get(string $kind, string $variant = ''): ?array
     {
@@ -28,6 +28,7 @@ class StarterTemplates
             'onboarding' => self::onboarding(),
             'offboarding' => self::offboarding(),
             'imaging' => self::imaging($variant),
+            'eprotection' => self::eprotection(),
             default => null,
         };
     }
@@ -82,6 +83,31 @@ class StarterTemplates
             $s('followup', 'One-week follow-up', 'other', 7, [
                 'why' => 'Problems a hire has stopped reporting by week two become permanent workarounds.',
                 'done' => 'Hire confirms everything works; issues found became tasks.',
+            ]),
+        ]];
+    }
+
+    /**
+     * Referenced by other runbooks as /eprotection — deliberately its own document
+     * because endpoint tooling changes often; references always resolve to the
+     * CURRENT version, so nothing else needs editing when the agent changes.
+     */
+    private static function eprotection(): array
+    {
+        $s = fn (...$a) => self::step(...$a);
+        return ['version' => 1, 'steps' => [
+            $s('agent', 'Install the endpoint agent (current standard: Wazuh)', 'machine', 0, [
+                'why' => 'A machine the fleet monitor cannot see is where a compromise lives unnoticed.',
+                'how' => 'Install the current agent for this platform; point it at the manager. Update THIS runbook when the tooling changes — everything referencing /eprotection follows automatically.',
+                'done' => 'The machine appears in the monitoring console and reports events.',
+            ]),
+            $s('av', 'Antivirus active', 'machine', 0, [
+                'how' => 'Platform standard (Defender policy on Windows; ClamXav on Mac). Confirm real-time protection is ON, not just installed.',
+                'done' => 'A test EICAR file is detected.',
+            ]),
+            $s('updates', 'Agent auto-update confirmed', 'machine', 0, [
+                'why' => 'A stale agent is a false sense of security with a version number.',
+                'done' => 'Auto-update enabled, or the update task exists in the maintenance schedule.',
             ]),
         ]];
     }

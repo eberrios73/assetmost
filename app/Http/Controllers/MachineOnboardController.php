@@ -82,8 +82,15 @@ class MachineOnboardController extends Controller
 
             foreach ($steps as $step) {
                 $card = [];
+                $refSteps = [];
                 foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
-                    if (! empty($step[$k])) $card[] = "{$label}: {$step[$k]}";
+                    if (! empty($step[$k])) {
+                        // /references resolve NOW — the referenced runbook's current
+                        // steps expand as subtasks, so stale copies can't exist.
+                        [$resolved, $extra] = \App\Support\RunbookRefs::resolve($step[$k], $companyId, request()->getSchemeAndHttpHost());
+                        $card[] = "{$label}: {$resolved}";
+                        $refSteps = array_merge($refSteps, $extra);
+                    }
                 }
                 $t = Task::create([
                     'title' => $step['title'], 'notes' => implode("\n", $card),
@@ -91,6 +98,18 @@ class MachineOnboardController extends Controller
                     'planned_start' => Carbon::now()->toDateString(), 'due_date' => Carbon::now()->toDateString(),
                     'assigned_to' => auth()->id(), 'ord' => $ord++,
                 ]);
+                foreach ($refSteps as $sub) {
+                    $cardR = [];
+                    foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
+                        if (! empty($sub[$k])) $cardR[] = "{$label}: {$sub[$k]}";
+                    }
+                    Task::create([
+                        'title' => $sub['title'], 'notes' => implode("\n", $cardR),
+                        'parent_id' => $t->id, 'week' => $monday, 'origin' => Carbon::now()->toDateString(),
+                        'planned_start' => Carbon::now()->toDateString(), 'due_date' => Carbon::now()->toDateString(),
+                        'assigned_to' => auth()->id(), 'ord' => $ord++,
+                    ]);
+                }
                 foreach ($step['subtasks'] ?? [] as $sub) {
                     $cardS = [];
                     foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
