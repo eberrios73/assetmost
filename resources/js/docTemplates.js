@@ -2,23 +2,26 @@
 // Bodies are TipTap-compatible HTML.
 
 const SOP = `
+<p>An SOP is a recipe: anyone competent should get the same result by following it. Fill in the header, list the steps in order, and say how you prove it worked. Delete the grey guidance as you go.</p>
 <table><tbody>
 <tr><th>Owner</th><td></td><th>Version</th><td>1.0</td></tr>
 <tr><th>Effective</th><td></td><th>Review by</th><td></td></tr>
 <tr><th>Approver</th><td></td><th>Status</th><td>Draft</td></tr>
 </tbody></table>
-<h2>Purpose</h2><p></p>
-<h2>Scope</h2><p></p>
-<h2>Prerequisites</h2><ul><li></li></ul>
+<p><em>Owner — the ONE person who keeps this document true; when a step is wrong, they're who you tell. Version — bump it on every change and log it in Revision history. Effective — when this takes force. Review by — the date someone must re-read it (stale SOPs are worse than none). Approver — who signed off. Status stays Draft until they do.</em></p>
+<h2>Purpose</h2><p><em>One or two sentences: what this procedure achieves, and when to use it.</em></p>
+<h2>Scope</h2><p><em>What it covers — and what it deliberately does not.</em></p>
+<h2>Prerequisites</h2><ul><li><em>Access, credentials, tools or parts needed BEFORE starting.</em></li></ul>
 <h2>Procedure</h2>
+<p><em>One action per row, in order. Notes carry the exact commands, paths and settings. These rows compile into checklist tasks.</em></p>
 <table><tbody>
 <tr><th>#</th><th>Action</th><th>Responsible</th><th>Notes</th></tr>
 <tr><td>1</td><td></td><td></td><td></td></tr>
 <tr><td>2</td><td></td><td></td><td></td></tr>
 <tr><td>3</td><td></td><td></td><td></td></tr>
 </tbody></table>
-<h2>Verification</h2><p></p>
-<h2>Rollback / recovery</h2><p></p>
+<h2>Verification</h2><p><em>How you PROVE it worked — something observable, not "I did the steps." (BitLocker isn't done when the bar fills; it's done when the key is visible in AD.)</em></p>
+<h2>Rollback / recovery</h2><p><em>If it goes wrong: how to get back to a known-good state.</em></p>
 <h2>Revision history</h2>
 <table><tbody>
 <tr><th>Date</th><th>Version</th><th>Change</th><th>By</th></tr>

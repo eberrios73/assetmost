@@ -89,6 +89,13 @@ export default function Index() {
         await loadSpaces();
         chooseSpace(id);
     };
+    // Drag a page onto another to nest it; drop on the tree background for top level.
+    const moveDoc = async (id, parentId) => {
+        if (id === parentId) return;
+        await api(`/data/docs/${id}`, 'PATCH', { parent_id: parentId });
+        if (page?.id === id) setPage((p) => ({ ...p, parent_id: parentId }));
+        loadTree();
+    };
     const saveCategory = async (category) => {
         setPage((p) => ({ ...p, category }));
         await api(`/data/docs/${selectedId}`, 'PATCH', { category: category || null });
@@ -137,7 +144,9 @@ export default function Index() {
                     </button>
                 )}
             </div>
-            <div className="flex-1 overflow-y-auto py-1">
+            <div className="flex-1 overflow-y-auto py-1"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { const id = Number(e.dataTransfer.getData('doc-id')); if (id) moveDoc(id, null); }}>
                 {filter ? (
                     flat.length ? flat.map((n) => (
                         <button key={n.id} onClick={() => openPage(n.id)}
@@ -148,7 +157,7 @@ export default function Index() {
                         </button>
                     )) : <div className="p-4 text-sm text-gray-400">No {filter} pages.</div>
                 ) : (
-                    tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} collapsed={collapsed} onToggle={toggleCollapse} />
+                    tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} collapsed={collapsed} onToggle={toggleCollapse} onMove={moveDoc} />
                         : <div className="p-4 text-sm text-gray-400">No pages yet. Create one.</div>
                 )}
             </div>
@@ -197,7 +206,7 @@ export default function Index() {
     );
 }
 
-function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onToggle }) {
+function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onToggle, onMove }) {
     return (
         <ul>
             {nodes.map((n) => {
@@ -205,7 +214,12 @@ function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onTog
                 const isCollapsed = collapsed.has(n.id);
                 return (
                     <li key={n.id}>
-                        <div className={`group flex items-center pr-2 hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} style={{ paddingLeft: `${6 + depth * 14}px` }}>
+                        <div draggable
+                            onDragStart={(e) => { e.dataTransfer.setData('doc-id', String(n.id)); e.dataTransfer.effectAllowed = 'move'; }}
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add('ring-1', 'ring-blue-400'); }}
+                            onDragLeave={(e) => e.currentTarget.classList.remove('ring-1', 'ring-blue-400')}
+                            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove('ring-1', 'ring-blue-400'); const id = Number(e.dataTransfer.getData('doc-id')); if (id && id !== n.id) onMove(id, n.id); }}
+                            className={`group flex items-center pr-2 hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`} style={{ paddingLeft: `${6 + depth * 14}px` }}>
                             {hasKids ? (
                                 <button onClick={() => onToggle(n.id)} title={isCollapsed ? 'Expand' : 'Collapse'}
                                     className="w-4 shrink-0 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">{isCollapsed ? '▸' : '▾'}</button>
@@ -216,7 +230,7 @@ function Tree({ nodes, depth, selectedId, onSelect, onAddChild, collapsed, onTog
                             <CategoryBadge category={n.category} />
                             <button onClick={() => onAddChild(n.id)} title="Add sub-page" className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 px-1"><PlusIcon /></button>
                         </div>
-                        {hasKids && !isCollapsed && <Tree nodes={n.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onAddChild={onAddChild} collapsed={collapsed} onToggle={onToggle} />}
+                        {hasKids && !isCollapsed && <Tree nodes={n.children} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onAddChild={onAddChild} collapsed={collapsed} onToggle={onToggle} onMove={onMove} />}
                     </li>
                 );
             })}
