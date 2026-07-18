@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import RecordModal from '@/Components/RecordModal';
 import DataTable from '@/Components/ui/DataTable';
@@ -382,11 +382,15 @@ function Installers() {
     const [scanning, setScanning] = useState(false);
     const [status, setStatus] = useState(installers);
     const [saved, setSaved] = useState('');
+    // Keep the fields in sync when the prop refreshes (after a save reload).
+    useEffect(() => { setCompanies(installers.companies || []); }, [JSON.stringify(installers.companies)]);
 
     const savePath = async (id, path) => {
-        setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, installers_path: path } : c)));
+        setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, installers_path: path, _saved: true } : c)));
         await post('/settings/installers-path', { company_id: id, path });
-        setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
+        setSaved('Saved');
+        setTimeout(() => { setSaved(''); setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, _saved: false } : c))); }, 1500);
+        router.reload({ only: ['installers'] });   // refresh the prop so the value sticks across visits
     };
     const scan = async () => {
         setScanning(true);
@@ -414,13 +418,16 @@ function Installers() {
             <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Share path per company (shown to techs; UNC or smb://)</p>
             {companies.map((c) => (
                 <label key={c.id} className="mb-2 block">
-                    <span className="mb-1 block text-sm text-gray-700 dark:text-gray-200">{c.name}</span>
-                    <input defaultValue={c.installers_path || ''} placeholder="\\nas\IT\Installers  or  smb://nas/IT/Installers"
+                    <span className="mb-1 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                        {c.name}
+                        {c._saved && <span className="text-xs text-green-600">Saved ✓</span>}
+                    </span>
+                    <input value={c.installers_path || ''} placeholder="\\nas\IT\Installers  or  smb://nas/IT/Installers"
+                        onChange={(e) => setCompanies((cs) => cs.map((x) => (x.id === c.id ? { ...x, installers_path: e.target.value } : x)))}
                         onBlur={(e) => savePath(c.id, e.target.value)}
                         className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
                 </label>
             ))}
-            {saved && <p className="text-xs text-green-600 mb-2">{saved}</p>}
 
             <div className="mt-4 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
                 <p className="font-medium mb-1">Server-side setup (one time)</p>
