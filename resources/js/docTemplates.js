@@ -1,25 +1,26 @@
 // Doc templates — shared by the Docs "New" menu and the "Make doc" action on a task.
 // Bodies are TipTap-compatible HTML.
 
+// The header rows and the step cards are ENGINE-NATIVE: header rows compile to the
+// workflow's meta (Tools/Safety become real tasks ahead of the procedure), step cards
+// compile to chained checklist tasks. Guidance paragraphs are deliberately over 20
+// words — the parser treats long prose as context, never as a step.
 const SOP = `
-<p>An SOP is a recipe: anyone competent should get the same result by following it. Fill in the header, list the steps in order, and say how you prove it worked. Delete the grey guidance as you go.</p>
+<p>An SOP is a recipe: anyone competent should get the same result by following it. Fill in the header, keep each step a single action, and say how you prove it worked. Delete the grey guidance as you go.</p>
 <table><tbody>
-<tr><th>Owner</th><td></td><th>Version</th><td>1.0</td></tr>
-<tr><th>Effective</th><td></td><th>Review by</th><td></td></tr>
-<tr><th>Approver</th><td></td><th>Status</th><td>Draft</td></tr>
+<tr><td><p><strong>Why:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>How:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Scope:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Tools and Materials:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Safety Precautions:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Owner:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Version:</strong></p></td><td><p>1.0</p></td></tr>
+<tr><td><p><strong>Status:</strong></p></td><td><p>Draft</p></td></tr>
 </tbody></table>
-<p><em>Owner — the ONE person who keeps this document true; when a step is wrong, they're who you tell. Version — bump it on every change and log it in Revision history. Effective — when this takes force. Review by — the date someone must re-read it (stale SOPs are worse than none). Approver — who signed off. Status stays Draft until they do.</em></p>
-<h2>Purpose</h2><p><em>One or two sentences: what this procedure achieves, and when to use it.</em></p>
-<h2>Scope</h2><p><em>What it covers — and what it deliberately does not.</em></p>
-<h2>Prerequisites</h2><ul><li><em>Access, credentials, tools or parts needed BEFORE starting.</em></li></ul>
+<p><em>Every header row is optional — delete the ones this procedure doesn't need. Why is the purpose; How is the approach in one line; Tools and Safety are one item per line and become REAL tasks ahead of the procedure when this SOP runs. Owner is the ONE person who keeps this document true; Version bumps on every change and gets a line in Revision history.</em></p>
 <h2>Procedure</h2>
-<p><em>One action per row, in order. Notes carry the exact commands, paths and settings. These rows compile into checklist tasks.</em></p>
-<table><tbody>
-<tr><th>#</th><th>Action</th><th>Responsible</th><th>Notes</th></tr>
-<tr><td>1</td><td></td><td></td><td></td></tr>
-<tr><td>2</td><td></td><td></td><td></td></tr>
-<tr><td>3</td><td></td><td></td><td></td></tr>
-</tbody></table>
+<p><em>One action per step card, in order, written as a command ("Lock out the power source"). Type /step for a new card, use the card's ↳+ for substeps and ⊞ for a Why/How/Done-when table on a step that earns one; /install, /vpn, /mdm and /form drop live commands into the procedure.</em></p>
+<section data-sop-step><p><strong>New step</strong></p><p></p></section>
 <h2>Verification</h2><p><em>How you PROVE it worked — something observable, not "I did the steps." (BitLocker isn't done when the bar fills; it's done when the key is visible in AD.)</em></p>
 <h2>Rollback / recovery</h2><p><em>If it goes wrong: how to get back to a known-good state.</em></p>
 <h2>Revision history</h2>
