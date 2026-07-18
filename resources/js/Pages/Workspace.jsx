@@ -112,25 +112,46 @@ export default function Workspace({ group }) {
     } else if (tab.view === 'onboarding') {
         // Only ACTIVE workflows show; device baselines (form-factor ones) nest under
         // "Device Setup", the rest (Endpoint protection, the people workflows) sit flat.
+        // In All-companies mode every company keeps its own set — group by company so
+        // the pairs read as what they are, not duplicates.
         const activeWf = workflows.filter((w) => w.active);
-        const baselines = tab.wtype === 'device' ? activeWf.filter((w) => w.form_factor) : [];
-        const flat = tab.wtype === 'device' ? activeWf.filter((w) => !w.form_factor) : activeWf;
-        const sel = activeWf.find((w) => w.id === wfId) || baselines[0] || flat[0] || null;
+        const sel = activeWf.find((w) => w.id === wfId)
+            || activeWf.find((w) => w.form_factor) || activeWf[0] || null;
         const wfBtn = (w) => (
             <button key={w.id} onClick={() => setWfId(w.id)}
                 className={`w-full rounded-md px-3 py-2 text-left text-sm ${sel?.id === w.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
                 {w.title}
             </button>
         );
+        const companyIds = [...new Set(activeWf.map((w) => w.company_id))];
+        const section = (list) => {
+            const baselines = tab.wtype === 'device' ? list.filter((w) => w.form_factor) : [];
+            const flat = tab.wtype === 'device' ? list.filter((w) => !w.form_factor) : list;
+            return (
+                <>
+                    {baselines.length > 0 && (
+                        <>
+                            <p className="px-3 pt-1 pb-0.5 text-xs uppercase tracking-wide text-gray-400">Device Setup</p>
+                            <div className="ml-3 space-y-1">{baselines.map(wfBtn)}</div>
+                        </>
+                    )}
+                    {flat.map(wfBtn)}
+                </>
+            );
+        };
         listContent = (
             <div className="p-3 space-y-1">
-                {baselines.length > 0 && (
-                    <>
-                        <p className="px-3 pt-1 pb-0.5 text-xs uppercase tracking-wide text-gray-400">Device Setup</p>
-                        <div className="ml-3 space-y-1">{baselines.map(wfBtn)}</div>
-                    </>
-                )}
-                {flat.map(wfBtn)}
+                {companyIds.length > 1
+                    ? companyIds.map((cid) => {
+                        const list = activeWf.filter((w) => w.company_id === cid);
+                        return (
+                            <div key={cid} className="space-y-1">
+                                <p className="px-3 pt-2 pb-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{list[0]?.company || `Company ${cid}`}</p>
+                                {section(list)}
+                            </div>
+                        );
+                    })
+                    : section(activeWf)}
             </div>
         );
         detailContent = sel

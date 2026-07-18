@@ -36,13 +36,16 @@ class WorkflowController extends Controller
         return response()->json(
             DocPage::query()->whereNotNull('workflow_type')
                 ->when(in_array($type, ['people', 'device'], true), fn ($q) => $q->where('workflow_type', $type))
+                ->with('company:id,name')
                 ->orderByRaw('form_factor IS NULL')->orderBy('form_factor')->orderBy('title')
-                ->get(['id', 'title', 'workflow_type', 'workflow_slug', 'form_factor', 'workflow_active', 'workflow_shipped', 'workflow_wizard'])
+                ->get(['id', 'company_id', 'title', 'workflow_type', 'workflow_slug', 'form_factor', 'workflow_active', 'workflow_shipped', 'workflow_wizard'])
                 ->map(fn ($p) => [
                     'id' => $p->id, 'title' => $p->title, 'type' => $p->workflow_type,
                     'slug' => $p->workflow_slug, 'form_factor' => $p->form_factor,
                     'active' => (bool) $p->workflow_active, 'shipped' => (bool) $p->workflow_shipped,
                     'wizard' => (bool) $p->workflow_wizard,
+                    // In All-companies mode every company's set shows — the name disambiguates.
+                    'company_id' => $p->company_id, 'company' => $p->company?->name,
                 ])
         );
     }
