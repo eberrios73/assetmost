@@ -377,31 +377,31 @@ function RoleGroup({ group, access, matrix, toggle }) {
  * IS the catalog: whatever's in the share is what /install offers.
  */
 function Installers() {
-    const { installers = {} } = usePage().props;
-    const [companies, setCompanies] = useState(installers.companies || []);
+    const [companies, setCompanies] = useState([]);
     const [scanning, setScanning] = useState(false);
-    const [status, setStatus] = useState(installers);
+    const [status, setStatus] = useState({});
     const [saved, setSaved] = useState('');
-    // Keep the fields in sync when the prop refreshes (after a save reload).
-    useEffect(() => { setCompanies(installers.companies || []); }, [JSON.stringify(installers.companies)]);
+    // Fetch the current config directly so the saved path always shows on load.
+    const load = () => fetch('/settings/installers-config', { headers: { Accept: 'application/json' } })
+        .then((r) => r.json()).then((d) => { setCompanies(d.companies || []); setStatus(d); });
+    useEffect(() => { load(); }, []);
 
     const savePath = async (id, path) => {
         setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, installers_path: path, _saved: true } : c)));
         await post('/settings/installers-path', { company_id: id, path });
         setSaved('Saved');
         setTimeout(() => { setSaved(''); setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, _saved: false } : c))); }, 1500);
-        router.reload({ only: ['installers'] });   // refresh the prop so the value sticks across visits
     };
     const scan = async () => {
         setScanning(true);
         const r = await post('/settings/installers-scan', {});
         setScanning(false);
         if (r?.ok) setStatus((s) => ({ ...s, count: r.count, last_scan: r.last_scan }));
-        else alert(r?.error || 'Scan failed — see the mount note below.');
+        else alert(r?.error || 'Scan failed.');
     };
 
     return (
-        <Section title="Installers" desc="The share where your installers live. /install in a runbook reads this list — the directory is the catalog.">
+        <Section title="Installers" desc="Where your installers live, listed over SSH. /install in a runbook reads this list — the directory is the catalog.">
             <div className="mb-5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
                 <div className="flex items-center justify-between">
                     <div>
@@ -415,14 +415,14 @@ function Installers() {
                 </div>
             </div>
 
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Share path per company (shown to techs; UNC or smb://)</p>
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Path per company — host/path (e.g. files.example.com/X Technology/Installers)</p>
             {companies.map((c) => (
                 <label key={c.id} className="mb-2 block">
                     <span className="mb-1 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                         {c.name}
                         {c._saved && <span className="text-xs text-green-600">Saved ✓</span>}
                     </span>
-                    <input value={c.installers_path || ''} placeholder="\\nas\IT\Installers  or  smb://nas/IT/Installers"
+                    <input value={c.installers_path || ''} placeholder="files.example.com/X Technology/Installers"
                         onChange={(e) => setCompanies((cs) => cs.map((x) => (x.id === c.id ? { ...x, installers_path: e.target.value } : x)))}
                         onBlur={(e) => savePath(c.id, e.target.value)}
                         className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
@@ -430,9 +430,11 @@ function Installers() {
             ))}
 
             <div className="mt-4 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
-                <p className="font-medium mb-1">Server-side setup (one time)</p>
-                <p>Mount the share read-only on the AssetMost server at <code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">{status.mount || '/mnt/installers'}</code> with
-                platform subfolders <code>Mac/</code> and <code>Windows/</code>, then "Scan now" indexes it. Set a nightly cron for <code>php artisan installers:index</code>.</p>
+                <p className="font-medium mb-1">One-time server setup</p>
+                <p>The AssetMost server lists this over SSH — no mount. Give it a read-only SSH key to the host
+                (<code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">INSTALLERS_SSH_USER</code> /
+                <code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">INSTALLERS_SSH_KEY</code> in .env), keep
+                <code>Mac/</code> and <code>Windows/</code> subfolders, then "Scan now". A nightly cron runs <code>php artisan installers:index</code>.</p>
             </div>
         </Section>
     );
