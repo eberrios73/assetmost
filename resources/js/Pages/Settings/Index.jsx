@@ -415,14 +415,14 @@ function Installers() {
                 </div>
             </div>
 
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Installers URL per company (Web Station, e.g. http://files.example.com/Installers)</p>
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Web Station base URL per company (e.g. http://files.example.com:8080)</p>
             {companies.map((c) => (
                 <label key={c.id} className="mb-2 block">
                     <span className="mb-1 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                         {c.name}
                         {c._saved && <span className="text-xs text-green-600">Saved ✓</span>}
                     </span>
-                    <input value={c.installers_path || ''} placeholder="http://files.example.com/Installers  (or just files.example.com/Installers)"
+                    <input value={c.installers_path || ''} placeholder="http://files.example.com:8080"
                         onChange={(e) => setCompanies((cs) => cs.map((x) => (x.id === c.id ? { ...x, installers_path: e.target.value } : x)))}
                         onBlur={(e) => savePath(c.id, e.target.value)}
                         className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
@@ -430,10 +430,13 @@ function Installers() {
             ))}
 
             <div className="mt-4 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
-                <p className="font-medium mb-1">One-time setup</p>
-                <p>Serve the Installers folder on the Synology's Web Station with directory listing on. If it needs a
-                login, the credentials live in the server's .env (never in the app). Then "Scan now" reads the list;
-                a nightly cron runs <code>php artisan installers:index</code>.</p>
+                <p className="font-medium mb-1">One-time setup on the Synology</p>
+                <ol className="list-decimal ml-4 space-y-0.5">
+                    <li>Drop <code>installers.php</code> (from the app repo, public/synology-installers.php) into the Installers web folder.</li>
+                    <li>Assign a PHP 8.x backend to that Web Station service.</li>
+                    <li>Test <code>{`{base}`}/installers.php</code> in a browser — it returns a JSON file list.</li>
+                    <li>Set the base URL above and hit "Scan now". The bench downloads files unauthenticated from the same base; no login anywhere.</li>
+                </ol>
             </div>
         </Section>
     );
