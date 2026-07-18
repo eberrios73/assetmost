@@ -35,8 +35,9 @@ return new class extends Migration {
             [
                 'company_id' => null, 'command' => 'banner',
                 'label' => 'Install the login policy banner', 'params' => null,
-                'mac_script' => "# Login policy banner - fetched from the installers share\n"
-                    . "sudo curl -fsSL \"{REPO}/Mac/PolicyBanner.rtf\" -o /Library/Security/PolicyBanner.rtf 2>/dev/null \\\n"
+                'mac_script' => "# Login policy banner - the rtfd bundle ships as a zip on the share\n"
+                    . "curl -fsSL \"{REPO}/Mac/PolicyBanner.rtfd.zip\" -o /tmp/PolicyBanner.rtfd.zip 2>/dev/null \\\n"
+                    . "  && sudo unzip -oq /tmp/PolicyBanner.rtfd.zip -d /Library/Security \\\n"
                     . "  && report 'banner' true 'Policy banner installed' \\\n"
                     . "  || report 'banner' false 'Place PolicyBanner in /Library/Security manually'",
                 'windows_script' => "# Logon legal notice (the Windows banner)\n"

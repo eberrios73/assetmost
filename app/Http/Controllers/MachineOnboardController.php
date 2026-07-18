@@ -81,7 +81,8 @@ class MachineOnboardController extends Controller
         $decoded = json_decode($template->workflow_steps ?? '', true) ?: [];
         $steps = $decoded['steps'] ?? [];
         $stepsMeta = $decoded['meta'] ?? [];
-        $data['variant'] = $template->form_factor ?? $template->title;   // platform + notify label
+        // The SOP header's OS decides the script platform; form factor is fallback.
+        $data['variant'] = self::osVariant($stepsMeta['os'] ?? null, $template->form_factor ?? $template->title);
 
         [$device, $project] = DB::transaction(function () use ($data, $companyId, $steps, $stepsMeta, $template) {
             $device = Device::create([
@@ -298,6 +299,22 @@ class MachineOnboardController extends Controller
         return implode("\n", $texts);
     }
 
+    /**
+     * The script platform comes from the SOP header's OS row; the form factor is
+     * only the fallback. One SOP, one OS, one script.
+     */
+    public static function osVariant(?string $os, ?string $fallback): string
+    {
+        $os = strtolower($os ?? '');
+        return match (true) {
+            str_contains($os, 'mac') => 'Mac',
+            str_contains($os, 'windows') => 'Windows',
+            str_contains($os, 'linux') => 'Linux',
+            str_contains($os, 'ios'), str_contains($os, 'android') => 'Mobile - ' . $os,
+            default => $fallback ?? '',
+        };
+    }
+
     /** The MDM the runbook enrolls into: the first /mdm token, lowercased ('' if none). */
     public static function mdm(array $steps): string
     {
@@ -431,12 +448,10 @@ class MachineOnboardController extends Controller
         $device->asset_tag = '{ASSET_TAG}';
         $device->setRelation('company', \App\Models\Company::find($companyId));
 
-        // The Script tab's platform selector overrides the form factor — one SOP
-        // can show its Mac (zsh), Windows (PowerShell) or Linux (bash) rendering.
-        $platform = strtolower($request->string('platform')->toString());
-        $variant = in_array($platform, ['mac', 'windows', 'linux'], true)
-            ? ucfirst($platform)
-            : ($template->form_factor ?? $template->title);
+        // One SOP, one OS: the header's OS row decides the platform (form factor
+        // is the fallback for docs that haven't set it).
+        $meta = json_decode($template->workflow_steps ?? '', true)['meta'] ?? [];
+        $variant = self::osVariant($meta['os'] ?? null, $template->form_factor ?? $template->title);
 
         $company = \App\Models\Company::find($companyId);
         $snips = self::snippetBlocks($steps, $companyId, [
