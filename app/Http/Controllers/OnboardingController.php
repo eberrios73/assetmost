@@ -114,6 +114,20 @@ class OnboardingController extends Controller
         return response()->json(['ok' => true, 'steps' => $parsed, 'source' => ['id' => $page->id, 'title' => $page->title]]);
     }
 
+    /** Runbook reference slugs for the Docs editor's / menu. Typing /slug in a
+     *  runbook resolves to the current version at generation time. */
+    public function refOptions(): JsonResponse
+    {
+        $companyId = app(TenantResolver::class)->id();
+        $refs = OnboardingTemplate::query()->where('company_id', $companyId)
+            ->get(['kind', 'variant', 'name'])
+            ->map(fn ($t) => [
+                'slug' => $t->kind,
+                'name' => $t->name . ($t->variant ? " ({$t->variant})" : ''),
+            ])->unique('slug')->values();
+        return response()->json($refs);
+    }
+
     /** Docs pages as {id,label} for the SOP picker. */
     public function docOptions(): JsonResponse
     {

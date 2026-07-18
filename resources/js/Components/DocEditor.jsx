@@ -59,8 +59,16 @@ const SLASH = [
 /** Notion/Docmost-style canvas: rich text + "/" slash menu. Autosaves HTML (debounced). */
 export default function DocEditor({ pageId, initialBody, onSave }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
+    const [refs, setRefs] = useState([]);   // runbook references: [{slug, name}]
     const saveTimer = useRef(null);
     const menuRef = useRef(null);
+
+    // Runbook references you can drop into a doc with "/". Typing /eprotection in a
+    // runbook resolves to the current Endpoint Protection runbook when a machine is built.
+    useEffect(() => {
+        fetch('/data/runbook-refs', { headers: { Accept: 'application/json' } })
+            .then((r) => r.json()).then(setRefs).catch(() => {});
+    }, []);
 
     const editor = useEditor({
         extensions: [
@@ -92,7 +100,15 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         setMenu({ query: m[1].toLowerCase(), from: $from.pos - m[0].length, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
     };
 
-    const items = menu ? SLASH.filter((s) => s.label.toLowerCase().includes(menu.query)) : [];
+    // Reference items are runbooks: picking one inserts the /slug token as plain text —
+    // the reference lives IN the document and resolves when a machine is built.
+    const refItems = refs.map((r) => ({
+        key: `ref:${r.slug}`, label: `↳ ${r.name}`, hint: `Insert /${r.slug} reference`,
+        isRef: true, slug: r.slug,
+        run: (e) => e.chain().focus().insertContent(`/${r.slug} `).run(),
+    }));
+    const all = [...SLASH, ...refItems];
+    const items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
 
     const apply = (item) => {
         if (!editor || !item) return;
