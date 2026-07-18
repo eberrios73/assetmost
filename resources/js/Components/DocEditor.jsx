@@ -10,27 +10,18 @@ import CodeBlock from '@tiptap/extension-code-block';
 import { marked } from 'marked';
 import { useEffect, useRef, useState } from 'react';
 
-const STEP_CATEGORIES = ['accounts', 'machine', 'access', 'training', 'other'];
-
 /**
  * A workflow step as a CARD in the doc — the structured editor's model rendered
- * by the one editor. Serializes to <section data-sop-step data-category="…">
- * around the same title + field table + substep list the parser already reads;
- * the chrome (number, category, reorder, collapse, add-substep, remove) is
- * node-view UI, never part of the saved document.
+ * by the one editor. Serializes to <section data-sop-step> around the same
+ * title + field table + substep list the parser already reads; the chrome
+ * (number, reorder, collapse, add-substep, remove) is node-view UI, never part
+ * of the saved document.
  */
 const SopStep = Node.create({
     name: 'sopStep',
     group: 'block',
     content: 'block+',
     defining: true,
-    addAttributes() {
-        return { category: {
-            default: 'other',
-            parseHTML: (el) => el.getAttribute('data-category') || 'other',
-            renderHTML: (attrs) => ({ 'data-category': attrs.category }),
-        } };
-    },
     parseHTML() { return [{ tag: 'section[data-sop-step]' }]; },
     renderHTML({ HTMLAttributes }) { return ['section', mergeAttributes(HTMLAttributes, { 'data-sop-step': '' }), 0]; },
     addNodeView() {
@@ -45,21 +36,6 @@ const SopStep = Node.create({
             const chrome = document.createElement('div');
             chrome.className = 'sop-step-chrome';
             chrome.contentEditable = 'false';
-
-            const sel = document.createElement('select');
-            sel.className = 'sop-step-cat';
-            for (const c of STEP_CATEGORIES) {
-                const o = document.createElement('option');
-                o.value = c; o.textContent = c;
-                sel.appendChild(o);
-            }
-            sel.value = node.attrs.category || 'other';
-            sel.addEventListener('mousedown', (e) => e.stopPropagation());
-            sel.addEventListener('change', () => {
-                const pos = getPos();
-                const cur = editor.state.doc.nodeAt(pos);
-                if (cur) editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...cur.attrs, category: sel.value }));
-            });
 
             const btn = (label, title, fn) => {
                 const b = document.createElement('button');
@@ -83,7 +59,6 @@ const SopStep = Node.create({
             };
             let collapsed = false;
             chrome.append(
-                sel,
                 btn('↑', 'move step up', () => moveStep(-1)),
                 btn('↓', 'move step down', () => moveStep(1)),
                 btn('≡', 'collapse / expand', () => { collapsed = !collapsed; card.classList.toggle('sop-collapsed', collapsed); }),
@@ -111,12 +86,7 @@ const SopStep = Node.create({
             return {
                 dom: card,
                 contentDOM: content,
-                update: (updated) => {
-                    if (updated.type.name !== 'sopStep') return false;
-                    const cat = updated.attrs.category || 'other';
-                    if (sel.value !== cat) sel.value = cat;
-                    return true;
-                },
+                update: (updated) => updated.type.name === 'sopStep',
             };
         };
     },
@@ -165,7 +135,7 @@ const asSubstep = (e, text) => e.isActive('listItem')
 
 // The /step scaffold: a step CARD — bold title + the playbook fields as a 2-column
 // table (add or remove rows like any table). ↳+ on the card adds substeps.
-const STEP_SCAFFOLD = '<section data-sop-step data-category="other"><p><strong>New step</strong></p><table><tbody>'
+const STEP_SCAFFOLD = '<section data-sop-step><p><strong>New step</strong></p><table><tbody>'
     + ['Why', 'How', 'Done when', 'Record'].map((l) => `<tr><td><p><strong>${l}:</strong></p></td><td><p></p></td></tr>`).join('')
     + '</tbody></table></section><p></p>';
 

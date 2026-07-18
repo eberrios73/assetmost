@@ -26,7 +26,6 @@ class SopDocParser
         $currentOffset = 0;
         $lastStep = null;      // reference target for field lines / subtasks
         $lastWasSub = false;
-        $pendingCategory = null;   // a step card's data-category, for the next step
 
         $lines = self::lines($html);
         // Real docs have preambles (title, "Employee Name: ___", intro prose). If the
@@ -98,12 +97,6 @@ class SopDocParser
 
             $trim = trim($text);
             if ($trim === '') continue;
-
-            // A step card's category attribute (emitted ahead of its content).
-            if (str_starts_with($trim, '@category:')) {
-                $pendingCategory = substr($trim, 10);
-                continue;
-            }
 
             // Prose sections describe the SOP; they are not procedure. Their text
             // stays in the doc and out of the template.
@@ -177,10 +170,8 @@ class SopDocParser
             if (! $seenSection) continue;   // preamble prose, form blanks, the doc's own title
 
             $title = rtrim($trim, ':');
-            // A card's explicit category (its dropdown) beats the keyword guess.
-            $cat = ($depth === 0 && ($pendingCategory ?? null)) ? $pendingCategory : self::category($title);
             $item = ['id' => substr(md5($title . count($steps)), 0, 8), 'title' => $title,
-                'category' => $cat, 'offset_days' => $currentOffset,
+                'category' => self::category($title), 'offset_days' => $currentOffset,
                 'why' => '', 'instructions' => '', 'done_when' => '', 'record' => '',
                 'automatable' => false, 'subtasks' => []];
 
@@ -191,7 +182,6 @@ class SopDocParser
                 $steps[] = $item;
                 $lastStep = array_key_last($steps);
                 $lastWasSub = false;
-                $pendingCategory = null;
             }
         }
 
@@ -287,12 +277,8 @@ class SopDocParser
                     $t = self::text($child);
                     if (trim($t) !== '') $out[] = [trim($t), $depth, false];
                 } else {
-                    // A step card (<section data-sop-step data-category>): its category
-                    // rides ahead of its content as a pseudo-line; the children (title,
-                    // field table, substep list) parse exactly like plain markup.
-                    if ($child->hasAttribute('data-category')) {
-                        $out[] = ['@category:' . $child->getAttribute('data-category'), $depth, false];
-                    }
+                    // Step cards (<section data-sop-step>) and other wrappers: their
+                    // children (title, field table, substep list) parse as plain markup.
                     $walk($child, $depth);
                 }
             }
@@ -348,8 +334,8 @@ class SopDocParser
         $h = $sectionLabel ? "<h2>{$esc($sectionLabel)}</h2>" : '';
         foreach ($steps as $s) {
             // Each step is a card: <section data-sop-step> renders as the structured
-            // card in the editor and carries the category; parse() reads it back.
-            $h .= '<section data-sop-step data-category="' . $esc($s['category'] ?? 'other') . '">';
+            // card in the editor.
+            $h .= '<section data-sop-step>';
             $h .= "<p><strong>{$esc($s['title'])}</strong></p>" . $fieldTable($s);
             // Subtasks are a real bulleted list; each carries its own fields inside the li.
             if (! empty($s['subtasks'])) {
