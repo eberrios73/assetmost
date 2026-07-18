@@ -284,6 +284,7 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
     const [refs, setRefs] = useState([]);         // runbook references: [{slug, name}]
     const [installers, setInstallers] = useState([]);   // indexed installers share
+    const [snippets, setSnippets] = useState([]);       // the commands registry
     const saveTimer = useRef(null);
     const menuRef = useRef(null);
 
@@ -295,6 +296,8 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             .then((r) => r.json()).then(setRefs).catch(() => {});
         fetch('/data/installers', { headers: { Accept: 'application/json' } })
             .then((r) => r.json()).then(setInstallers).catch(() => {});
+        fetch('/data/snippets', { headers: { Accept: 'application/json' } })
+            .then((r) => r.json()).then((d) => setSnippets(Array.isArray(d) ? d : [])).catch(() => {});
     }, []);
 
     const editor = useEditor({
@@ -424,7 +427,17 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             { key: 'open:mdm', label: 'MDM enrollment', hint: 'Enroll into Jamf, Intune, …', run: (e) => e.chain().focus().insertContent('/mdm ').run() },
             { key: 'open:form', label: 'Record form', hint: 'The task gets an add-record form', run: (e) => e.chain().focus().insertContent('/form ').run() },
         ];
-        const all = [...SLASH, ...openers, ...refItems];
+        // Registry commands: everything in Docs > Commands is a slash command. The
+        // hint shows its declared params; args are typed after it on the substep line.
+        const snippetItems = snippets.filter((s) => s.active).map((s) => ({
+            key: `snip:${s.command}`,
+            label: `/${s.command}${s.params ? ' ' + s.params.split(',').map((p) => p.trim()).join(' ') : ''}`,
+            hint: s.label || 'SOP command',
+            alias: s.command,
+            self: true,
+            run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/${s.command} `),
+        }));
+        const all = [...SLASH, ...openers, ...refItems, ...snippetItems];
         items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.alias || '').includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
     }
 

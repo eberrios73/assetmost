@@ -33,7 +33,9 @@ export default function Index() {
     const [selectedId, setSelectedId] = useState(null);
     const [page, setPage] = useState(null);
     const [status, setStatus] = useState('');
-    const [navTab, setNavTab] = useState('docs');   // docs | templates
+    const [navTab, setNavTab] = useState('docs');   // docs | templates | commands
+    const [snips, setSnips] = useState([]);
+    const [selSnipId, setSelSnipId] = useState(null);
     const [searchQ, setSearchQ] = useState('');
     const [searchResults, setSearchResults] = useState(null);
     const searchTimer = useRef(null);
@@ -144,6 +146,19 @@ export default function Index() {
         openPage(r.id);
     };
 
+    // The commands registry (Docs > Commands): each entry is a /slash command
+    // with per-platform scripts, editable here.
+    const loadSnips = () => api('/data/snippets').then((r) => setSnips(Array.isArray(r) ? r : []));
+    useEffect(() => { if (navTab === 'commands') loadSnips(); }, [navTab]);
+    const newSnippet = async () => {
+        const name = prompt('Command name (lowercase, e.g. banner):');
+        if (!name?.trim()) return;
+        const r = await api('/data/snippets', 'POST', { command: name.trim().toLowerCase() });
+        if (r?.id) { await loadSnips(); setSelSnipId(r.id); }
+        else alert(r?.message || 'Could not create that command.');
+    };
+    const selSnip = snips.find((s) => s.id === selSnipId) || null;
+
 
     const nav = (
         <div className="flex flex-col h-full">
@@ -151,14 +166,27 @@ export default function Index() {
                 <SpaceSwitcher spaces={spaces} space={space} onPick={chooseSpace} onNew={newSpace} />
             </div>
             <div className="flex border-b border-gray-200 dark:border-gray-800 px-2 pt-1">
-                {[['docs', 'Docs'], ['templates', 'Templates']].map(([k, label]) => (
+                {[['docs', 'Docs'], ['templates', 'Templates'], ['commands', 'Commands']].map(([k, label]) => (
                     <button key={k} onClick={() => setNavTab(k)}
                         className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${navTab === k ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
                         {label}
                     </button>
                 ))}
             </div>
-            {navTab === 'templates' ? (
+            {navTab === 'commands' ? (
+                <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Every command here is a <code>/slash</code> command in SOPs; its script joins the machine bootstrap.</p>
+                    {snips.map((s) => (
+                        <button key={s.id} onClick={() => setSelSnipId(s.id)}
+                            className={`w-full rounded-md px-3 py-2 text-left text-sm ${selSnipId === s.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                            /{s.command}{s.params ? ` ${s.params.split(',').map((p) => p.trim()).join(' ')}` : ''}
+                            {!s.active && <span className="ml-2 text-xs opacity-60">(off)</span>}
+                        </button>
+                    ))}
+                    <button onClick={newSnippet}
+                        className="w-full rounded-md px-3 py-2 text-left text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800">+ New command</button>
+                </div>
+            ) : navTab === 'templates' ? (
                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
                     <p className="text-xs text-gray-500 dark:text-gray-400">Every new page starts from one of these. Pick one to create a page in {space?.name || 'this space'}.</p>
                     {DOC_TEMPLATES.map((t) => (
@@ -210,7 +238,11 @@ export default function Index() {
         </div>
     );
 
-    const detail = page ? (
+    const detail = navTab === 'commands' ? (
+        selSnip
+            ? <SnippetEditor key={selSnip.id} snippet={selSnip} api={api} onChanged={loadSnips} onDeleted={() => { setSelSnipId(null); loadSnips(); }} />
+            : <div className="h-full flex items-center justify-center text-gray-400 text-sm">Pick a command on the left, or create one.</div>
+    ) : page ? (
         <div className="max-w-3xl mx-auto">
             {page.current_id && (
                 <div className="mb-3 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300 flex items-center justify-between gap-3">
@@ -352,4 +384,80 @@ function flatten(nodes, depth = 0) { return (nodes || []).flatMap((n) => [{ id: 
 function CategoryBadge({ category }) {
     if (!category) return null;
     return <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded ${CATEGORY_STYLE[category] || CATEGORY_STYLE.Reference}`}>{category}</span>;
+}
+
+/**
+ * One command of the registry: its label, ordered params, and the three platform
+ * scripts. {param} names, {1}.. and {*} substitute from the SOP's arguments;
+ * context vars come free.
+ */
+function SnippetEditor({ snippet, api, onChanged, onDeleted }) {
+    const [label, setLabel] = useState(snippet.label || '');
+    const [params, setParams] = useState(snippet.params || '');
+    const [scripts, setScripts] = useState({
+        mac_script: snippet.mac_script || '', windows_script: snippet.windows_script || '', linux_script: snippet.linux_script || '',
+    });
+    const [platform, setPlatform] = useState('mac_script');
+    const [active, setActive] = useState(!!snippet.active);
+    const [saved, setSaved] = useState('');
+
+    const save = async () => {
+        await api(`/data/snippets/${snippet.id}`, 'PATCH', { label, params, active, ...scripts });
+        setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
+        onChanged?.();
+    };
+    const del = async () => {
+        if (!confirm(`Delete /${snippet.command}?`)) return;
+        await api(`/data/snippets/${snippet.id}`, 'DELETE');
+        onDeleted?.();
+    };
+
+    const paramNames = params.split(',').map((p) => p.trim()).filter(Boolean);
+    return (
+        <div className="max-w-3xl mx-auto">
+            <div className="flex items-start justify-between mb-2 gap-4">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">/{snippet.command}</h1>
+                <div className="mt-2 shrink-0 flex items-center gap-2">
+                    {saved && <span className="text-xs text-green-600">{saved}</span>}
+                    <button onClick={save} className="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">Save</button>
+                    {!snippet.shipped && (
+                        <button onClick={del} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-red-600">Delete</button>
+                    )}
+                </div>
+            </div>
+            {snippet.shipped && <p className="mb-3 text-xs text-gray-400">Shipped command — edits apply to every company.</p>}
+            <div className="grid grid-cols-2 gap-3 mb-3">
+                <label className="block">
+                    <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">Label — what it does</span>
+                    <input value={label} onChange={(e) => setLabel(e.target.value)}
+                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
+                </label>
+                <label className="block">
+                    <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">Params — ordered, comma separated (e.g. ssid, psk)</span>
+                    <input value={params} onChange={(e) => setParams(e.target.value)}
+                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
+                </label>
+            </div>
+            <div className="flex border-b border-gray-200 dark:border-gray-800 mb-2">
+                {[['mac_script', 'Mac Script'], ['windows_script', 'Win Script'], ['linux_script', 'Linux Script']].map(([k, l]) => (
+                    <button key={k} onClick={() => setPlatform(k)}
+                        className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${platform === k ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                        {l}
+                    </button>
+                ))}
+            </div>
+            <textarea value={scripts[platform]} onChange={(e) => setScripts((s) => ({ ...s, [platform]: e.target.value }))}
+                rows={14} spellCheck={false}
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-950 p-4 font-mono text-xs leading-relaxed text-green-300 focus:border-blue-500 focus:ring-blue-500" />
+            <p className="mt-2 text-xs text-gray-400">
+                Variables: {paramNames.length ? paramNames.map((p) => `{${p}}`).join(' ') + ' · ' : ''}
+                {'{*} {1}… · {ASSET_TAG} {BASE_URL} {TOKEN} {REPO} {DOMAIN} {LOCAL_DOMAIN}'} — <code>report 'step' true 'note'</code> ticks the checklist.
+            </p>
+            <label className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
+                <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                Active — shows in the slash menu and joins generated scripts
+            </label>
+        </div>
+    );
 }

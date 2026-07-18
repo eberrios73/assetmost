@@ -47,6 +47,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/data/spaces/{space}', [$doc, 'destroySpace']);
     Route::get('/data/docs', [$doc, 'tree']);
     Route::get('/data/docs-search', [$doc, 'search']);
+    // The commands registry (Docs > Commands): /slash commands with per-platform scripts.
+    $sn = \App\Http\Controllers\ScriptSnippetController::class;
+    Route::get('/data/snippets', [$sn, 'index']);
+    Route::post('/data/snippets', [$sn, 'store']);
+    Route::patch('/data/snippets/{snippet}', [$sn, 'update']);
+    Route::delete('/data/snippets/{snippet}', [$sn, 'destroy']);
     Route::post('/data/docs/{page}/new-version', [$doc, 'newVersion']);
     Route::post('/data/docs', [$doc, 'store']);
     Route::get('/data/docs/{page}', [$doc, 'show']);

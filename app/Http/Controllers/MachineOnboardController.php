@@ -200,11 +200,18 @@ class MachineOnboardController extends Controller
             array_column($recipe, 'relative_path'), $data['installers'] ?? []
         )));
 
+        $base = $request->getSchemeAndHttpHost();
+        $snips = self::snippetBlocks($steps, $companyId, [
+            'ASSET_TAG' => $device->asset_tag, 'BASE_URL' => $base, 'TOKEN' => $token,
+            'REPO' => rtrim($device->company?->installers_url ?? '', '/'),
+            'DOMAIN' => $device->company?->domain, 'LOCAL_DOMAIN' => $device->company?->local_domain,
+        ]);
+
         return response()->json([
             'asset_tag' => $device->asset_tag,
             'project_id' => $project->id,
             'recipe' => $recipe,
-            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant'], $files, self::mdm($steps), self::mdmProfile($steps, $companyId)),
+            'script' => $this->script($device, $token, $base, $data['variant'], $files, self::mdm($steps), self::mdmProfile($steps, $companyId), $snips),
         ], 201);
     }
 
@@ -216,6 +223,47 @@ class MachineOnboardController extends Controller
      *
      * @return array<int, array{name:string, relative_path:string, platform:string, kind:string}>
      */
+    /**
+     * Registry commands used by the SOP: scan the steps for /command tokens from
+     * the script_snippets registry, map the words after each command onto its
+     * declared params ({name}, {1}.., {*}), substitute the context vars, and
+     * return the assembled per-platform blocks in SOP order.
+     *
+     * @return array{mac: string, windows: string, linux: string}
+     */
+    public static function snippetBlocks(array $steps, int $companyId, array $ctx = []): array
+    {
+        $blob = self::stepsText($steps);
+        $out = ['mac' => [], 'windows' => [], 'linux' => []];
+        $snippets = \App\Models\ScriptSnippet::query()->where('active', true)
+            ->where(fn ($w) => $w->whereNull('company_id')->orWhere('company_id', $companyId))
+            ->get();
+
+        $found = [];
+        foreach ($snippets as $s) {
+            if (! preg_match_all('~/' . preg_quote($s->command, '~') . '\b([^\n/]*)~i', $blob, $m, PREG_OFFSET_CAPTURE)) continue;
+            foreach ($m[1] as $hit) {
+                $found[] = ['snippet' => $s, 'args' => trim($hit[0]), 'at' => $hit[1]];
+            }
+        }
+        usort($found, fn ($a, $b) => $a['at'] <=> $b['at']);
+
+        foreach ($found as $f) {
+            $s = $f['snippet'];
+            $args = $f['args'] === '' ? [] : preg_split('/\s+/', $f['args']);
+            $names = array_values(array_filter(array_map('trim', explode(',', $s->params ?? ''))));
+            $vars = ['{*}' => $f['args']];
+            foreach ($names as $i => $name) $vars['{' . $name . '}'] = $args[$i] ?? '';
+            foreach ($args as $i => $a) $vars['{' . ($i + 1) . '}'] = $a;
+            foreach ($ctx as $k => $v) $vars['{' . $k . '}'] = $v ?? '';
+
+            foreach (['mac' => 'mac_script', 'windows' => 'windows_script', 'linux' => 'linux_script'] as $p => $col) {
+                if (filled($s->{$col})) $out[$p][] = strtr($s->{$col}, $vars);
+            }
+        }
+        return array_map(fn ($blocks) => implode("\n\n", $blocks), $out);
+    }
+
     /** Flatten every text field of the steps (and subtasks) into one blob for scanning. */
     private static function stepsText(array $steps): string
     {
@@ -372,8 +420,15 @@ class MachineOnboardController extends Controller
             ? ucfirst($platform)
             : ($template->form_factor ?? $template->title);
 
+        $company = \App\Models\Company::find($companyId);
+        $snips = self::snippetBlocks($steps, $companyId, [
+            'ASSET_TAG' => '{ASSET_TAG}', 'BASE_URL' => '{BASE_URL}', 'TOKEN' => '{TOKEN}',
+            'REPO' => rtrim($company?->installers_url ?? '', '/'),
+            'DOMAIN' => $company?->domain, 'LOCAL_DOMAIN' => $company?->local_domain,
+        ]);
+
         $script = $this->script($device, '{TOKEN}', '{BASE_URL}', $variant, $files,
-            self::mdm($steps), self::mdmProfile($steps, $companyId));
+            self::mdm($steps), self::mdmProfile($steps, $companyId), $snips);
 
         return response()->json(['script' => $script]);
     }
@@ -441,8 +496,9 @@ class MachineOnboardController extends Controller
     }
 
     /** The idempotent bootstrap script — platform decided by the runbook variant. */
-    private function script(Device $device, string $token, string $base, string $variant = '', array $installers = [], string $mdm = '', ?string $mdmProfile = null): string
+    private function script(Device $device, string $token, string $base, string $variant = '', array $installers = [], string $mdm = '', ?string $mdmProfile = null, array $snippets = []): string
     {
+        $snip = fn (string $p) => filled($snippets[$p] ?? '') ? $snippets[$p] : '# (none in this runbook)';
         $tag = $device->asset_tag;
         $domain = $device->company?->local_domain ?: 'your.domain';
         $repo = rtrim($device->company?->installers_url ?: '', '/');   // Web Station base for curl
@@ -480,7 +536,7 @@ class MachineOnboardController extends Controller
         }
 
         if (preg_match('/linux/i', $variant)) {
-            return <<<BASH
+            $bash = <<<BASH
 #!/bin/bash
 # AssetMost bootstrap — {$tag} — run with: sudo bash ./bootstrap.sh  (safe to re-run)
 T='{$token}'
@@ -498,8 +554,12 @@ report 'updates' true 'Update pass attempted'
 # 3. Baseline hardening helpers (the runbook's checklist is the source — verify each step there)
 command -v ufw >/dev/null && ufw --force enable && report 'hardening' true 'ufw enabled'
 
+# 4. SOP commands (from the runbook's /commands)
+__SNIPPETS__
+
 echo 'Bootstrap done - finish the remaining checklist in AssetMost (SSH keys, monitoring, backups).'
 BASH;
+            return str_replace('__SNIPPETS__', $snip('linux'), $bash);
         }
 
         if (preg_match('/mac/i', $variant)) {
@@ -534,13 +594,16 @@ __MDM__
 # 4. Pull + set up software and VPN configs from the installers share
 __FETCH__
 
-# 5. Updates
+# 5. SOP commands (from the runbook's /commands)
+__SNIPPETS__
+
+# 6. Updates
 softwareupdate --install --all 2>/dev/null
 report 'updates' true 'softwareupdate pass attempted'
 
 echo 'Bootstrap done - finish the remaining checklist in AssetMost (hardening).'
 SH;
-            return str_replace(['__TAG__', '__TOKEN__', '__BASE__', '__MDM__', '__FETCH__'], [$tag, $token, $base, $macMdm, $macFetch ?: '# (no installers selected)'], $sh);
+            return str_replace(['__TAG__', '__TOKEN__', '__BASE__', '__MDM__', '__FETCH__', '__SNIPPETS__'], [$tag, $token, $base, $macMdm, $macFetch ?: '# (no installers selected)', $snip('mac')], $sh);
         }
 
         $ps = <<<PS
@@ -590,13 +653,16 @@ __MDM__
 # 5. Pull + set up software and VPN configs from the installers share
 __FETCH__
 
-# 6. Updates (best effort; finish in Settings if needed)
+# 6. SOP commands (from the runbook's /commands)
+__SNIPPETS__
+
+# 7. Updates (best effort; finish in Settings if needed)
 try { Install-Module PSWindowsUpdate -Force -Scope CurrentUser -ErrorAction Stop; Get-WindowsUpdate -AcceptAll -Install -IgnoreReboot } catch {}
 Report 'Apply all updates' \$true 'Windows Update pass attempted'
 
 Write-Host 'Bootstrap done — finish the remaining checklist in AssetMost.' -ForegroundColor Green
 PS;
-        return str_replace(['__MDM__', '__FETCH__'], [$winMdm, $winFetch ?: '# (no installers selected)'], $ps);
+        return str_replace(['__MDM__', '__FETCH__', '__SNIPPETS__'], [$winMdm, $winFetch ?: '# (no installers selected)', $snip('windows')], $ps);
     }
 
     /**
