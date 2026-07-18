@@ -9,13 +9,14 @@ import RecordModal from '@/Components/RecordModal';
 import AddButton from '@/Components/ui/AddButton';
 import { ENTITIES } from '@/entities';
 
-// A task stamped "Form: <kind> · co:<id>" (a /form token in its workflow step)
-// renders the matching add-record form — the SOP's Record field made executable,
-// scoped to the workflow's company. Same RecordModal + fields as everywhere else.
+// A task stamped "Form: new|edit <kind> · co:<id>" (a /form token in its workflow
+// step) renders the record form — new creates, edit picks an existing record and
+// updates it. The SOP's Record field made executable, scoped to the workflow's
+// company. Same RecordModal + fields as everywhere else.
 const FORM_ENTITY = { device: 'devices', person: 'people', account: 'accounts', location: 'locations' };
 const taskForm = (notes) => {
-    const m = /(?:^|\n)Form: (device|person|account|location) · co:(\d+)/.exec(notes || '');
-    return m ? { kind: m[1], companyId: Number(m[2]), entity: ENTITIES[FORM_ENTITY[m[1]]] } : null;
+    const m = /(?:^|\n)Form: (?:(new|edit) )?(device|person|account|location) · co:(\d+)/.exec(notes || '');
+    return m ? { mode: m[1] || 'new', kind: m[2], companyId: Number(m[3]), entity: ENTITIES[FORM_ENTITY[m[2]]] } : null;
 };
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
@@ -342,6 +343,7 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
     const carried = t.origin && t.origin < t.week && !t.done;
     const form = taskForm(t.notes);
     const [formOpen, setFormOpen] = useState(false);
+    const [editRec, setEditRec] = useState(null);   // fetched record for a /form edit
     return (
         <>
             {/* Priority bar lives on the first cell, NOT the <tr>: a pseudo-element
@@ -386,20 +388,41 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
                 <tr>
                     <td colSpan={9} className="p-0 border-b border-gray-200 dark:border-gray-800">
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4">
-                            {form && (
+                            {form && form.mode === 'new' && (
                                 <div className="mb-3 flex items-center gap-2">
                                     <AddButton label={`Add ${form.kind}`} onClick={() => setFormOpen(true)} />
                                     <span className="text-xs text-gray-400">This step records a {form.kind} — created in the workflow's company.</span>
                                 </div>
                             )}
-                            {formOpen && form && (
-                                <RecordModal title={`Add ${form.kind}`} endpoint={form.entity.add.endpoint} method="POST"
-                                    fields={form.entity.add.fields} extra={{ company_id: form.companyId }}
-                                    onClose={() => setFormOpen(false)}
+                            {form && form.mode === 'edit' && (
+                                <div className="mb-3 flex items-center gap-2">
+                                    <div className="w-64">
+                                        <SearchSelect value={null} portal
+                                            endpoint={`/data/form-options?kind=${form.kind}&company=${form.companyId}`}
+                                            placeholder={`Pick the ${form.kind} to update…`}
+                                            onChange={(id) => {
+                                                if (!id) return;
+                                                fetch(form.entity.detailEndpoint(id), { headers: { Accept: 'application/json' } })
+                                                    .then((r) => (r.ok ? r.json() : null))
+                                                    .then((rec) => { if (rec) { setEditRec(rec); setFormOpen(true); } });
+                                            }} />
+                                    </div>
+                                    <span className="text-xs text-gray-400">This step updates a {form.kind} in the workflow's company.</span>
+                                </div>
+                            )}
+                            {formOpen && form && (form.mode === 'new' || editRec) && (
+                                <RecordModal
+                                    title={form.mode === 'edit' ? `Edit ${form.kind}` : `Add ${form.kind}`}
+                                    endpoint={form.mode === 'edit' ? form.entity.detailEndpoint(editRec.id) : form.entity.add.endpoint}
+                                    method={form.mode === 'edit' ? 'PATCH' : 'POST'}
+                                    fields={form.mode === 'edit' ? form.entity.edit.fields : form.entity.add.fields}
+                                    initial={form.mode === 'edit' ? editRec : {}}
+                                    extra={form.mode === 'new' ? { company_id: form.companyId } : {}}
+                                    onClose={() => { setFormOpen(false); setEditRec(null); }}
                                     onSaved={(rec) => {
-                                        setFormOpen(false);
+                                        setFormOpen(false); setEditRec(null);
                                         const label = rec?.asset_tag || rec?.identifier || rec?.name || '';
-                                        patch(t.id, { notes: `${t.notes}\n✓ ${form.kind} recorded${label ? `: ${label}` : ''}` });
+                                        patch(t.id, { notes: `${t.notes}\n✓ ${form.kind} ${form.mode === 'edit' ? 'updated' : 'recorded'}${label ? `: ${label}` : ''}` });
                                     }} />
                             )}
                             <div className="flex items-start gap-3">

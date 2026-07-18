@@ -157,8 +157,10 @@ class WorkflowController extends Controller
     }
 
     /**
-     * The /form token in a step: the generated task carries a record-creation form
-     * (the Record field made executable). Returns the kind or null.
+     * The /form token in a step: the generated task carries the record form — "new"
+     * creates, "edit" picks an existing record and updates it (the Record field made
+     * executable). Returns "new device" / "edit person" style, or null. A bare
+     * "/form device" reads as new.
      */
     public static function formKind(array $step): ?string
     {
@@ -166,8 +168,8 @@ class WorkflowController extends Controller
             $step['title'] ?? '', $step['why'] ?? '', $step['instructions'] ?? '',
             $step['done_when'] ?? '', $step['record'] ?? '',
         ]));
-        return preg_match('~/form\s+(device|person|account|location)~i', $text, $m)
-            ? strtolower($m[1])
+        return preg_match('~/form\s+(?:(new|edit)\s+)?(device|person|account|location)~i', $text, $m)
+            ? strtolower($m[1] ?: 'new') . ' ' . strtolower($m[2])
             : null;
     }
 

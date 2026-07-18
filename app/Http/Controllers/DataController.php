@@ -1031,6 +1031,39 @@ class DataController extends Controller
         return response()->json($out);
     }
 
+    /**
+     * Record options for a /form edit picker on a task — {id,label}, explicitly
+     * scoped to the WORKFLOW'S company (the marker carries it), not the header
+     * switcher. The company must be one the user can see.
+     */
+    public function formOptions(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $kind = $request->string('kind')->toString();
+        $companyId = (int) $request->query('company');
+        $scope = app(\App\Support\Contracts\TenantResolver::class)->scopeIds();
+        abort_if($scope !== null && ! in_array($companyId, $scope, true), 403);
+
+        $rows = match ($kind) {
+            'device' => Device::withoutGlobalScopes()->where('company_id', $companyId)
+                ->orderBy('asset_tag')->limit(300)->get(['id', 'asset_tag', 'computer_name'])
+                ->map(fn ($d) => ['id' => $d->id, 'label' => $d->asset_tag ?: ($d->computer_name ?: "Device {$d->id}")]),
+            'person' => User::withoutGlobalScopes()->where('company_id', $companyId)->where('active', true)
+                ->orderBy('name')->limit(300)->get(['id', 'name', 'last', 'email'])
+                ->map(fn ($p) => ['id' => $p->id, 'label' => trim("{$p->name} {$p->last}") . ($p->email ? " · {$p->email}" : '')]),
+            'account' => \App\Models\Account::withoutGlobalScopes()->where('company_id', $companyId)
+                ->orderBy('identifier')->limit(300)->get(['id', 'identifier'])
+                ->map(fn ($a) => ['id' => $a->id, 'label' => $a->identifier]),
+            // Shared locations (company_id NULL) belong to every company's list.
+            'location' => \App\Models\Location::withoutGlobalScopes()
+                ->where(fn ($w) => $w->where('company_id', $companyId)->orWhereNull('company_id'))
+                ->orderBy('name')->limit(300)->get(['id', 'name'])
+                ->map(fn ($l) => ['id' => $l->id, 'label' => $l->name]),
+            default => collect(),
+        };
+        return response()->json($rows->values());
+    }
+
     /** The /install list: whatever the indexed installers share contains. */
     public function installers(Request $request): JsonResponse
     {

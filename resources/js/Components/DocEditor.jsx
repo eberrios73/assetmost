@@ -180,12 +180,16 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             run: (e) => e.chain().focus().insertContent(`/mdm ${menu.query} `).run() });
         items = picks;
     } else if (menu?.mode === 'form') {
-        // /form <kind>: the step that carries it gets a record-creation form on its
-        // generated task — the Record field made executable, in the workflow's company.
+        // /form <new|edit> <kind>: the step's generated task carries the record form —
+        // new creates, edit picks an existing record and updates it. Both in the
+        // workflow's company. The Record field made executable.
         const KINDS = ['device', 'person', 'account', 'location'];
-        items = KINDS.filter((k) => !menu.query || k.includes(menu.query))
-            .map((k) => ({ key: `form:${k}`, label: `Add ${k} form`, hint: `The task gets an "Add ${k}" form`,
-                run: (e) => e.chain().focus().insertContent(`/form ${k} `).run() }));
+        items = ['new', 'edit'].flatMap((mode) => KINDS.map((k) => ({
+            key: `form:${mode}:${k}`,
+            label: `${mode === 'new' ? 'New' : 'Edit'} ${k}`,
+            hint: mode === 'new' ? `The task gets an "Add ${k}" form` : `The task gets a pick-and-edit ${k} form`,
+            run: (e) => e.chain().focus().insertContent(`/form ${mode} ${k} `).run(),
+        }))).filter((it) => !menu.query || it.label.toLowerCase().includes(menu.query));
     } else {
         // Discoverable openers so a partial "/inst" or "/vp" surfaces the command;
         // picking one inserts the trigger, which opens its picker (see apply()).
