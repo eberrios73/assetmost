@@ -211,7 +211,12 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                             <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code>
                             fill in at run time.
                         </p>
-                        <DocEditor key={`${wf.id}:${bodyRev}`} pageId={wf.id} initialBody={wf.body} onSave={saveBody} />
+                        <DocEditor key={`${wf.id}:${bodyRev}`} pageId={wf.id} initialBody={wf.body} onSave={saveBody}
+                            osDefault={wf.sop_meta?.os || (/mac/i.test(wf.form_factor || '') ? 'macOS'
+                                : /windows/i.test(wf.form_factor || '') ? 'Windows'
+                                : /linux/i.test(wf.form_factor || '') ? 'Linux'
+                                : /ios/i.test(wf.form_factor || '') ? 'iOS'
+                                : /android/i.test(wf.form_factor || '') ? 'Android' : '')} />
                     </div>
                 )
             )}

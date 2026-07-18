@@ -242,6 +242,62 @@ const SOP_SCAFFOLD = '<table><tbody>'
     + fieldRows(['OS', 'Why', 'How', 'Tools and Materials', 'Safety Precautions', 'Owner', 'Version'])
     + '</tbody></table><p></p>';
 
+/**
+ * /sop inserts OR REFRESHES the SOP header: if the doc already has a header
+ * table (the first top-level table before any heading/step), it's rebuilt in
+ * place — missing standard rows added (OS prefilled when known), existing
+ * values and custom rows kept. The command IS how a header catches up when
+ * the vocabulary grows.
+ */
+const SOP_STD_ROWS = ['OS', 'Why', 'How', 'Scope', 'Tools and Materials', 'Safety Precautions', 'Owner', 'Version', 'Status'];
+const refreshSopHeader = (e, osDefault = '') => {
+    const doc = e.state.doc;
+    let tablePos = null;
+    let tableNode = null;
+    let stop = false;
+    doc.forEach((child, offset) => {
+        if (stop || tableNode) return;
+        if (child.type.name === 'heading' || child.type.name === 'sopStep') { stop = true; return; }
+        if (child.type.name === 'table') { tablePos = offset; tableNode = child; }
+    });
+
+    const existing = new Map();
+    if (tableNode) {
+        tableNode.forEach((row) => {
+            if (row.childCount < 2) return;
+            const label = row.child(0).textContent.replace(/:\s*$/, '').trim();
+            if (!label) return;
+            const lines = [];
+            row.child(1).forEach((p) => { if (p.textContent.trim() !== '') lines.push(p.textContent); });
+            existing.set(label.toLowerCase(), { label, lines });
+        });
+    }
+
+    const rowHtml = (label, lines) =>
+        `<tr><td><p><strong>${esc(label)}:</strong></p></td><td>${lines.length ? lines.map((l) => `<p>${esc(l)}</p>`).join('') : '<p></p>'}</td></tr>`;
+    let rows = '';
+    const used = new Set();
+    for (const label of SOP_STD_ROWS) {
+        used.add(label.toLowerCase());
+        const ex = existing.get(label.toLowerCase());
+        let lines = ex ? ex.lines : [];
+        if (!lines.length) {
+            if (label === 'OS' && osDefault) lines = [osDefault];
+            if (label === 'Version' && !ex) lines = ['1.0'];
+            if (label === 'Status' && !ex) lines = ['Draft'];
+        }
+        rows += rowHtml(label, lines);
+    }
+    for (const [key, ex] of existing) {
+        if (!used.has(key)) rows += rowHtml(ex.label, ex.lines);   // custom rows survive
+    }
+    const html = `<table><tbody>${rows}</tbody></table>`;
+
+    return tableNode
+        ? e.chain().focus().deleteRange({ from: tablePos, to: tablePos + tableNode.nodeSize }).insertContentAt(tablePos, html).run()
+        : e.chain().focus().insertContentAt(0, html).run();
+};
+
 // Tables never nest: inserting one from inside a table lands AFTER that table.
 const afterTablePos = (e) => {
     const { $from } = e.state.selection;
@@ -265,7 +321,8 @@ const SLASH = [
             ? e.chain().focus().insertContentAt(step.pos + step.node.nodeSize, STEP_SCAFFOLD).run()
             : e.chain().focus().insertContent(STEP_SCAFFOLD).run();
     } },
-    { key: 'sop', label: 'SOP header', alias: 'table header sop', hint: 'Top table: Why/How, Tools, Safety, Owner… (rows removable)', run: (e) => insertBlockSafe(e, SOP_SCAFFOLD) },
+    // run is overridden per-render so it can carry the page's OS default.
+    { key: 'sop', label: 'SOP header', alias: 'table header sop refresh', hint: 'Insert or refresh the top table — adds missing rows, keeps your values', run: (e) => refreshSopHeader(e) },
     { key: 'fields', label: 'Step fields table', alias: 'table why how done record fields', hint: '2-column Why / How / Done when / Record table', run: (e) => insertBlockSafe(e, '<table><tbody>' + fieldRows(['Why', 'How', 'Done when', 'Record']) + '</tbody></table>') },
     { key: 'p', label: 'Text', hint: 'Plain paragraph', run: (e) => e.chain().focus().setParagraph().run() },
     { key: 'h1', label: 'Heading 1', hint: 'Big section heading', run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run() },
@@ -280,7 +337,7 @@ const SLASH = [
 ];
 
 /** Notion/Docmost-style canvas: rich text + "/" slash menu. Autosaves HTML (debounced). */
-export default function DocEditor({ pageId, initialBody, onSave }) {
+export default function DocEditor({ pageId, initialBody, onSave, osDefault = '' }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
     const [refs, setRefs] = useState([]);         // runbook references: [{slug, name}]
     const [installers, setInstallers] = useState([]);   // indexed installers share
@@ -437,7 +494,8 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             self: true,
             run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/${s.command} `),
         }));
-        const all = [...SLASH, ...openers, ...refItems, ...snippetItems];
+        const all = [...SLASH, ...openers, ...refItems, ...snippetItems]
+            .map((it) => (it.key === 'sop' ? { ...it, run: (e) => refreshSopHeader(e, osDefault) } : it));
         items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.alias || '').includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
     }
 
