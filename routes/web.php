@@ -17,6 +17,14 @@ Route::get('/', function () {
 Route::get('/dashboard', fn () => redirect()->route('people.index'))
     ->middleware(['auth'])->name('dashboard');
 
+// Bootstrap-script report endpoints: token-authenticated (device-scoped, expiring),
+// deliberately outside the session gate — the machine reporting in has no session.
+Route::middleware('throttle:30,1')->group(function () {
+    $mo = \App\Http\Controllers\MachineOnboardController::class;
+    Route::post('/onboard/report', [$mo, 'report']);
+    Route::post('/onboard/key', [$mo, 'storeKey']);
+});
+
 Route::middleware('auth')->group(function () {
     Route::post('/switch-company', function (\Illuminate\Http\Request $r) {
         $id = $r->input('company_id');
@@ -120,6 +128,11 @@ Route::middleware('auth')->group(function () {
         Route::patch('/data/accounts/{account}', [$dc, 'updateAccount']);
     });
     Route::get('/data/sharing-options', [$dc, 'sharingOptions']);
+
+    // Machine bootstrap: open /onboard ON the new machine; login page is the gate.
+    $mo = \App\Http\Controllers\MachineOnboardController::class;
+    Route::get('/onboard', [$mo, 'page'])->name('machine.onboard');
+    Route::post('/onboard/generate', [$mo, 'generate']);
 
     // Onboarding v2: per-company step template (paste SOP -> steps -> task project).
     $oc = \App\Http\Controllers\OnboardingController::class;
