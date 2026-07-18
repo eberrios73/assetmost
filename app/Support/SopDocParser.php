@@ -1,0 +1,201 @@
+<?php
+
+namespace App\Support;
+
+/**
+ * Compiles a Docs page (TipTap HTML) into template steps. Deterministic — no AI.
+ *
+ * The rigid format, which real SOPs already approximate:
+ *   - Headings or numbered lines ("1. Pre-Arrival…")  → SECTIONS. A section sets
+ *     the timing for what's under it (matched by words: "prior/pre-" → -2 days,
+ *     "first/second day" → 0, "week after" → +7). Sections are timing, not steps.
+ *   - Top-level bullets / bold-labelled lines ("Device Hand-off:") → STEPS.
+ *   - Nested bullets → SUBTASKS.
+ *   - Lines labelled "Why:", "How:", "Done when:", "Do ne:" or "Record:" attach to
+ *     the step above them as playbook fields instead of becoming steps.
+ *
+ * Editing loop: edit the DOC (rich text, in Docs), hit re-parse. The doc is the
+ * master; the template is compiled output.
+ */
+class SopDocParser
+{
+    /** @return array{version:int, steps:array<int,array>} */
+    public static function parse(string $html): array
+    {
+        $steps = [];
+        $currentOffset = 0;
+        $lastStep = null;      // reference target for field lines / subtasks
+        $lastWasSub = false;
+
+        $lines = self::lines($html);
+        // Real docs have preambles (title, "Employee Name: ___", intro prose). If the
+        // doc has sections at all, nothing before the first section is a step.
+        $hasSections = false;
+        foreach ($lines as [$t, $d, $h]) {
+            if ($h || ($d === 0 && preg_match('/^\d+\s*[.)]\s+/', trim($t)))) { $hasSections = true; break; }
+        }
+        $seenSection = ! $hasSections;
+
+        foreach ($lines as [$text, $depth, $isHeading]) {
+            $trim = trim($text);
+            if ($trim === '') continue;
+
+            // Word-paste sub-bullets arrive as flat lines starting "o " / "§ " / "· ".
+            if (preg_match('/^[o§·▪]\s+(.+)$/u', $trim, $wm)) {
+                $trim = trim($wm[1]);
+                $depth = max($depth, 1);
+            }
+            // Continuation lines (dial codes, paths) attach to the previous step's How.
+            if ($lastStep !== null && preg_match('~^[#*/\\\\]~', $trim)) {
+                $steps[$lastStep]['instructions'] = trim(($steps[$lastStep]['instructions'] ?? '') . "\n" . $trim);
+                continue;
+            }
+
+            // Playbook field lines attach to the current step (or its last subtask).
+            if (preg_match('/^(why|how|done when|done|record)\s*[:—-]\s*(.+)$/i', $trim, $m)) {
+                if ($lastStep !== null) {
+                    $key = match (strtolower($m[1])) {
+                        'why' => 'why', 'how' => 'instructions',
+                        'done when', 'done' => 'done_when', 'record' => 'record',
+                    };
+                    $target = &$steps[$lastStep];
+                    if ($lastWasSub && $target['subtasks']) {
+                        $target['subtasks'][array_key_last($target['subtasks'])][$key] = $m[2];
+                    } else {
+                        $target[$key] = trim(($target[$key] ?? '') . ($target[$key] ?? '' ? "\n" : '') . $m[2]);
+                    }
+                    unset($target);
+                    continue;
+                }
+            }
+
+            // Sections: headings, or "1. Title" numbered lines at top level.
+            $numbered = preg_match('/^\d+\s*[.)]\s+(.+)$/', $trim, $nm);
+            if ($isHeading || ($numbered && $depth === 0)) {
+                $title = $numbered ? $nm[1] : $trim;
+                $currentOffset = self::offsetFromSection($title);
+                $lastStep = null; $lastWasSub = false;
+                $seenSection = true;
+                continue;
+            }
+            if (! $seenSection) continue;   // preamble prose, form blanks, the doc's own title
+
+            $title = rtrim($trim, ':');
+            $item = ['id' => substr(md5($title . count($steps)), 0, 8), 'title' => $title,
+                'category' => self::category($title), 'offset_days' => $currentOffset,
+                'why' => '', 'instructions' => '', 'done_when' => '', 'record' => '',
+                'automatable' => false, 'subtasks' => []];
+
+            if ($depth > 0 && $lastStep !== null) {
+                $steps[$lastStep]['subtasks'][] = $item;
+                $lastWasSub = true;
+            } else {
+                $steps[] = $item;
+                $lastStep = array_key_last($steps);
+                $lastWasSub = false;
+            }
+        }
+
+        return ['version' => 1, 'steps' => array_values($steps)];
+    }
+
+    /** Section title → timing anchor. Words, not magic: the SOP already says when. */
+    private static function offsetFromSection(string $title): int
+    {
+        $t = strtolower($title);
+        if (preg_match('/pre[- ]?arrival|prior|before|in advance/', $t)) return -2;
+        if (preg_match('/week(s)? after|follow[- ]?up|post[- ]?onboarding/', $t)) return 7;
+        // "First/Second Day" means it STARTS day one — check first before second.
+        if (preg_match('/first/', $t)) return 0;
+        if (preg_match('/second day|next day|day two/', $t)) return 1;
+        return 0;
+    }
+
+    private static function category(string $title): string
+    {
+        $t = strtolower($title);
+        if (preg_match('/\b(account|email|mailbox|365|microsoft|adobe|zoom|domain|credential|login|voicemail|license)\b/', $t)) return 'accounts';
+        if (preg_match('/\b(machine|laptop|workstation|computer|hardware|device|dock|monitor|printer|imag)\b/', $t)) return 'machine';
+        if (preg_match('/\b(vpn|wifi|network|badge|door|key|access|mfa|sso|firewall|permission)\b/', $t)) return 'access';
+        if (preg_match('/\b(training|orientation|policies|policy|handbook|welcome|walkthrough)\b/', $t)) return 'training';
+        return 'other';
+    }
+
+    /**
+     * HTML → [text, depth, isHeading] lines. Depth counts nested lists; TipTap
+     * nests as ul > li > (p + ul > li ...).
+     */
+    private static function lines(string $html): array
+    {
+        $out = [];
+        $doc = new \DOMDocument();
+        @$doc->loadHTML('<?xml encoding="utf-8"?><body>' . $html . '</body>');
+        $body = $doc->getElementsByTagName('body')->item(0);
+        if (! $body) return $out;
+
+        $walk = function (\DOMNode $node, int $depth) use (&$walk, &$out) {
+            foreach ($node->childNodes as $child) {
+                if (! ($child instanceof \DOMElement)) continue;
+                $tag = strtolower($child->tagName);
+                if (in_array($tag, ['h1', 'h2', 'h3', 'h4'], true)) {
+                    $out[] = [self::text($child), $depth, true];
+                } elseif ($tag === 'li') {
+                    // the li's own text = first p/text; nested lists recurse deeper
+                    $own = '';
+                    foreach ($child->childNodes as $g) {
+                        if ($g instanceof \DOMElement && in_array(strtolower($g->tagName), ['ul', 'ol'], true)) continue;
+                        $own .= ' ' . self::text($g);
+                    }
+                    if (trim($own) !== '') $out[] = [trim($own), $depth, false];
+                    foreach ($child->childNodes as $g) {
+                        if ($g instanceof \DOMElement && in_array(strtolower($g->tagName), ['ul', 'ol'], true)) {
+                            $walk($g, $depth + 1);
+                        }
+                    }
+                } elseif (in_array($tag, ['ul', 'ol'], true)) {
+                    $walk($child, $depth);
+                } elseif ($tag === 'p') {
+                    $t = self::text($child);
+                    if (trim($t) !== '') $out[] = [trim($t), $depth, false];
+                } else {
+                    $walk($child, $depth);
+                }
+            }
+        };
+        $walk($body, 0);
+        return $out;
+    }
+
+    private static function text(\DOMNode $n): string
+    {
+        $t = $n->textContent ?? '';
+        // Word-paste artifacts: non-breaking spaces and stray replacement chars.
+        $t = str_replace(["\u{00A0}", "\u{FFFD}"], ' ', $t);
+        return preg_replace('/\s+/u', ' ', $t);
+    }
+
+    /** The reverse direction: template steps → the rigid-format HTML for a new Docs page. */
+    public static function toHtml(array $steps, string $sectionLabel = ''): string
+    {
+        $esc = fn ($s) => htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
+        $h = $sectionLabel ? "<h2>{$esc($sectionLabel)}</h2>" : '';
+        $fields = function (array $s) use ($esc) {
+            $out = '';
+            foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
+                if (! empty($s[$k])) $out .= "<p><strong>{$label}:</strong> {$esc($s[$k])}</p>";
+            }
+            return $out;
+        };
+        foreach ($steps as $s) {
+            $h .= "<h3>{$esc($s['title'])}</h3>" . $fields($s);
+            if (! empty($s['subtasks'])) {
+                $h .= '<ul>';
+                foreach ($s['subtasks'] as $sub) {
+                    $h .= "<li><p>{$esc($sub['title'])}</p>" . $fields($sub) . '</li>';
+                }
+                $h .= '</ul>';
+            }
+        }
+        return $h;
+    }
+}

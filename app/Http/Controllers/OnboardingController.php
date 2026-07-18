@@ -39,6 +39,7 @@ class OnboardingController extends Controller
             ->get(['kind', 'variant', 'name']);
         $t = OnboardingTemplate::query()->where('company_id', $companyId)
             ->where('kind', $kind)->where('variant', $variant)->first();
+        $source = $t?->source_page_id ? \App\Models\DocPage::query()->find($t->source_page_id, ['id', 'title']) : null;
 
         return response()->json([
             'company_id' => $companyId,
@@ -47,17 +48,78 @@ class OnboardingController extends Controller
             'kind' => $kind, 'variant' => $variant,
             'name' => $t->name ?? \App\Support\StarterTemplates::KINDS[$kind] ?? 'Onboarding',
             'steps' => $t ? json_decode($t->steps, true) : null,
+            'source' => $source ? ['id' => $source->id, 'title' => $source->title] : null,
         ]);
     }
 
-    /** The shipped starter for a kind — adopting copies it; upgrades never touch copies. */
-    public function starter(Request $request): JsonResponse
+    /**
+     * Adopt a shipped starter: it materializes as a real Docs page (the master —
+     * rich text, editable in Docs) and the template is parsed FROM that page.
+     * From then on the loop is: edit the doc, re-parse.
+     */
+    public function adoptStarter(Request $request): JsonResponse
     {
-        $kind = $request->string('kind')->toString();
-        $variant = $request->string('variant')->toString();
-        $tpl = \App\Support\StarterTemplates::get($kind, $variant);
+        abort_if(auth()->user()?->role === 'User', 403);
+        $companyId = app(TenantResolver::class)->id();
+        abort_if(! $companyId, 422, 'Pick a company first.');
+
+        $data = $request->validate([
+            'kind' => 'required|in:onboarding,offboarding,imaging',
+            'variant' => 'nullable|string|max:100',
+        ]);
+        $variant = $data['variant'] ?? '';
+        $tpl = \App\Support\StarterTemplates::get($data['kind'], $variant);
         abort_if(! $tpl, 404);
-        return response()->json(['kind' => $kind, 'variant' => $variant, 'steps' => $tpl]);
+
+        $title = (\App\Support\StarterTemplates::KINDS[$data['kind']] ?? 'SOP') . ($variant ? " — {$variant}" : '') . ' SOP';
+        $page = \App\Models\DocPage::create([
+            'company_id' => $companyId,
+            'space_id' => \App\Models\Space::query()->orderBy('position')->value('id'),
+            'title' => $title,
+            'body' => \App\Support\SopDocParser::toHtml($tpl['steps']),
+            'category' => 'SOP',
+            'updated_by' => auth()->id(),
+        ]);
+
+        $t = OnboardingTemplate::updateOrCreate(
+            ['company_id' => $companyId, 'kind' => $data['kind'], 'variant' => $variant],
+            ['name' => $title, 'steps' => json_encode(\App\Support\SopDocParser::parse($page->body)), 'source_page_id' => $page->id],
+        );
+
+        return response()->json(['ok' => true, 'page_id' => $page->id, 'template_id' => $t->id]);
+    }
+
+    /** Compile a template from an existing Docs page — the page becomes its master. */
+    public function parseFromDoc(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $companyId = app(TenantResolver::class)->id();
+        abort_if(! $companyId, 422, 'Pick a company first.');
+
+        $data = $request->validate([
+            'page_id' => 'required|integer|exists:doc_pages,id',
+            'kind' => 'required|in:onboarding,offboarding,imaging',
+            'variant' => 'nullable|string|max:100',
+        ]);
+        $page = \App\Models\DocPage::query()->findOrFail($data['page_id']);
+        $parsed = \App\Support\SopDocParser::parse($page->body ?? '');
+        abort_if(empty($parsed['steps']), 422, 'Nothing parseable on that page.');
+
+        $t = OnboardingTemplate::updateOrCreate(
+            ['company_id' => $companyId, 'kind' => $data['kind'], 'variant' => $data['variant'] ?? ''],
+            ['name' => $page->title, 'steps' => json_encode($parsed), 'source_page_id' => $page->id],
+        );
+
+        return response()->json(['ok' => true, 'steps' => $parsed, 'source' => ['id' => $page->id, 'title' => $page->title]]);
+    }
+
+    /** Docs pages as {id,label} for the SOP picker. */
+    public function docOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\DocPage::query()->orderBy('title')->get(['id', 'title'])
+                ->map(fn ($p) => ['id' => $p->id, 'label' => $p->title])
+        );
     }
 
     public function saveTemplate(Request $request): JsonResponse

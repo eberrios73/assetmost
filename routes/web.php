@@ -125,7 +125,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/onboarding-template', [$oc, 'template']);
     Route::put('/data/onboarding-template', [$oc, 'saveTemplate']);
     Route::post('/data/onboarding-run', [$oc, 'run']);
-    Route::get('/data/onboarding-starter', [$oc, 'starter']);
+    Route::post('/data/onboarding-adopt-starter', [$oc, 'adoptStarter']);
+    Route::post('/data/onboarding-parse-doc', [$oc, 'parseFromDoc']);
+    Route::get('/data/doc-options', [$oc, 'docOptions']);
     // Identifier-only account options for pickers — deliberately outside the accounts
     // gate: names only, no holders, no services, no secrets.
     Route::get('/data/account-options', [$dc, 'accountOptions']);

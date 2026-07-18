@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AddButton from '@/Components/ui/AddButton';
 import { MultiPicker } from '@/Components/RecordModal';
+import SearchSelect from '@/Components/SearchSelect';
 
 const CATEGORIES = ['accounts', 'machine', 'access', 'training', 'other'];
 
@@ -52,6 +53,7 @@ export default function OnboardingSetup() {
     const [variant, setVariant] = useState('');
     const [loaded, setLoaded] = useState(false);
     const [steps, setSteps] = useState(null);        // null = nothing saved for this kind/variant
+    const [source, setSource] = useState(null);      // {id,title} of the master Docs page
     const [pasting, setPasting] = useState(false);
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
@@ -59,7 +61,7 @@ export default function OnboardingSetup() {
     const load = (k = kind, v = variant) => {
         setLoaded(false);
         api(`/data/onboarding-template?kind=${k}&variant=${encodeURIComponent(v)}`)
-            .then((r) => { setMeta({ kinds: r.kinds, existing: r.existing }); setSteps(r.steps?.steps ?? null); setLoaded(true); });
+            .then((r) => { setMeta({ kinds: r.kinds, existing: r.existing }); setSteps(r.steps?.steps ?? null); setSource(r.source ?? null); setLoaded(true); });
     };
     useEffect(() => { load(kind, variant); }, [kind, variant]);
 
@@ -70,8 +72,12 @@ export default function OnboardingSetup() {
     };
 
     const adoptStarter = async () => {
-        const r = await api(`/data/onboarding-starter?kind=${kind}&variant=${encodeURIComponent(variant)}`);
-        await save(r.steps.steps);
+        await api('/data/onboarding-adopt-starter', 'POST', { kind, variant });
+        load(kind, variant);   // the starter now exists as a Docs page; template parsed from it
+    };
+    const parseFromDoc = async (pageId) => {
+        await api('/data/onboarding-parse-doc', 'POST', { page_id: pageId, kind, variant });
+        load(kind, variant);
     };
 
     const variants = ['', ...new Set(meta.existing.filter((e) => e.kind === kind && e.variant).map((e) => e.variant))];
@@ -112,11 +118,21 @@ export default function OnboardingSetup() {
                     {meta.kinds[kind]}{variant ? ` — ${variant}` : ''}
                 </h2>
                 {!pasting && (
-                    <div className="mb-4 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-500/10 p-4">
-                        <p className="text-sm text-blue-800 dark:text-blue-300 mb-3">
-                            Start from the standard {meta.kinds[kind]?.toLowerCase()} SOP that ships with AssetMost — it becomes yours to edit — or paste your own below.
-                        </p>
-                        <AddButton label="Use the standard SOP" onClick={adoptStarter} />
+                    <div className="mb-4 space-y-3">
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+                            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">Compile from a Docs page</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                Your SOP doc is the master — pick it and it parses into steps. Edit the doc later, hit re-parse, the template follows.
+                            </p>
+                            <SearchSelect value={null} endpoint="/data/doc-options" placeholder="Search your Docs pages…"
+                                onChange={(id) => { if (id) parseFromDoc(id); }} />
+                        </div>
+                        <div className="rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-500/10 p-4">
+                            <p className="text-sm text-blue-800 dark:text-blue-300 mb-3">
+                                No SOP yet? Adopt the standard {meta.kinds[kind]?.toLowerCase()} one — it's created as a real Docs page in your wiki, then compiled from there. Yours to edit like any doc.
+                            </p>
+                            <AddButton label="Use the standard SOP" onClick={adoptStarter} />
+                        </div>
                     </div>
                 )}
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
@@ -146,6 +162,16 @@ export default function OnboardingSetup() {
                 </h2>
                 <div className="flex items-center gap-2">
                     {saved && <span className="text-xs text-green-600">{saved}</span>}
+                    {source && (
+                        <>
+                            <a href={`/docs?page=${source.id}`} className="text-xs text-blue-600 dark:text-blue-400 hover:underline" title="The master SOP document">
+                                Master: {source.title}
+                            </a>
+                            <button onClick={() => parseFromDoc(source.id)}
+                                className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                title="Re-compile the steps from the doc — the doc wins over manual edits here">Re-parse from doc</button>
+                        </>
+                    )}
                     <button onClick={() => setPasting(true)}
                         className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Re-paste SOP</button>
                     <AddButton label="Add step" onClick={() => save([...steps, { id: uid(), title: 'New step', instructions: '', category: 'other', automatable: false, subtasks: [] }])} />
