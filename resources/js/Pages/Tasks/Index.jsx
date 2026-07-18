@@ -5,6 +5,18 @@ import { TrashIcon, Chevron } from '@/Components/Icons';
 import { buildDocBody, templateCategory } from '@/docTemplates';
 import TemplateMenu from '@/Components/TemplateMenu';
 import SearchSelect from '@/Components/SearchSelect';
+import RecordModal from '@/Components/RecordModal';
+import AddButton from '@/Components/ui/AddButton';
+import { ENTITIES } from '@/entities';
+
+// A task stamped "Form: <kind> · co:<id>" (a /form token in its workflow step)
+// renders the matching add-record form — the SOP's Record field made executable,
+// scoped to the workflow's company. Same RecordModal + fields as everywhere else.
+const FORM_ENTITY = { device: 'devices', person: 'people', account: 'accounts', location: 'locations' };
+const taskForm = (notes) => {
+    const m = /(?:^|\n)Form: (device|person|account|location) · co:(\d+)/.exec(notes || '');
+    return m ? { kind: m[1], companyId: Number(m[2]), entity: ENTITIES[FORM_ENTITY[m[1]]] } : null;
+};
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
@@ -328,6 +340,8 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
     const expanded = expandedId === t.id;
     const onToggle = () => onToggleAny(t.id);
     const carried = t.origin && t.origin < t.week && !t.done;
+    const form = taskForm(t.notes);
+    const [formOpen, setFormOpen] = useState(false);
     return (
         <>
             {/* Priority bar lives on the first cell, NOT the <tr>: a pseudo-element
@@ -372,6 +386,22 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
                 <tr>
                     <td colSpan={9} className="p-0 border-b border-gray-200 dark:border-gray-800">
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4">
+                            {form && (
+                                <div className="mb-3 flex items-center gap-2">
+                                    <AddButton label={`Add ${form.kind}`} onClick={() => setFormOpen(true)} />
+                                    <span className="text-xs text-gray-400">This step records a {form.kind} — created in the workflow's company.</span>
+                                </div>
+                            )}
+                            {formOpen && form && (
+                                <RecordModal title={`Add ${form.kind}`} endpoint={form.entity.add.endpoint} method="POST"
+                                    fields={form.entity.add.fields} extra={{ company_id: form.companyId }}
+                                    onClose={() => setFormOpen(false)}
+                                    onSaved={(rec) => {
+                                        setFormOpen(false);
+                                        const label = rec?.asset_tag || rec?.identifier || rec?.name || '';
+                                        patch(t.id, { notes: `${t.notes}\n✓ ${form.kind} recorded${label ? `: ${label}` : ''}` });
+                                    }} />
+                            )}
                             <div className="flex items-start gap-3">
                                 <div className="flex-1">
                                     <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>

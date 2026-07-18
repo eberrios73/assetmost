@@ -179,7 +179,11 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                                         {preview.rows.map((r, i) => (
                                             <li key={i} className={`flex items-start gap-2 text-sm ${r.depth ? 'pl-6 text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-medium'}`}>
                                                 <span className="text-gray-300 dark:text-gray-600">{r.depth ? '↳' : '•'}</span>
-                                                <span>{r.title}{r.ref && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:text-amber-400">linked</span>}</span>
+                                                <span>
+                                                    {r.title}
+                                                    {r.ref && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:text-amber-400">linked</span>}
+                                                    {r.form && <span className="ml-2 rounded bg-blue-100 dark:bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-normal text-blue-700 dark:text-blue-400">form: {r.form}</span>}
+                                                </span>
                                             </li>
                                         ))}
                                     </ol>

@@ -112,6 +112,10 @@ class MachineOnboardController extends Controller
                         $refSteps = array_merge($refSteps, $extra);
                     }
                 }
+                // /form tokens stamp the task; the Tasks screen renders the add form from it.
+                if ($fk = WorkflowController::formKind($step)) {
+                    $card[] = "Form: {$fk} · co:{$companyId}";
+                }
                 $t = Task::create([
                     'title' => $step['title'], 'notes' => implode("\n", $card),
                     'parent_id' => $project->id, 'week' => $monday, 'origin' => Carbon::now()->toDateString(),

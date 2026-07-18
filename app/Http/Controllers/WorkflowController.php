@@ -156,6 +156,21 @@ class WorkflowController extends Controller
         return response()->json(['ok' => true, 'steps' => $parsed]);
     }
 
+    /**
+     * The /form token in a step: the generated task carries a record-creation form
+     * (the Record field made executable). Returns the kind or null.
+     */
+    public static function formKind(array $step): ?string
+    {
+        $text = implode("\n", array_filter([
+            $step['title'] ?? '', $step['why'] ?? '', $step['instructions'] ?? '',
+            $step['done_when'] ?? '', $step['record'] ?? '',
+        ]));
+        return preg_match('~/form\s+(device|person|account|location)~i', $text, $m)
+            ? strtolower($m[1])
+            : null;
+    }
+
     /** The flat task list this workflow generates, /references resolved live. */
     public function preview(Request $request, DocPage $page): JsonResponse
     {
@@ -175,12 +190,12 @@ class WorkflowController extends Controller
                     $refExtra = array_merge($refExtra, $extra);
                 }
             }
-            $rows[] = ['title' => $step['title'], 'note' => $note, 'depth' => 0, 'ref' => false];
+            $rows[] = ['title' => $step['title'], 'note' => $note, 'depth' => 0, 'ref' => false, 'form' => self::formKind($step)];
             foreach ($refExtra as $r) {
                 $rows[] = ['title' => $r['title'], 'note' => $r['instructions'] ?? '', 'depth' => 1, 'ref' => true];
             }
             foreach ($step['subtasks'] ?? [] as $sub) {
-                $rows[] = ['title' => $sub['title'], 'note' => $sub['instructions'] ?? '', 'depth' => 1, 'ref' => false];
+                $rows[] = ['title' => $sub['title'], 'note' => $sub['instructions'] ?? '', 'depth' => 1, 'ref' => false, 'form' => self::formKind($sub)];
             }
         }
         return response()->json(['rows' => $rows]);
@@ -333,12 +348,15 @@ class WorkflowController extends Controller
             }
 
             // Workflow steps: chained sequentially; subtasks ride under their step.
+            // A /form token stamps the task (Form: kind · co:N) — the Tasks screen
+            // renders the add-record form from it, scoped to THIS workflow's company.
+            $formLine = fn (array $st) => ($fk = self::formKind($st)) ? "\nForm: {$fk} · co:{$companyId}" : '';
             $prev = null;
             foreach ($steps as $step) {
                 $when = $doh->copy()->addDays((int) ($step['offset_days'] ?? 0));
                 $t = $mkTask([
                     'title' => $sub($step['title']),
-                    'notes' => $card($step),
+                    'notes' => $card($step) . $formLine($step),
                     'week' => $monday($when), 'origin' => Carbon::now()->toDateString(),
                     'planned_start' => $when->toDateString(), 'due_date' => $when->toDateString(),
                     'depends_on_id' => $prev?->id,
@@ -347,7 +365,7 @@ class WorkflowController extends Controller
                     $whenS = $doh->copy()->addDays((int) ($s['offset_days'] ?? ($step['offset_days'] ?? 0)));
                     $mkTask([
                         'title' => $sub($s['title']),
-                        'notes' => $card($s),
+                        'notes' => $card($s) . $formLine($s),
                         'parent_id' => $t->id,
                         'week' => $monday($whenS), 'origin' => Carbon::now()->toDateString(),
                         'planned_start' => $whenS->toDateString(), 'due_date' => $whenS->toDateString(),

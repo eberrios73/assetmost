@@ -115,6 +115,11 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             const coords = ed.view.coordsAtPos($from.pos);
             return setMenu({ mode: 'mdm', query: mdm[1].trim().toLowerCase(), from: $from.pos - mdm[0].length, to: $from.pos, x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
         }
+        const form = textBefore.match(/\/form\s+([^/]*)$/i);
+        if (form) {
+            const coords = ed.view.coordsAtPos($from.pos);
+            return setMenu({ mode: 'form', query: form[1].trim().toLowerCase(), from: $from.pos - form[0].length, to: $from.pos, x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
+        }
         // "/word" — commands and runbook references.
         const m = textBefore.match(/(?:^|\s)\/(\w*)$/);
         if (!m) return setMenu(null);
@@ -174,6 +179,13 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         if (menu.query) picks.push({ key: 'mdm:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
             run: (e) => e.chain().focus().insertContent(`/mdm ${menu.query} `).run() });
         items = picks;
+    } else if (menu?.mode === 'form') {
+        // /form <kind>: the step that carries it gets a record-creation form on its
+        // generated task — the Record field made executable, in the workflow's company.
+        const KINDS = ['device', 'person', 'account', 'location'];
+        items = KINDS.filter((k) => !menu.query || k.includes(menu.query))
+            .map((k) => ({ key: `form:${k}`, label: `Add ${k} form`, hint: `The task gets an "Add ${k}" form`,
+                run: (e) => e.chain().focus().insertContent(`/form ${k} `).run() }));
     } else {
         // Discoverable openers so a partial "/inst" or "/vp" surfaces the command;
         // picking one inserts the trigger, which opens its picker (see apply()).
@@ -181,6 +193,7 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             { key: 'open:install', label: 'Install software', hint: 'Pull an installer from the share', run: (e) => e.chain().focus().insertContent('/install ').run() },
             { key: 'open:vpn', label: 'VPN profile', hint: 'Pull a VPN config from the share', run: (e) => e.chain().focus().insertContent('/vpn ').run() },
             { key: 'open:mdm', label: 'MDM enrollment', hint: 'Enroll into Jamf, Intune, …', run: (e) => e.chain().focus().insertContent('/mdm ').run() },
+            { key: 'open:form', label: 'Record form', hint: 'The task gets an add-record form', run: (e) => e.chain().focus().insertContent('/form ').run() },
         ];
         const all = [...SLASH, ...openers, ...refItems];
         items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.slug || '').includes(menu.query)) : [];

@@ -146,6 +146,9 @@ class DataController extends Controller
             'model' => 'nullable|string|max:255', 'serial_num' => 'nullable|string|max:255',
             'location_id' => 'nullable|integer|exists:locations,id',
             'room_id' => 'nullable|integer|exists:rooms,id',
+            // Explicit company (a /form task creates records in ITS workflow's company,
+            // not whatever the header switcher is on). Location still wins when picked.
+            'company_id' => 'nullable|integer|exists:companies,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
@@ -931,6 +934,7 @@ class DataController extends Controller
             'notes' => 'nullable|string',
             'is_active' => 'boolean',
             'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
+            'company_id' => 'nullable|integer|exists:companies,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
@@ -940,7 +944,7 @@ class DataController extends Controller
         unset($data['holder_ids']);
         $data['identifier'] = trim($data['identifier']);
         $data['is_active'] = (bool) ($data['is_active'] ?? true);
-        $data['company_id'] = app(\App\Support\Contracts\TenantResolver::class)->id();
+        $data['company_id'] ??= app(\App\Support\Contracts\TenantResolver::class)->id();
 
         $account = \App\Models\Account::create($data);
         if ($holderIds) {
