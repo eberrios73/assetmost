@@ -232,6 +232,12 @@ export default function Index() {
 
     const detail = page ? (
         <div className="max-w-3xl mx-auto">
+            {page.current_id && (
+                <div className="mb-3 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300 flex items-center justify-between gap-3">
+                    <span>This is an old version — kept for the record.</span>
+                    <button onClick={() => openPage(page.current_id)} className="shrink-0 text-blue-600 dark:text-blue-400 hover:underline">Open current</button>
+                </div>
+            )}
             <div className="flex items-start justify-between mb-2 gap-4">
                 <input value={page.title} onChange={(e) => saveTitle(e.target.value)}
                     className="flex-1 text-3xl font-bold text-gray-900 dark:text-white border-0 focus:ring-0 px-0 placeholder-gray-300" placeholder="Untitled" />
@@ -255,6 +261,20 @@ export default function Index() {
                 <OnboardingSetup key={page.id} workflow={{ id: page.id }} onChanged={loadTree} />
             ) : (
                 <DocEditor key={page.id} pageId={page.id} initialBody={page.body} onSave={saveBody} />
+            )}
+            {page.versions?.length > 0 && (
+                <div className="mt-8 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Versions</p>
+                    <ul className="space-y-1">
+                        {page.versions.map((v) => (
+                            <li key={v.id} className="flex items-center gap-3 text-sm">
+                                <span className="text-gray-700 dark:text-gray-200">{v.version ? `v${v.version}` : 'Earlier version'}</span>
+                                <span className="text-xs text-gray-400">{v.updated_at ? new Date(v.updated_at).toLocaleDateString() : ''}</span>
+                                <button onClick={() => openPage(v.id)} className="text-blue-600 dark:text-blue-400 hover:underline text-xs">open</button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             )}
         </div>
     ) : (

@@ -62,6 +62,7 @@ class DocController extends Controller
     public function tree(Request $request): JsonResponse
     {
         $pages = DocPage::query()
+            ->whereNull('superseded_by_id')   // the tree shows CURRENT versions only
             ->when($request->filled('space'), fn ($q) => $q->where('space_id', (int) $request->query('space')))
             ->orderBy('position')->orderBy('title')
             ->get(['id', 'parent_id', 'title', 'icon', 'category']);
@@ -80,6 +81,25 @@ class DocController extends Controller
     public function show(DocPage $page): JsonResponse
     {
         $page->load('editor:id,name,last');
+
+        // Version lineage (self-related): walk BACK from this page to list its old
+        // versions, and FORWARD in case someone opened a superseded page directly.
+        $versions = [];
+        $cursor = $page;
+        for ($i = 0; $i < 20; $i++) {
+            $older = DocPage::withoutGlobalScopes()->where('superseded_by_id', $cursor->id)->first();
+            if (! $older) break;
+            $meta = json_decode($older->workflow_steps ?? '', true)['meta'] ?? [];
+            $versions[] = ['id' => $older->id, 'version' => $meta['version'] ?? null, 'updated_at' => $older->updated_at];
+            $cursor = $older;
+        }
+        $currentId = null;
+        $cursor = $page;
+        for ($i = 0; $cursor->superseded_by_id && $i < 20; $i++) {
+            $cursor = DocPage::withoutGlobalScopes()->find($cursor->superseded_by_id) ?? $cursor;
+            $currentId = $cursor->id;
+        }
+
         return response()->json([
             'id' => $page->id, 'parent_id' => $page->parent_id,
             'title' => $page->title, 'body' => $page->body, 'icon' => $page->icon,
@@ -88,36 +108,54 @@ class DocController extends Controller
             'workflow_type' => $page->workflow_type,
             'updated_at' => $page->updated_at,
             'editor' => $page->editor ? trim("{$page->editor->name} {$page->editor->last}") : null,
+            'versions' => $versions,          // older versions, newest first
+            'current_id' => $currentId,       // set only when THIS page is superseded
         ]);
     }
 
     /**
-     * New version = a duplicate to rework while the original stands. Workflow pages
-     * get their meta version bumped (1.0 -> 1.1), status reset to Draft, and the
-     * body regenerated so the header table shows it. Plain docs copy as-is (their
-     * version lives in their own header table — edit it there).
+     * New version: real supersession, not a loose duplicate. The new page becomes
+     * THE document (it inherits the workflow slug); the old one is marked
+     * superseded — hidden from the tree, search, and the workflow lists — and
+     * shows up in the current page's version history. `blank: true` starts the
+     * new version from the empty SOP scaffold instead of a copy.
      */
-    public function newVersion(DocPage $page): JsonResponse
+    public function newVersion(Request $request, DocPage $page): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);
+        abort_if($page->superseded_by_id, 422, 'This is an old version — open the current one to version it.');
+        $blank = (bool) $request->boolean('blank');
 
-        $copy = $page->replicate(['workflow_slug']);
-        $copy->workflow_shipped = false;
+        $decoded = json_decode($page->workflow_steps ?? '', true) ?: [];
+        $meta = $decoded['meta'] ?? [];
+        $meta['version'] = preg_match('/^(\d+)\.(\d+)$/', $meta['version'] ?? '', $m)
+            ? $m[1] . '.' . ($m[2] + 1)
+            : '1.1';
+        $meta['status'] = 'Draft';
+
+        // The copy inherits the identity — including the slug — because it IS the
+        // document now; replicate() copies workflow_slug along with everything else.
+        $copy = $page->replicate();
         $copy->updated_by = auth()->id();
-
-        if ($page->workflow_type && $page->workflow_steps) {
-            $decoded = json_decode($page->workflow_steps, true) ?: [];
-            $meta = $decoded['meta'] ?? [];
-            $meta['version'] = preg_match('/^(\d+)\.(\d+)$/', $meta['version'] ?? '', $m)
-                ? $m[1] . '.' . ($m[2] + 1)
-                : '1.1';
-            $meta['status'] = 'Draft';
+        if ($page->workflow_type) {
             $decoded['meta'] = $meta;
+            if ($blank) $decoded['steps'] = [];
             $copy->workflow_steps = json_encode($decoded);
-            $copy->body = \App\Support\SopDocParser::toHtml($decoded['steps'] ?? [], '', $meta);
+            $copy->body = $blank
+                ? \App\Support\SopDocParser::toHtml([], '', $meta) . '<h2>Procedure</h2><section data-sop-step><p><strong>New step</strong></p><p></p></section>'
+                : \App\Support\SopDocParser::toHtml($decoded['steps'] ?? [], '', $meta);
+        } elseif ($blank) {
+            $copy->body = '<p></p>';
         }
-
         $copy->save();
+
+        // The old version steps aside: out of every list, findable from the new one.
+        $page->forceFill([
+            'superseded_by_id' => $copy->id,
+            'workflow_slug' => null,          // the slug lives on the current version only
+            'workflow_active' => false,       // out of the onboarding lists and /refs
+        ])->save();
+
         return response()->json(['ok' => true, 'id' => $copy->id], 201);
     }
 
@@ -129,6 +167,7 @@ class DocController extends Controller
         $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
         return response()->json(
             DocPage::query()
+                ->whereNull('superseded_by_id')   // search finds current versions only
                 ->where(fn ($w) => $w->where('title', 'like', $like)->orWhere('body', 'like', $like))
                 ->orderByRaw('title LIKE ? DESC', [$like])->orderBy('title')
                 ->limit(25)
