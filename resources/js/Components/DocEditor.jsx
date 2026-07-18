@@ -43,7 +43,17 @@ const toHtml = (body) => {
     return /^\s*</.test(body) ? body : marked.parse(body, { breaks: true });
 };
 
+// Insert a command token as a SUBSTEP: a bullet under the current step (top-level
+// bullets parse as subtasks). Already inside a bullet? Just insert the text there.
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const asSubstep = (e, text) => e.isActive('listItem')
+    ? e.chain().focus().insertContent(esc(text)).run()
+    : e.chain().focus().insertContent(`<ul><li><p>${esc(text)}</p></li></ul>`).run();
+
 const SLASH = [
+    // A step is a bold title line; its Why/How/Done when/Record lines follow it, and
+    // bullets under it are its substeps — exactly what the SOP parser compiles.
+    { key: 'step', label: 'Step', hint: 'New SOP step — add Why/How/Done when/Record lines under it', run: (e) => e.chain().focus().insertContent('<p><strong>New step</strong></p><p></p>').run() },
     { key: 'p', label: 'Text', hint: 'Plain paragraph', run: (e) => e.chain().focus().setParagraph().run() },
     { key: 'h1', label: 'Heading 1', hint: 'Big section heading', run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run() },
     { key: 'h2', label: 'Heading 2', hint: 'Medium heading', run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
@@ -155,10 +165,10 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             .filter((i) => !nameQ || i.name.toLowerCase().includes(nameQ))
             .slice(0, 8)
             .map((i) => ({ key: `inst:${i.id}`, label: i.name, hint: `${i.platform}${i.arch ? ' ' + i.arch + '-bit' : ''}`,
-                run: (e) => e.chain().focus().insertContent(`/install ${i.name} `).run() }));
+                run: (e) => asSubstep(e, `/install  `) }));
         // Works before the share is indexed: keep whatever was typed as the reference.
         if (nameQ) picks.push({ key: 'inst:free', label: `Use "${nameQ}"`, hint: 'insert as typed',
-            run: (e) => e.chain().focus().insertContent(`/install ${menu.query} `).run() });
+            run: (e) => asSubstep(e, `/install  `) });
         items = picks;
     } else if (menu?.mode === 'vpn') {
         const picks = installers
@@ -166,18 +176,18 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             .filter((i) => !menu.query || i.name.toLowerCase().includes(menu.query))
             .slice(0, 8)
             .map((i) => ({ key: `vpn:${i.id}`, label: i.name.replace(VPN_RE, ''), hint: 'VPN profile — download + install',
-                run: (e) => e.chain().focus().insertContent(`/vpn ${i.name} `).run() }));
+                run: (e) => asSubstep(e, `/vpn  `) }));
         if (menu.query) picks.push({ key: 'vpn:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
-            run: (e) => e.chain().focus().insertContent(`/vpn ${menu.query} `).run() });
+            run: (e) => asSubstep(e, `/vpn  `) });
         items = picks;
     } else if (menu?.mode === 'mdm') {
         // A fixed list, not the share — /mdm names the MDM the bootstrap script enrolls into.
         const MDM = ['Jamf', 'Intune', 'Kandji', 'Mosyle', 'Addigy', 'Workspace ONE'];
         const picks = MDM.filter((n) => !menu.query || n.toLowerCase().includes(menu.query))
             .map((n) => ({ key: `mdm:${n}`, label: n, hint: 'Enroll into this MDM (read from the SOP)',
-                run: (e) => e.chain().focus().insertContent(`/mdm ${n} `).run() }));
+                run: (e) => asSubstep(e, `/mdm  `) }));
         if (menu.query) picks.push({ key: 'mdm:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
-            run: (e) => e.chain().focus().insertContent(`/mdm ${menu.query} `).run() });
+            run: (e) => asSubstep(e, `/mdm  `) });
         items = picks;
     } else if (menu?.mode === 'form') {
         // /form <new|edit> <kind>: the step's generated task carries the record form —
@@ -188,7 +198,7 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             key: `form:${mode}:${k}`,
             label: `${mode === 'new' ? 'New' : 'Edit'} ${k}`,
             hint: mode === 'new' ? `The task gets an "Add ${k}" form` : `The task gets a pick-and-edit ${k} form`,
-            run: (e) => e.chain().focus().insertContent(`/form ${mode} ${k} `).run(),
+            run: (e) => asSubstep(e, `/form   `),
         }))).filter((it) => !menu.query || it.label.toLowerCase().includes(menu.query));
     } else {
         // Discoverable openers so a partial "/inst" or "/vp" surfaces the command;
