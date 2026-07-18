@@ -46,6 +46,29 @@ class SopDocParser
             // a Procedure table's rows become steps; Revision history is the doc's own
             // memory and stays out of the template.
             if ($cells !== null) {
+                // A step's field table (the /step scaffold): 2 columns, labelled
+                // Why / How / Done when / Record. Rows attach to the current step
+                // (or its last subtask); empty cells — a fresh scaffold — are skipped.
+                if ($lastStep !== null && isset($cells[0])
+                    && preg_match('/^(why|how|done when|done|record)\s*:?\s*$/i', trim($cells[0]), $fm)) {
+                    $val = trim($cells[1] ?? '');
+                    if ($val !== '') {
+                        $key = match (strtolower($fm[1])) {
+                            'why' => 'why', 'how' => 'instructions',
+                            'done when', 'done' => 'done_when', 'record' => 'record',
+                        };
+                        $target = &$steps[$lastStep];
+                        if ($lastWasSub && $target['subtasks']) {
+                            $sub = &$target['subtasks'][array_key_last($target['subtasks'])];
+                            $sub[$key] = trim(($sub[$key] ?? '') !== '' ? $sub[$key] . "\n" . $val : $val);
+                            unset($sub);
+                        } else {
+                            $target[$key] = trim(($target[$key] ?? '') !== '' ? $target[$key] . "\n" . $val : $val);
+                        }
+                        unset($target);
+                    }
+                    continue;
+                }
                 if (! $seenSection || $section === '') {
                     for ($i = 0; $i + 1 < count($cells); $i += 2) {
                         $k = strtolower(trim($cells[$i]));
@@ -232,7 +255,16 @@ class SopDocParser
                         $cells = [];
                         foreach ($tr->childNodes as $cell) {
                             if ($cell instanceof \DOMElement && in_array(strtolower($cell->tagName), ['td', 'th'], true)) {
-                                $cells[] = trim(self::text($cell));
+                                // Keep a cell's paragraphs as separate lines (a How
+                                // cell can hold several); fall back to flat text.
+                                $blocks = [];
+                                foreach ($cell->childNodes as $b) {
+                                    if ($b instanceof \DOMElement && strtolower($b->tagName) === 'p') {
+                                        $t = trim(self::text($b));
+                                        if ($t !== '') $blocks[] = $t;
+                                    }
+                                }
+                                $cells[] = $blocks ? implode("\n", $blocks) : trim(self::text($cell));
                             }
                         }
                         if (array_filter($cells, fn ($c) => $c !== '')) $out[] = ['', $depth, false, $cells];
@@ -269,9 +301,22 @@ class SopDocParser
     public static function toHtml(array $steps, string $sectionLabel = ''): string
     {
         $esc = fn ($v) => htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8');
-        // Playbook fields as clean labelled paragraphs. The label text is what parse()
-        // reads back, so it stays "Why:/How:/Done when:/Record:".
-        $fields = function (array $s) use ($esc) {
+        // A step's playbook fields as a neat 2-column table — the same shape /step
+        // scaffolds in the editor, and what parse() reads back by its row labels.
+        $fieldTable = function (array $s) use ($esc) {
+            $rows = '';
+            foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
+                if (! empty($s[$k])) {
+                    $cell = '';
+                    foreach (preg_split('/\n+/', $s[$k]) as $line) $cell .= "<p>{$esc($line)}</p>";
+                    $rows .= "<tr><td><p><strong>{$label}:</strong></p></td><td>{$cell}</td></tr>";
+                }
+            }
+            return $rows ? "<table><tbody>{$rows}</tbody></table>" : '';
+        };
+        // Subtask fields stay labelled paragraphs — a table inside a list item would
+        // not survive the li parsing, and bullets read better lean.
+        $fieldParas = function (array $s) use ($esc) {
             $out = '';
             foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
                 if (! empty($s[$k])) {
@@ -286,12 +331,12 @@ class SopDocParser
 
         $h = $sectionLabel ? "<h2>{$esc($sectionLabel)}</h2>" : '';
         foreach ($steps as $s) {
-            $h .= "<p><strong>{$esc($s['title'])}</strong></p>" . $fields($s);
+            $h .= "<p><strong>{$esc($s['title'])}</strong></p>" . $fieldTable($s);
             // Subtasks are a real bulleted list; each carries its own fields inside the li.
             if (! empty($s['subtasks'])) {
                 $h .= '<ul>';
                 foreach ($s['subtasks'] as $sub) {
-                    $h .= "<li><p>{$esc($sub['title'])}</p>" . $fields($sub) . '</li>';
+                    $h .= "<li><p>{$esc($sub['title'])}</p>" . $fieldParas($sub) . '</li>';
                 }
                 $h .= '</ul>';
             }

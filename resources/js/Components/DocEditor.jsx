@@ -50,10 +50,14 @@ const asSubstep = (e, text) => e.isActive('listItem')
     ? e.chain().focus().insertContent(esc(text)).run()
     : e.chain().focus().insertContent(`<ul><li><p>${esc(text)}</p></li></ul>`).run();
 
+// The /step scaffold: bold title + the playbook fields as a 2-column table (add or
+// remove rows like any table). Bullets under it are its substeps.
+const STEP_SCAFFOLD = '<p><strong>New step</strong></p><table><tbody>'
+    + ['Why', 'How', 'Done when', 'Record'].map((l) => `<tr><td><p><strong>${l}:</strong></p></td><td><p></p></td></tr>`).join('')
+    + '</tbody></table><p></p>';
+
 const SLASH = [
-    // A step is a bold title line; its Why/How/Done when/Record lines follow it, and
-    // bullets under it are its substeps — exactly what the SOP parser compiles.
-    { key: 'step', label: 'Step', hint: 'New SOP step — add Why/How/Done when/Record lines under it', run: (e) => e.chain().focus().insertContent('<p><strong>New step</strong></p><p></p>').run() },
+    { key: 'step', label: 'Step', hint: 'New SOP step — title + Why/How/Done when/Record table', run: (e) => e.chain().focus().insertContent(STEP_SCAFFOLD).run() },
     { key: 'p', label: 'Text', hint: 'Plain paragraph', run: (e) => e.chain().focus().setParagraph().run() },
     { key: 'h1', label: 'Heading 1', hint: 'Big section heading', run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run() },
     { key: 'h2', label: 'Heading 2', hint: 'Medium heading', run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
