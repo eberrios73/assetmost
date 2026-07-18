@@ -33,7 +33,6 @@ export default function Index() {
     const [selectedId, setSelectedId] = useState(null);
     const [page, setPage] = useState(null);
     const [status, setStatus] = useState('');
-    const [filter, setFilter] = useState('');   // category filter; '' = all (tree view)
     const [navTab, setNavTab] = useState('docs');   // docs | templates
     const [searchQ, setSearchQ] = useState('');
     const [searchResults, setSearchResults] = useState(null);
@@ -145,7 +144,6 @@ export default function Index() {
         openPage(r.id);
     };
 
-    const flat = flatten(tree).filter((n) => n.category === filter);
 
     const nav = (
         <div className="flex flex-col h-full">
@@ -181,23 +179,14 @@ export default function Index() {
                         <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(selectedId ?? null, k)}
                             className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
                     </div>
-                    <div className="px-3 pb-2">
+                    <div className="px-3 pb-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
                         <input value={searchQ} onChange={(e) => runSearch(e.target.value)} placeholder="Search all docs…"
-                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
-                    </div>
-                    <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
-                        <select value={filter} onChange={(e) => setFilter(e.target.value)}
-                            className="flex-1 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">All pages</option>
-                            {DOC_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                        {!filter && (
-                            <button onClick={() => setAllCollapsed(collapsed.size === 0)}
-                                title={collapsed.size === 0 ? 'Collapse all' : 'Expand all'}
-                                className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-1">
-                                {collapsed.size === 0 ? '⊟' : '⊞'}
-                            </button>
-                        )}
+                            className="flex-1 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                        <button onClick={() => setAllCollapsed(collapsed.size === 0)}
+                            title={collapsed.size === 0 ? 'Collapse all' : 'Expand all'}
+                            className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-1">
+                            {collapsed.size === 0 ? '⊟' : '⊞'}
+                        </button>
                     </div>
                     <div className="flex-1 overflow-y-auto py-1"
                         onDragOver={(e) => e.preventDefault()}
@@ -211,15 +200,6 @@ export default function Index() {
                                     <CategoryBadge category={r.category} />
                                 </button>
                             )) : <div className="p-4 text-sm text-gray-400">Nothing matches "{searchQ}".</div>
-                        ) : filter ? (
-                            flat.length ? flat.map((n) => (
-                                <button key={n.id} onClick={() => openPage(n.id)}
-                                    className={`group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}>
-                                    <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
-                                    <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{n.title}</span>
-                                    <CategoryBadge category={n.category} />
-                                </button>
-                            )) : <div className="p-4 text-sm text-gray-400">No {filter} pages.</div>
                         ) : (
                             tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} collapsed={collapsed} onToggle={toggleCollapse} onMove={moveDoc} />
                                 : <div className="p-4 text-sm text-gray-400">No pages yet. Create one.</div>
