@@ -7,6 +7,8 @@ use App\Models\DeviceType;
 use App\Models\Login;
 use App\Models\OnboardingTemplate;
 use App\Models\Task;
+use App\Models\User;
+use App\Support\Access;
 use App\Support\Contracts\TenantResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +16,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 /**
@@ -145,6 +148,11 @@ class MachineOnboardController extends Controller
 
         Log::info('machine.onboard.generated', ['device' => $device->id, 'tag' => $device->asset_tag, 'by' => auth()->id()]);
 
+        // Audit trail: tell the system admins a device was just onboarded. Every legit
+        // enrollment leaves this record, so a device in the MDM with no matching email
+        // is suspect. Best-effort — a mail problem must never fail the onboarding.
+        self::notifyAdmins($device, $data, $companyId, self::mdm($steps));
+
         // The runbook is the recipe: the /install and /vpn tokens in its steps ARE
         // the fetch list. Any explicitly passed installers are merged in as extras.
         $recipe = self::recipe($steps, $companyId);
@@ -209,6 +217,42 @@ class MachineOnboardController extends Controller
             return str_contains($hay, $first) || str_contains($hay, 'enroll') || str_contains($hay, 'mdm');
         });
         return $file?->relative_path;
+    }
+
+    /**
+     * Email the company's system administrators that a device was onboarded — the audit
+     * baseline for spotting an enrollment that didn't go through AssetMost. SuperAdmins
+     * (all companies) plus this company's IT Admins. Never throws: a mail failure or an
+     * unconfigured mailer must not fail the onboarding (delivery just needs SMTP set).
+     */
+    private static function notifyAdmins(Device $device, array $data, int $companyId, string $mdm): void
+    {
+        try {
+            $recipients = User::query()
+                ->whereIn('role', [Access::SUPER_ADMIN, Access::IT_ADMIN])
+                ->where(fn ($q) => $q->where('role', Access::SUPER_ADMIN)->orWhere('company_id', $companyId))
+                ->where('active', true)->whereNotNull('email')
+                ->pluck('email')->unique()->values()->all();
+            if (! $recipients) return;
+
+            $who = auth()->user()?->name ?: 'someone';
+            $model = trim(($data['brand'] ?? '') . ' ' . ($data['model'] ?? ''));
+            $body = "A machine was onboarded through AssetMost.\n\n"
+                . "Asset tag: {$device->asset_tag}\n"
+                . 'Runbook:   ' . ($data['variant'] ?: '(default)') . "\n"
+                . ($mdm ? 'MDM:       ' . ucwords($mdm) . "\n" : '')
+                . 'Model:     ' . ($model ?: '-') . "\n"
+                . 'Serial:    ' . ($data['serial_num'] ?? '-') . "\n"
+                . "By:        {$who}\n"
+                . 'When:      ' . Carbon::now()->toDayDateTimeString() . "\n\n"
+                . 'If you did not expect this enrollment, investigate it.';
+
+            Mail::raw($body, function ($m) use ($recipients, $device) {
+                $m->to($recipients)->subject("AssetMost: {$device->asset_tag} onboarded");
+            });
+        } catch (\Throwable $e) {
+            Log::warning('machine.onboard.notify_failed', ['device' => $device->id, 'error' => $e->getMessage()]);
+        }
     }
 
     public static function recipe(array $steps, int $companyId): array
