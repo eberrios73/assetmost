@@ -21,8 +21,26 @@ const api = async (url, body) => {
  * back so the checklist ticks itself.
  */
 export default function Machine({ variants = [], types = [] }) {
-    const [variant, setVariant] = useState(variants[0]?.variant ?? '');
-    const [typeId, setTypeId] = useState(types.find((t) => t.code === 'WS')?.id ?? types[0]?.id ?? '');
+    // The machine tells us its platform (we're ON it); the type you pick tells us
+    // the kind. The proper runbook follows — override only if we guessed wrong.
+    const platform = /mac/i.test(navigator.platform || navigator.userAgent) ? 'Mac' : 'Windows';
+    const pickVariant = (typeIdSel) => {
+        const t = types.find((x) => x.id === typeIdSel);
+        const name = (t?.name || '').toLowerCase();
+        const score = (v) => {
+            const hay = `${v.variant} ${v.name}`.toLowerCase();
+            let s = 0;
+            if (/server/.test(name) && /server/.test(hay)) s += 4;
+            if (/laptop/.test(name) && /laptop/.test(hay)) s += 3;
+            if (hay.includes(platform.toLowerCase())) s += 2;
+            return s;
+        };
+        return [...variants].sort((a, b) => score(b) - score(a))[0]?.variant ?? '';
+    };
+    const initialType = types.find((t) => t.code === 'WS')?.id ?? types[0]?.id ?? '';
+    const [typeId, setTypeIdRaw] = useState(initialType);
+    const [variant, setVariant] = useState(() => pickVariant(initialType));
+    const setTypeId = (id) => { setTypeIdRaw(id); setVariant(pickVariant(id)); };
     const [form, setForm] = useState({ brand: '', model: '', serial_num: '' });
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState(null);
@@ -57,7 +75,7 @@ export default function Machine({ variants = [], types = [] }) {
                 <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                         <label className="block">
-                            <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">Runbook</span>
+                            <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">Runbook (auto-picked for {platform})</span>
                             <select value={variant} onChange={(e) => setVariant(e.target.value)}
                                 className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm">
                                 {variants.map((v) => <option key={v.variant} value={v.variant}>{v.name}</option>)}

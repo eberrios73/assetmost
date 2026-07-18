@@ -119,7 +119,7 @@ class MachineOnboardController extends Controller
         return response()->json([
             'asset_tag' => $device->asset_tag,
             'project_id' => $project->id,
-            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost()),
+            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant']),
         ], 201);
     }
 
@@ -151,15 +151,19 @@ class MachineOnboardController extends Controller
         $ctx = $this->context($request);
         $data = $request->validate(['key' => 'required|string|max:255']);
 
-        // 8 groups of 6 digits — refuse anything that isn't a BitLocker key.
-        abort_unless(preg_match('/^(\d{6}-){7}\d{6}$/', trim($data['key'])), 422, 'Not a BitLocker recovery key.');
+        // BitLocker: 8 groups of 6 digits. FileVault: 6 groups of 4 alphanumerics.
+        // Refuse anything that isn't one of the two — no garbage in the registry.
+        $key = trim($data['key']);
+        $kind = preg_match('/^(\d{6}-){7}\d{6}$/', $key) ? 'BitLocker'
+            : (preg_match('/^([A-Z0-9]{4}-){5}[A-Z0-9]{4}$/i', $key) ? 'FileVault' : null);
+        abort_unless($kind, 422, 'Not a BitLocker or FileVault recovery key.');
 
         $device = Device::query()->withoutGlobalScopes()->findOrFail($ctx['device_id']);
         Login::create([
             'company_id' => $device->company_id,
-            'login_name' => "BitLocker Recovery — {$device->asset_tag}",
+            'login_name' => "{$kind} Recovery — {$device->asset_tag}",
             'login_id' => $device->asset_tag,
-            'login_pass' => trim($data['key']),
+            'login_pass' => $key,
             'device_id' => $device->deviceID,
             'sharing' => 'service',
             'is_restricted' => 1, 'is_active' => 1,
@@ -181,11 +185,46 @@ class MachineOnboardController extends Controller
         return $ctx;
     }
 
-    /** The idempotent bootstrap script — re-run it after the join reboot. */
-    private function script(Device $device, string $token, string $base): string
+    /** The idempotent bootstrap script — platform decided by the runbook variant. */
+    private function script(Device $device, string $token, string $base, string $variant = ''): string
     {
         $tag = $device->asset_tag;
         $domain = $device->company?->local_domain ?: 'your.domain';
+
+        if (preg_match('/mac/i', $variant)) {
+            $sh = <<<'SH'
+#!/bin/zsh
+# AssetMost bootstrap — __TAG__ — run with: sudo zsh ./bootstrap.sh  (safe to re-run)
+T='__TOKEN__'
+A='__BASE__'
+report() { curl -sk -X POST "$A/onboard/report?t=$T" -H 'Content-Type: application/json' -d "{\"step\":\"$1\",\"ok\":$2,\"note\":\"$3\"}" >/dev/null 2>&1; }
+
+# 1. Names = asset tag
+scutil --set ComputerName '__TAG__'; scutil --set HostName '__TAG__'; scutil --set LocalHostName '__TAG__'
+report 'inventory' true 'Renamed to __TAG__'
+
+# 2. FileVault on, recovery key escrowed to the registry (no paper, no txt)
+if fdesetup status | grep -q 'Off'; then
+  KEY=$(fdesetup enable -user "$SUDO_USER" | grep -oE "([A-Z0-9]{4}-){5}[A-Z0-9]{4}")
+  if [ -n "$KEY" ]; then
+    curl -sk -X POST "$A/onboard/key?t=$T" -H 'Content-Type: application/json' -d "{\"key\":\"$KEY\"}" >/dev/null 2>&1 \
+      && report 'FileVault' true 'Key escrowed to the registry' \
+      || report 'FileVault' false 'Key capture failed - escrow manually'
+  else
+    report 'FileVault' false 'fdesetup gave no key - enable manually and escrow'
+  fi
+else
+  report 'FileVault' true 'Already on'
+fi
+
+# 3. Updates
+softwareupdate --install --all 2>/dev/null
+report 'updates' true 'softwareupdate pass attempted'
+
+echo 'Bootstrap done - finish the remaining checklist in AssetMost (MDM enrollment, software, hardening).'
+SH;
+            return str_replace(['__TAG__', '__TOKEN__', '__BASE__'], [$tag, $token, $base], $sh);
+        }
 
         return <<<PS
 # AssetMost bootstrap — {$tag} — safe to re-run; it continues where it left off.
