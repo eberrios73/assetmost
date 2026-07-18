@@ -48,6 +48,7 @@ class OnboardingController extends Controller
             'kind' => $kind, 'variant' => $variant,
             'name' => $t->name ?? \App\Support\StarterTemplates::KINDS[$kind] ?? 'Onboarding',
             'steps' => $t ? json_decode($t->steps, true) : null,
+            'sop_meta' => $t ? (json_decode($t->steps, true)['meta'] ?? null) : null,
             'source' => $source ? ['id' => $source->id, 'title' => $source->title] : null,
         ]);
     }

@@ -120,7 +120,19 @@ class DocController extends Controller
             'body' => 'sometimes|nullable|string',
             'icon' => 'sometimes|nullable|string|max:16',
             'category' => 'sometimes|nullable|string|max:40',
+            'parent_id' => 'sometimes|nullable|integer|exists:doc_pages,id',
+            'space_id' => 'sometimes|nullable|integer|exists:spaces,id',
         ]);
+        // Reparenting must not create a cycle: the new parent can't be the page
+        // itself or any of its descendants.
+        if (array_key_exists('parent_id', $data) && $data['parent_id']) {
+            abort_if((int) $data['parent_id'] === (int) $page->id, 422, 'A page cannot be its own parent.');
+            $cursor = DocPage::find($data['parent_id']);
+            for ($i = 0; $cursor && $i < 50; $i++) {
+                abort_if((int) $cursor->id === (int) $page->id, 422, 'That would move the page inside itself.');
+                $cursor = $cursor->parent_id ? DocPage::find($cursor->parent_id) : null;
+            }
+        }
         $page->update($data + ['updated_by' => auth()->id()]);
         return response()->json(['ok' => true]);
     }

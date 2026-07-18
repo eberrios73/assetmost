@@ -35,10 +35,49 @@ class SopDocParser
             if ($h || ($d === 0 && preg_match('/^\d+\s*[.)]\s+/', trim($t)))) { $hasSections = true; break; }
         }
         $seenSection = ! $hasSections;
+        $meta = [];
+        $section = '';
 
-        foreach ($lines as [$text, $depth, $isHeading]) {
+        foreach ($lines as $line) {
+            [$text, $depth, $isHeading] = $line;
+            $cells = $line[3] ?? null;
+
+            // Table rows: the governance block (before any section) becomes metadata;
+            // a Procedure table's rows become steps; Revision history is the doc's own
+            // memory and stays out of the template.
+            if ($cells !== null) {
+                if (! $seenSection || $section === '') {
+                    for ($i = 0; $i + 1 < count($cells); $i += 2) {
+                        $k = strtolower(trim($cells[$i]));
+                        if ($k !== '' && $cells[$i + 1] !== '' && in_array($k, ['owner', 'version', 'effective', 'review by', 'approver', 'status'], true)) {
+                            $meta[str_replace(' ', '_', $k)] = $cells[$i + 1];
+                        }
+                    }
+                } elseif (preg_match('/procedure/i', $section)) {
+                    // header row says "Action"; data rows: [#, action, responsible, notes]
+                    if (! preg_match('/^action$/i', trim($cells[1] ?? ''))) {
+                        $action = trim($cells[1] ?? '');
+                        if ($action !== '') {
+                            $notes = trim($cells[3] ?? '');
+                            $resp = trim($cells[2] ?? '');
+                            $steps[] = ['id' => substr(md5($action . count($steps)), 0, 8), 'title' => $action,
+                                'category' => self::category($action), 'offset_days' => $currentOffset,
+                                'why' => '', 'instructions' => trim($notes . ($resp !== '' ? ($notes !== '' ? "\n" : '') . "Responsible: {$resp}" : '')),
+                                'done_when' => '', 'record' => '', 'automatable' => false, 'subtasks' => []];
+                            $lastStep = array_key_last($steps);
+                            $lastWasSub = false;
+                        }
+                    }
+                }
+                continue;
+            }
+
             $trim = trim($text);
             if ($trim === '') continue;
+
+            // Prose sections describe the SOP; they are not procedure. Their text
+            // stays in the doc and out of the template.
+            if (! $isHeading && $section !== '' && preg_match('/purpose|scope|verification|rollback|revision/i', $section)) continue;
 
             // Word-paste sub-bullets arrive as flat lines starting "o " / "§ " / "· ".
             if (preg_match('/^[o§·▪]\s+(.+)$/u', $trim, $wm)) {
@@ -77,6 +116,7 @@ class SopDocParser
                 $currentOffset = self::offsetFromSection($title);
                 $lastStep = null; $lastWasSub = false;
                 $seenSection = true;
+                $section = $title;
                 continue;
             }
             if (! $seenSection) continue;   // preamble prose, form blanks, the doc's own title
@@ -97,7 +137,7 @@ class SopDocParser
             }
         }
 
-        return ['version' => 1, 'steps' => array_values($steps)];
+        return ['version' => 1, 'steps' => array_values($steps), 'meta' => $meta];
     }
 
     /** Section title → timing anchor. Words, not magic: the SOP already says when. */
@@ -152,6 +192,16 @@ class SopDocParser
                         if ($g instanceof \DOMElement && in_array(strtolower($g->tagName), ['ul', 'ol'], true)) {
                             $walk($g, $depth + 1);
                         }
+                    }
+                } elseif ($tag === 'table') {
+                    foreach ($child->getElementsByTagName('tr') as $tr) {
+                        $cells = [];
+                        foreach ($tr->childNodes as $cell) {
+                            if ($cell instanceof \DOMElement && in_array(strtolower($cell->tagName), ['td', 'th'], true)) {
+                                $cells[] = trim(self::text($cell));
+                            }
+                        }
+                        if (array_filter($cells, fn ($c) => $c !== '')) $out[] = ['', $depth, false, $cells];
                     }
                 } elseif (in_array($tag, ['ul', 'ol'], true)) {
                     $walk($child, $depth);

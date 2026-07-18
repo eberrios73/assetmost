@@ -54,6 +54,7 @@ export default function OnboardingSetup() {
     const [loaded, setLoaded] = useState(false);
     const [steps, setSteps] = useState(null);        // null = nothing saved for this kind/variant
     const [source, setSource] = useState(null);      // {id,title} of the master Docs page
+    const [sopMeta, setSopMeta] = useState(null);    // {owner, version, status, ...} from the SOP's governance table
     const [pasting, setPasting] = useState(false);
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
@@ -61,7 +62,7 @@ export default function OnboardingSetup() {
     const load = (k = kind, v = variant) => {
         setLoaded(false);
         api(`/data/onboarding-template?kind=${k}&variant=${encodeURIComponent(v)}`)
-            .then((r) => { setMeta({ kinds: r.kinds, existing: r.existing }); setSteps(r.steps?.steps ?? null); setSource(r.source ?? null); setLoaded(true); });
+            .then((r) => { setMeta({ kinds: r.kinds, existing: r.existing }); setSteps(r.steps?.steps ?? null); setSource(r.source ?? null); setSopMeta(r.sop_meta ?? null); setLoaded(true); });
     };
     useEffect(() => { load(kind, variant); }, [kind, variant]);
 
@@ -167,6 +168,16 @@ export default function OnboardingSetup() {
                             <a href={`/docs?page=${source.id}`} className="text-xs text-blue-600 dark:text-blue-400 hover:underline" title="The master SOP document">
                                 Master: {source.title}
                             </a>
+                            {sopMeta && (sopMeta.version || sopMeta.owner || sopMeta.status) && (
+                                <span className="text-xs text-gray-400">
+                                    {sopMeta.version ? `v${sopMeta.version}` : ''}{sopMeta.owner ? ` · ${sopMeta.owner}` : ''}
+                                    {sopMeta.status && (
+                                        <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${/approved|active/i.test(sopMeta.status) ? 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'}`}>
+                                            {sopMeta.status}
+                                        </span>
+                                    )}
+                                </span>
+                            )}
                             <button onClick={() => parseFromDoc(source.id)}
                                 className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                                 title="Re-compile the steps from the doc — the doc wins over manual edits here">Re-parse from doc</button>

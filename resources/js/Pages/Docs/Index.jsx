@@ -161,6 +161,19 @@ export default function Index() {
                 <input value={page.title} onChange={(e) => saveTitle(e.target.value)}
                     className="flex-1 text-3xl font-bold text-gray-900 dark:text-white border-0 focus:ring-0 px-0 placeholder-gray-300" placeholder="Untitled" />
                 <div className="mt-2 shrink-0 flex items-center gap-2">
+                    <select value={page.parent_id || ''} title="Move under…"
+                        onChange={async (e) => {
+                            const v = e.target.value ? Number(e.target.value) : null;
+                            await api(`/data/docs/${selectedId}`, 'PATCH', { parent_id: v });
+                            setPage((p) => ({ ...p, parent_id: v }));
+                            loadTree();
+                        }}
+                        className="max-w-[180px] rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">— top level —</option>
+                        {flatten(tree).filter((n) => n.id !== page.id).map((n) => (
+                            <option key={n.id} value={n.id}>{'\u00A0'.repeat((n.depth || 0) * 2)}{n.title}</option>
+                        ))}
+                    </select>
                     <select value={page.category || ''} onChange={(e) => saveCategory(e.target.value)} title="Category"
                         className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Uncategorized</option>
@@ -256,7 +269,7 @@ function SpaceSwitcher({ spaces, space, onPick, onNew }) {
         </div>
     );
 }
-function flatten(nodes) { return (nodes || []).flatMap((n) => [{ id: n.id, title: n.title, icon: n.icon, category: n.category }, ...flatten(n.children)]); }
+function flatten(nodes, depth = 0) { return (nodes || []).flatMap((n) => [{ id: n.id, title: n.title, icon: n.icon, category: n.category, depth }, ...flatten(n.children, depth + 1)]); }
 
 function CategoryBadge({ category }) {
     if (!category) return null;
