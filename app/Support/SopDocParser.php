@@ -206,13 +206,22 @@ class SopDocParser
                 if (in_array($tag, ['h1', 'h2', 'h3', 'h4'], true)) {
                     $out[] = [self::text($child), $depth, true];
                 } elseif ($tag === 'li') {
-                    // the li's own text = first p/text; nested lists recurse deeper
-                    $own = '';
+                    // Emit each block paragraph of the li separately (title, then any
+                    // field paragraphs), so fields never merge into the title. Nested
+                    // lists recurse one level deeper.
+                    $blocks = [];
+                    $inline = '';
                     foreach ($child->childNodes as $g) {
                         if ($g instanceof \DOMElement && in_array(strtolower($g->tagName), ['ul', 'ol'], true)) continue;
-                        $own .= ' ' . self::text($g);
+                        if ($g instanceof \DOMElement && strtolower($g->tagName) === 'p') {
+                            $t = trim(self::text($g));
+                            if ($t !== '') $blocks[] = $t;
+                        } else {
+                            $inline .= ' ' . self::text($g);
+                        }
                     }
-                    if (trim($own) !== '') $out[] = [trim($own), $depth, false];
+                    if (! $blocks && trim($inline) !== '') $blocks[] = trim($inline);
+                    foreach ($blocks as $b) $out[] = [$b, $depth, false];
                     foreach ($child->childNodes as $g) {
                         if ($g instanceof \DOMElement && in_array(strtolower($g->tagName), ['ul', 'ol'], true)) {
                             $walk($g, $depth + 1);
@@ -229,7 +238,9 @@ class SopDocParser
                         if (array_filter($cells, fn ($c) => $c !== '')) $out[] = ['', $depth, false, $cells];
                     }
                 } elseif (in_array($tag, ['ul', 'ol'], true)) {
-                    $walk($child, $depth);
+                    // A list's items are one level deeper — they attach as subtasks of
+                    // the preceding step (or become steps if none precedes them).
+                    $walk($child, $depth + 1);
                 } elseif ($tag === 'p') {
                     $t = self::text($child);
                     if (trim($t) !== '') $out[] = [trim($t), $depth, false];
@@ -258,13 +269,15 @@ class SopDocParser
     public static function toHtml(array $steps, string $sectionLabel = ''): string
     {
         $esc = fn ($v) => htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8');
-        $fields = function (array $s, string $prefix = '') use ($esc) {
+        // Playbook fields as clean labelled paragraphs. The label text is what parse()
+        // reads back, so it stays "Why:/How:/Done when:/Record:".
+        $fields = function (array $s) use ($esc) {
             $out = '';
             foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
                 if (! empty($s[$k])) {
                     foreach (preg_split('/\n+/', $s[$k]) as $i => $line) {
                         $lbl = $i === 0 ? "<strong>{$label}:</strong> " : '';
-                        $out .= "<p>{$prefix}{$lbl}{$esc($line)}</p>";
+                        $out .= "<p>{$lbl}{$esc($line)}</p>";
                     }
                 }
             }
@@ -274,8 +287,13 @@ class SopDocParser
         $h = $sectionLabel ? "<h2>{$esc($sectionLabel)}</h2>" : '';
         foreach ($steps as $s) {
             $h .= "<p><strong>{$esc($s['title'])}</strong></p>" . $fields($s);
-            foreach ($s['subtasks'] ?? [] as $sub) {
-                $h .= "<p>o {$esc($sub['title'])}</p>" . $fields($sub, 'o ');
+            // Subtasks are a real bulleted list; each carries its own fields inside the li.
+            if (! empty($s['subtasks'])) {
+                $h .= '<ul>';
+                foreach ($s['subtasks'] as $sub) {
+                    $h .= "<li><p>{$esc($sub['title'])}</p>" . $fields($sub) . '</li>';
+                }
+                $h .= '</ul>';
             }
         }
         return $h;

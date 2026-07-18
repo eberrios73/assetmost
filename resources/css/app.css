@@ -54,3 +54,27 @@
 .ProseMirror.resize-cursor {
     cursor: col-resize;
 }
+
+/* Doc code blocks: light gray like Docmost, not near-black. */
+.ProseMirror pre {
+    background: #f3f4f6;                   /* gray-100 */
+    color: #111827;                        /* gray-900 */
+    border: 1px solid #e5e7eb;             /* gray-200 */
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+.ProseMirror pre code { color: inherit; background: none; }
+.dark .ProseMirror pre {
+    background: #1f2937;                   /* gray-800 */
+    color: #e5e7eb;
+    border-color: #374151;
+}
+/* inline code chips */
+.ProseMirror :not(pre) > code {
+    background: #f3f4f6;
+    color: #b91c1c;                        /* red-700 */
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+}
+.dark .ProseMirror :not(pre) > code { background: #374151; color: #fca5a5; }

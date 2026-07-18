@@ -4,13 +4,13 @@ namespace App\Support;
 
 /**
  * The SOPs that ship with the product. Adopting one copies it into the company's
- * templates — theirs to edit; upgrades never touch adopted copies.
+ * templates  -  theirs to edit; upgrades never touch adopted copies.
  *
  * Steps use the playbook format:
- *   why        — one line: what breaks if this is skipped
- *   instructions (How) — verbatim mechanics: paths, commands, GPO names
- *   done_when  — an OBSERVABLE completion criterion (kills checkbox theater)
- *   record     — what enters the registry/inventory (the app can hold you to it)
+ *   why         -  one line: what breaks if this is skipped
+ *   instructions (How)  -  verbatim mechanics: paths, commands, GPO names
+ *   done_when   -  an OBSERVABLE completion criterion (kills checkbox theater)
+ *   record      -  what enters the registry/inventory (the app can hold you to it)
  *
  * Process model: preparation SOPs (workstation setup) act on ASSETS and keep a
  * ready pool stocked; employee onboarding ASSIGNS from pools (machines, floating
@@ -49,10 +49,10 @@ class StarterTemplates
                 'why' => 'A hire without working accounts on day one starts their job watching IT type.',
                 'how' => 'Vendors picked in the wizard already have credentials generated in the registry. Create each account in its console using the stored credential.',
                 'done' => 'Every account signs in successfully with the registry credential.',
-                'record' => 'Credentials live in the registry only — never in email, chat, or on paper.',
+                'record' => 'Credentials live in the registry only  -  never in email, chat, or on paper.',
             ]),
             $s('workstation', 'Assign a prepared workstation', 'machine', -2, [
-                'why' => 'Machines are prepared AHEAD by the Workstation setup SOP — onboarding assigns from the ready pool, it never images.',
+                'why' => 'Machines are prepared AHEAD by the Workstation setup SOP  -  onboarding assigns from the ready pool, it never images.',
                 'how' => 'Pick a ready machine from Assets and assign it to the hire. If the pool is empty, run the Workstation setup SOP now and chain this project behind it.',
                 'done' => 'A machine with a current image is assigned to the person in Assets.',
                 'record' => 'Device shows the hire as its user; asset tag matches the hostname.',
@@ -72,7 +72,7 @@ class StarterTemplates
             ]),
             $s('handoff', 'Device hand-off and first login', 'machine', 0, [
                 'how' => 'At their desk: first login with the registry credential, test network, printers, and the tools their role uses.',
-                'done' => 'The hire — not the tech — completes a full login and opens their daily tools.',
+                'done' => 'The hire  -  not the tech  -  completes a full login and opens their daily tools.',
             ]),
             $s('walkthrough', 'System access walkthrough', 'training', 0, [
                 'how' => 'Email, collaboration tools, project systems, where to get IT help.',
@@ -88,7 +88,7 @@ class StarterTemplates
     }
 
     /**
-     * Referenced by other runbooks as /eprotection — deliberately its own document
+     * Referenced by other runbooks as /eprotection  -  deliberately its own document
      * because endpoint tooling changes often; references always resolve to the
      * CURRENT version, so nothing else needs editing when the agent changes.
      */
@@ -98,7 +98,7 @@ class StarterTemplates
         return ['version' => 1, 'steps' => [
             $s('agent', 'Install the endpoint agent (current standard: Wazuh)', 'machine', 0, [
                 'why' => 'A machine the fleet monitor cannot see is where a compromise lives unnoticed.',
-                'how' => 'Install the current agent for this platform; point it at the manager. Update THIS runbook when the tooling changes — everything referencing /eprotection follows automatically.',
+                'how' => 'Install the current agent for this platform; point it at the manager. Update THIS runbook when the tooling changes  -  everything referencing /eprotection follows automatically.',
                 'done' => 'The machine appears in the monitoring console and reports events.',
             ]),
             $s('av', 'Antivirus active', 'machine', 0, [
@@ -118,17 +118,17 @@ class StarterTemplates
         return ['version' => 1, 'steps' => [
             $s('inventory', 'Inventory their access', 'accounts', -2, [
                 'why' => 'You cannot revoke what you have not listed.',
-                'how' => 'Open the person in AssetMost — their logins, floating accounts, devices and seats ARE this checklist.',
+                'how' => 'Open the person in AssetMost  -  their logins, floating accounts, devices and seats ARE this checklist.',
                 'done' => 'Their access list is printed/open and every item below maps to it.',
             ]),
             $s('disable', 'Disable sign-ins', 'accounts', 0, [
-                'why' => 'Order matters: identity first, then sessions, then remote paths — before they leave the building.',
+                'why' => 'Order matters: identity first, then sessions, then remote paths  -  before they leave the building.',
             ], [
                 $s('off-ad', 'Disable the Domain/AD account', 'accounts', 0, [
                     'done' => 'Account shows disabled in ADUC; a test bind fails.',
                 ]),
                 $s('off-m365', 'Block Microsoft 365 sign-in and revoke active sessions', 'accounts', 0, [
-                    'done' => 'Sign-in blocked AND sessions revoked in admin center — blocking alone leaves live tokens.', 'auto' => true,
+                    'done' => 'Sign-in blocked AND sessions revoked in admin center  -  blocking alone leaves live tokens.', 'auto' => true,
                 ]),
                 $s('off-vpn', 'Revoke VPN and remote access', 'access', 0, [
                     'done' => 'A connection attempt with their profile is refused.',
@@ -142,7 +142,7 @@ class StarterTemplates
             ]),
             $s('collect', 'Collect hardware', 'machine', 0, [], [
                 $s('col-laptop', 'Laptop/workstation, chargers, peripherals', 'machine', 0, [
-                    'record' => 'Devices return to the pool marked "returned — needs reimage".',
+                    'record' => 'Devices return to the pool marked "returned  -  needs reimage".',
                 ]),
                 $s('col-badge', 'Badge, keys, access cards', 'access', 0),
             ]),
@@ -157,7 +157,7 @@ class StarterTemplates
                 'how' => 'Per retention policy; confirm before removal from groups.',
             ]),
             $s('deactivate', 'Deactivate in the directory', 'other', 3, [
-                'record' => 'Person marked inactive in AssetMost — history stays.',
+                'record' => 'Person marked inactive in AssetMost  -  history stays.',
             ]),
             $s('audit', 'Final access audit', 'other', 7, [
                 'why' => 'The audit is the offboarding; everything before it was preparation.',
@@ -178,17 +178,17 @@ class StarterTemplates
             'record' => 'Device in inventory with tag, serial, model.',
         ]);
         $qa = fn (string $extra = '') => $s('qa', 'QA before it enters the ready pool', 'machine', 0, [
-            'why' => 'The pool only works if "ready" means ready — onboarding trusts it blindly.',
+            'why' => 'The pool only works if "ready" means ready  -  onboarding trusts it blindly.',
             'how' => 'Test login, network, printers, peripherals.' . ($extra ? ' ' . $extra : ''),
             'done' => 'A test user session works end to end.',
-            'record' => 'Device marked READY in inventory — it can now be assigned by onboarding.',
+            'record' => 'Device marked READY in inventory  -  it can now be assigned by onboarding.',
         ]);
 
         if (strcasecmp($variant, 'Windows') === 0) {
             return ['version' => 1, 'steps' => [
                 $intake,
                 $s('base', 'Clean current OS', 'machine', 0, [
-                    'why' => 'Golden images are stale five days after you make them — build live from a clean, fully-updated OS instead; configuration comes from the domain and the checklist, not a stamp.',
+                    'why' => 'Golden images are stale five days after you make them  -  build live from a clean, fully-updated OS instead; configuration comes from the domain and the checklist, not a stamp.',
                 ], [
                     $s('base-os', 'Clean install / OOBE with all OS and firmware updates', 'machine', 0),
                     $s('base-drivers', 'Drivers and vendor tools', 'machine', 0),
@@ -204,14 +204,14 @@ class StarterTemplates
                 $s('bitlocker', 'Enable BitLocker', 'access', 0, [
                     'why' => 'Lost or stolen disks are unreadable; encryption at rest is policy.',
                     'how' => 'Applies via GPO on domain join. Manual fallback: Control Panel > BitLocker > Turn On.',
-                    'done' => 'Recovery key VISIBLE IN AD (computer object > BitLocker Recovery tab) — not when the progress bar finishes; GPO escrow silently fails sometimes.',
-                    'record' => 'Escrow the key into the registry against the asset tag anyway — AD is the copy that sometimes does not save.',
+                    'done' => 'Recovery key VISIBLE IN AD (computer object > BitLocker Recovery tab)  -  not when the progress bar finishes; GPO escrow silently fails sometimes.',
+                    'record' => 'Escrow the key into the registry against the asset tag anyway  -  AD is the copy that sometimes does not save.',
                 ]),
                 $s('agents', 'Endpoint agents', 'machine', 0, [
                     'done' => 'Machine reports in each console (AV, monitoring, management).',
                 ]),
                 $s('software', 'Standard software set', 'machine', 0, [
-                    'how' => 'Use /install at the bench — it reads the installers share for this platform; 32/64-bit stays coherent with the machine.',
+                    'how' => 'Use /install at the bench  -  it reads the installers share for this platform; 32/64-bit stays coherent with the machine.',
                 ]),
                 $qa(),
             ]];
@@ -221,12 +221,12 @@ class StarterTemplates
             return ['version' => 1, 'steps' => [
                 $intake,
                 $s('base', 'Clean current macOS', 'machine', 0, [
-                    'why' => 'Golden images rot — build live: clean OS, then MDM profiles and the checklist do the configuring.',
+                    'why' => 'Golden images rot  -  build live: clean OS, then MDM profiles and the checklist do the configuring.',
                 ], [
                     $s('base-os', 'Clean install or factory + all macOS updates', 'machine', 0),
                 ]),
                 $s('mdm', 'MDM enrollment', 'machine', 0, [
-                    'why' => 'Macs are managed by MDM, not domain join — profiles carry the config an image used to.',
+                    'why' => 'Macs are managed by MDM, not domain join  -  profiles carry the config an image used to.',
                     'how' => 'Zero-touch (DEP/ABM) if enrolled; otherwise manual enrollment.',
                     'done' => 'Device appears in the MDM console (e.g. Jamf) and receives profiles.',
                 ]),
@@ -234,7 +234,7 @@ class StarterTemplates
                     'why' => 'Lost or stolen disks are unreadable; encryption at rest is policy.',
                     'how' => 'System Settings > Privacy & Security > FileVault > Turn On. Recovery key, NOT iCloud.',
                     'done' => 'FileVault status reads On and a recovery key was displayed.',
-                    'record' => 'Recovery key escrowed to the registry against the asset tag — it is a credential.',
+                    'record' => 'Recovery key escrowed to the registry against the asset tag  -  it is a credential.',
                 ]),
                 $s('hardening', 'Hardening', 'access', 0, [], [
                     $s('hard-fw', 'Firewall on; screen lock at 5 minutes; password required after screen saver', 'access', 0),
@@ -244,7 +244,7 @@ class StarterTemplates
                     'done' => 'Machine reports in each console (AV, monitoring, MDM).',
                 ]),
                 $s('software', 'Standard software set', 'machine', 0, [
-                    'how' => 'Use /install at the bench — it reads the Mac folder of the installers share; smb:// links open in Finder.',
+                    'how' => 'Use /install at the bench  -  it reads the Mac folder of the installers share; smb:// links open in Finder.',
                 ]),
                 $qa(),
             ]];
@@ -258,12 +258,12 @@ class StarterTemplates
                         'done' => 'Forward and reverse lookups resolve.',
                     ]),
                     $s('prov-roles', 'Roles/services installed and documented', 'machine', 0, [
-                        'record' => 'What this server DOES is written on its device record — the next admin should not have to guess.',
+                        'record' => 'What this server DOES is written on its device record  -  the next admin should not have to guess.',
                     ]),
                 ]),
                 $s('svc-accounts', 'Service accounts into the registry', 'accounts', 0, [
                     'why' => 'A server born with undocumented admin credentials is a future breach with a hostname.',
-                    'how' => 'Every admin/service credential this server runs on enters the registry as a SERVICE account (held by nobody — it runs the system).',
+                    'how' => 'Every admin/service credential this server runs on enters the registry as a SERVICE account (held by nobody  -  it runs the system).',
                     'done' => 'Each credential resolves in the registry; none exist only in someone\'s head.',
                     'record' => 'Service accounts linked to this device.',
                 ]),
@@ -272,7 +272,7 @@ class StarterTemplates
                         'done' => 'Server visible in the monitoring console with alerts armed.',
                     ]),
                     $s('prot-backup', 'Backup agent + first successful backup', 'machine', 0, [
-                        'done' => 'A restore test of one file succeeds — a backup that never restored is a hope, not a backup.',
+                        'done' => 'A restore test of one file succeeds  -  a backup that never restored is a hope, not a backup.',
                     ]),
                 ]),
                 $qa('For servers: confirm services survive a reboot.'),
@@ -283,7 +283,7 @@ class StarterTemplates
         return ['version' => 1, 'steps' => [
             $intake,
             $s('base', 'Clean current OS', 'machine', 0, [
-                'why' => 'Golden images are stale on arrival — build live from a clean, updated OS; the checklist is the configuration.',
+                'why' => 'Golden images are stale on arrival  -  build live from a clean, updated OS; the checklist is the configuration.',
             ], [
                 $s('base-os', 'Clean install with all updates', 'machine', 0),
                 $s('base-drivers', 'Drivers and vendor tools', 'machine', 0),
@@ -291,12 +291,12 @@ class StarterTemplates
             $s('configure', 'Configure and protect', 'machine', 0, [], [
                 $s('cfg-hostname', 'Hostname = asset tag', 'machine', 0),
                 $s('cfg-encrypt', 'Disk encryption on; key escrowed to the registry', 'access', 0, [
-                    'done' => 'Key verifiably stored — check the escrow location, not the progress bar.',
+                    'done' => 'Key verifiably stored  -  check the escrow location, not the progress bar.',
                 ]),
                 $s('cfg-agents', 'AV / monitoring / management agents reporting', 'machine', 0),
             ]),
             $s('software', 'Standard software set', 'machine', 0, [
-                'how' => 'Use /install at the bench — it reads the installers share for this platform.',
+                'how' => 'Use /install at the bench  -  it reads the installers share for this platform.',
             ]),
             $qa(),
         ]];
