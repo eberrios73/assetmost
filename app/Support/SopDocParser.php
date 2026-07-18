@@ -53,7 +53,8 @@ class SopDocParser
 
             // Playbook field lines attach to the current step (or its last subtask).
             if (preg_match('/^(why|how|done when|done|record)\s*[:—-]\s*(.+)$/i', $trim, $m)) {
-                if ($lastStep !== null) {
+                if ($lastStep === null) continue;   // stray field line — never a step
+                if (true) {
                     $key = match (strtolower($m[1])) {
                         'why' => 'why', 'how' => 'instructions',
                         'done when', 'done' => 'done_when', 'record' => 'record',
@@ -174,26 +175,32 @@ class SopDocParser
         return preg_replace('/\s+/u', ' ', $t);
     }
 
-    /** The reverse direction: template steps → the rigid-format HTML for a new Docs page. */
+    /**
+     * The reverse direction: template steps -> rigid-format HTML for a Docs page.
+     * Emits exactly the shape parse() reads: bold-paragraph step titles, "o "
+     * subtask lines, labelled Why/How/Done when/Record paragraphs. Round-trip safe.
+     */
     public static function toHtml(array $steps, string $sectionLabel = ''): string
     {
-        $esc = fn ($s) => htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
-        $h = $sectionLabel ? "<h2>{$esc($sectionLabel)}</h2>" : '';
-        $fields = function (array $s) use ($esc) {
+        $esc = fn ($v) => htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8');
+        $fields = function (array $s, string $prefix = '') use ($esc) {
             $out = '';
             foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
-                if (! empty($s[$k])) $out .= "<p><strong>{$label}:</strong> {$esc($s[$k])}</p>";
+                if (! empty($s[$k])) {
+                    foreach (preg_split('/\n+/', $s[$k]) as $i => $line) {
+                        $lbl = $i === 0 ? "<strong>{$label}:</strong> " : '';
+                        $out .= "<p>{$prefix}{$lbl}{$esc($line)}</p>";
+                    }
+                }
             }
             return $out;
         };
+
+        $h = $sectionLabel ? "<h2>{$esc($sectionLabel)}</h2>" : '';
         foreach ($steps as $s) {
-            $h .= "<h3>{$esc($s['title'])}</h3>" . $fields($s);
-            if (! empty($s['subtasks'])) {
-                $h .= '<ul>';
-                foreach ($s['subtasks'] as $sub) {
-                    $h .= "<li><p>{$esc($sub['title'])}</p>" . $fields($sub) . '</li>';
-                }
-                $h .= '</ul>';
+            $h .= "<p><strong>{$esc($s['title'])}</strong></p>" . $fields($s);
+            foreach ($s['subtasks'] ?? [] as $sub) {
+                $h .= "<p>o {$esc($sub['title'])}</p>" . $fields($sub, 'o ');
             }
         }
         return $h;
