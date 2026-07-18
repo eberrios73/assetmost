@@ -79,6 +79,7 @@ class DataController extends Controller
     {
         return $this->applyUpdate($company, $r, [
             'name' => 'required|string|max:255', 'domain' => 'nullable|string|max:255',
+            'local_domain' => 'nullable|string|max:255',
             'contact_name' => 'nullable|string|max:255', 'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255', 'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:2',
@@ -822,6 +823,7 @@ class DataController extends Controller
             // out when someone onboards its first device.
             'tag_prefix' => 'required|string|max:4|alpha_num|unique:companies,tag_prefix',
             'domain' => 'nullable|string|max:255',
+            'local_domain' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:2',

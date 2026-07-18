@@ -179,7 +179,7 @@ export default function OnboardingSetup() {
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Steps become the task project, chained in this order. Placeholders
-                <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date}'}</code>
+                <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code>
                 fill in at run time{kind === 'offboarding' ? ' ({start_date} = last day)' : ''}.
             </p>
 

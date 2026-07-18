@@ -10,7 +10,8 @@ const COMPANY_FIELDS = [
     // Drives asset tags (HC -> PG-WS-1001). Required, because a company without one
     // can't issue a tag and you'd only discover that at first device intake.
     { key: 'tag_prefix', label: 'Tag prefix (e.g. PG)', required: true, maxLength: 4 },
-    { key: 'domain', label: 'Domain' },
+    { key: 'domain', label: 'Email domain' },
+    { key: 'local_domain', label: 'Local domain (AD/LAN, e.g. acme.local)' },
     { key: 'email', label: 'Email', type: 'email' },
     { key: 'city', label: 'City' },
     { key: 'state', label: 'State', maxLength: 2 },

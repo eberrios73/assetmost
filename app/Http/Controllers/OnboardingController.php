@@ -228,8 +228,9 @@ class OnboardingController extends Controller
                 return implode("\n", $parts);
             };
             $sub = fn ($s) => str_replace(
-                ['{first}', '{last}', '{username}', '{email}', '{start_date}'],
-                [$data['first'], $data['last'], $data['username'] ?? '', $data['email'], $doh->toDateString()],
+                ['{first}', '{last}', '{username}', '{email}', '{start_date}', '{local_domain}', '{domain}'],
+                [$data['first'], $data['last'], $data['username'] ?? '', $data['email'], $doh->toDateString(),
+                 $company?->local_domain ?? '', $company?->domain ?? ''],
                 $s ?? ''
             );
             $monday = fn (Carbon $d) => max($d->copy()->startOfWeek(Carbon::MONDAY), Carbon::now()->startOfWeek(Carbon::MONDAY))->toDateString();
