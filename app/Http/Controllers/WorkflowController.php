@@ -84,7 +84,7 @@ class WorkflowController extends Controller
 
         $page->forceFill([
             'workflow_steps' => json_encode($steps),
-            'body' => SopDocParser::toHtml($steps['steps']),
+            'body' => SopDocParser::toHtml($steps['steps'], '', $steps['meta'] ?? []),
             'updated_by' => auth()->id(),
         ])->save();
 
@@ -152,7 +152,7 @@ class WorkflowController extends Controller
 
         $page->forceFill([
             'workflow_steps' => json_encode($parsed),
-            'body' => SopDocParser::toHtml($parsed['steps']),
+            'body' => SopDocParser::toHtml($parsed['steps'], '', $parsed['meta'] ?? []),
             'updated_by' => auth()->id(),
         ])->save();
 
@@ -181,10 +181,22 @@ class WorkflowController extends Controller
     {
         abort_if(! $page->workflow_type, 404);
         $companyId = $page->company_id;
-        $steps = json_decode($page->workflow_steps ?? '', true)['steps'] ?? [];
+        $decoded = json_decode($page->workflow_steps ?? '', true) ?: [];
+        $steps = $decoded['steps'] ?? [];
+        $meta = $decoded['meta'] ?? [];
         $base = $request->getSchemeAndHttpHost();
 
         $rows = [];
+        // The header's Tools and Safety rows run ahead of the procedure.
+        if (! empty($meta['tools'])) {
+            $rows[] = ['title' => 'Gather tools and materials', 'note' => $meta['tools'], 'depth' => 0, 'ref' => false];
+        }
+        if (! empty($meta['safety'])) {
+            $rows[] = ['title' => 'Safety precautions', 'note' => '', 'depth' => 0, 'ref' => false];
+            foreach (preg_split('/\n+/', $meta['safety']) as $line) {
+                if (trim($line) !== '') $rows[] = ['title' => trim($line), 'note' => '', 'depth' => 1, 'ref' => false];
+            }
+        }
         foreach ($steps as $step) {
             $refExtra = [];
             $note = '';
@@ -252,11 +264,13 @@ class WorkflowController extends Controller
             'account_ids.*' => 'integer|exists:accounts,id',
         ]);
 
-        $steps = json_decode($page->workflow_steps ?? '', true)['steps'] ?? [];
+        $decoded = json_decode($page->workflow_steps ?? '', true) ?: [];
+        $steps = $decoded['steps'] ?? [];
+        $stepsMeta = $decoded['meta'] ?? [];
         $doh = Carbon::parse($data['start_date']);
         $company = \App\Models\Company::find($companyId);
 
-        $result = DB::transaction(function () use ($data, $steps, $doh, $company, $companyId) {
+        $result = DB::transaction(function () use ($data, $steps, $stepsMeta, $doh, $company, $companyId) {
             // 1. The person — a directory record; sign-in stays a separate, deliberate grant.
             $person = User::create([
                 'name' => $data['first'], 'last' => $data['last'],
@@ -357,6 +371,37 @@ class WorkflowController extends Controller
             // renders the add-record form from it, scoped to THIS workflow's company.
             $formLine = fn (array $st) => ($fk = self::formKind($st)) ? "\nForm: {$fk} · co:{$companyId}" : '';
             $prev = null;
+
+            // The SOP header's Tools and Safety rows are ACTIONABLE: they run ahead
+            // of the procedure as real tasks (safety lines become subtasks).
+            $meta = $stepsMeta ?? [];
+            if (! empty($meta['tools'])) {
+                $prev = $mkTask([
+                    'title' => 'Gather tools and materials',
+                    'notes' => $sub($meta['tools']),
+                    'week' => $monday($doh->copy()->subDays(2)), 'origin' => Carbon::now()->toDateString(),
+                    'planned_start' => $doh->copy()->subDays(2)->toDateString(), 'due_date' => $doh->copy()->subDays(2)->toDateString(),
+                ]); $taskCount++;
+            }
+            if (! empty($meta['safety'])) {
+                $safety = $mkTask([
+                    'title' => 'Safety precautions',
+                    'notes' => 'From the SOP header — complete before the procedure.',
+                    'week' => $monday($doh->copy()->subDays(2)), 'origin' => Carbon::now()->toDateString(),
+                    'planned_start' => $doh->copy()->subDays(2)->toDateString(), 'due_date' => $doh->copy()->subDays(2)->toDateString(),
+                    'depends_on_id' => $prev?->id,
+                ]); $taskCount++;
+                foreach (preg_split('/\n+/', $meta['safety']) as $line) {
+                    if (trim($line) === '') continue;
+                    $mkTask([
+                        'title' => $sub(trim($line)),
+                        'parent_id' => $safety->id,
+                        'week' => $monday($doh->copy()->subDays(2)), 'origin' => Carbon::now()->toDateString(),
+                        'planned_start' => $doh->copy()->subDays(2)->toDateString(), 'due_date' => $doh->copy()->subDays(2)->toDateString(),
+                    ]); $taskCount++;
+                }
+                $prev = $safety;
+            }
             foreach ($steps as $step) {
                 $when = $doh->copy()->addDays((int) ($step['offset_days'] ?? 0));
                 $t = $mkTask([

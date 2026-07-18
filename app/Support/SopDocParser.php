@@ -70,10 +70,20 @@ class SopDocParser
                     continue;
                 }
                 if (! $seenSection || $section === '') {
+                    // The SOP header table: governance rows plus the document-level
+                    // sections of a formal SOP (all optional, synonyms accepted).
+                    $metaMap = [
+                        'owner' => 'owner', 'version' => 'version', 'effective' => 'effective',
+                        'review by' => 'review_by', 'approver' => 'approver', 'status' => 'status',
+                        'why' => 'why', 'purpose' => 'why',
+                        'how' => 'how', 'scope' => 'scope',
+                        'tools and materials' => 'tools', 'tools' => 'tools', 'materials' => 'tools',
+                        'safety precautions' => 'safety', 'safety' => 'safety',
+                    ];
                     for ($i = 0; $i + 1 < count($cells); $i += 2) {
-                        $k = strtolower(trim($cells[$i]));
-                        if ($k !== '' && $cells[$i + 1] !== '' && in_array($k, ['owner', 'version', 'effective', 'review by', 'approver', 'status'], true)) {
-                            $meta[str_replace(' ', '_', $k)] = $cells[$i + 1];
+                        $k = strtolower(trim(rtrim(trim($cells[$i]), ':')));
+                        if ($k !== '' && $cells[$i + 1] !== '' && isset($metaMap[$k])) {
+                            $meta[$metaMap[$k]] = $cells[$i + 1];
                         }
                     }
                 } elseif (preg_match('/procedure/i', $section)) {
@@ -255,15 +265,21 @@ class SopDocParser
                         $cells = [];
                         foreach ($tr->childNodes as $cell) {
                             if ($cell instanceof \DOMElement && in_array(strtolower($cell->tagName), ['td', 'th'], true)) {
-                                // Keep a cell's paragraphs as separate lines (a How
-                                // cell can hold several); fall back to flat text.
+                                // Keep a cell's paragraphs — and bullet items (a Tools
+                                // or Safety cell holds a list) — as separate lines.
                                 $blocks = [];
-                                foreach ($cell->childNodes as $b) {
-                                    if ($b instanceof \DOMElement && strtolower($b->tagName) === 'p') {
-                                        $t = trim(self::text($b));
-                                        if ($t !== '') $blocks[] = $t;
+                                $gather = function (\DOMNode $n) use (&$gather, &$blocks) {
+                                    foreach ($n->childNodes as $b) {
+                                        if (! ($b instanceof \DOMElement)) continue;
+                                        if (strtolower($b->tagName) === 'p') {
+                                            $t = trim(self::text($b));
+                                            if ($t !== '') $blocks[] = $t;
+                                        } else {
+                                            $gather($b);
+                                        }
                                     }
-                                }
+                                };
+                                $gather($cell);
                                 $cells[] = $blocks ? implode("\n", $blocks) : trim(self::text($cell));
                             }
                         }
@@ -300,9 +316,27 @@ class SopDocParser
      * Emits exactly the shape parse() reads: bold-paragraph step titles, "o "
      * subtask lines, labelled Why/How/Done when/Record paragraphs. Round-trip safe.
      */
-    public static function toHtml(array $steps, string $sectionLabel = ''): string
+    public static function toHtml(array $steps, string $sectionLabel = '', array $meta = []): string
     {
         $esc = fn ($v) => htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8');
+        $cellLines = function (?string $v) use ($esc) {
+            $out = '';
+            foreach (preg_split('/\n+/', $v ?? '') as $line) $out .= "<p>{$esc($line)}</p>";
+            return $out;
+        };
+        // The SOP header: document-level Why/How, Tools, Safety and governance as
+        // one table at the top — every row optional; parse() reads them back to meta.
+        $header = '';
+        $headerRows = ['why' => 'Why', 'how' => 'How', 'scope' => 'Scope',
+            'tools' => 'Tools and Materials', 'safety' => 'Safety Precautions',
+            'owner' => 'Owner', 'version' => 'Version', 'effective' => 'Effective',
+            'review_by' => 'Review by', 'approver' => 'Approver', 'status' => 'Status'];
+        foreach ($headerRows as $k => $label) {
+            if (! empty($meta[$k])) {
+                $header .= "<tr><td><p><strong>{$label}:</strong></p></td><td>{$cellLines($meta[$k])}</td></tr>";
+            }
+        }
+        if ($header !== '') $header = "<table><tbody>{$header}</tbody></table>";
         // A step's playbook fields as a neat 2-column table — the same shape /step
         // scaffolds in the editor, and what parse() reads back by its row labels.
         $fieldTable = function (array $s) use ($esc) {
@@ -331,7 +365,7 @@ class SopDocParser
             return $out;
         };
 
-        $h = $sectionLabel ? "<h2>{$esc($sectionLabel)}</h2>" : '';
+        $h = $header . ($sectionLabel ? "<h2>{$esc($sectionLabel)}</h2>" : '');
         foreach ($steps as $s) {
             // Each step is a card: <section data-sop-step> renders as the structured
             // card in the editor.

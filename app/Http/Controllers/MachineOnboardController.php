@@ -78,10 +78,12 @@ class MachineOnboardController extends Controller
             ->where('workflow_type', 'device')->where('workflow_active', true)
             ->find($data['workflow_id']);
         abort_if(! $template, 422, 'No such device runbook.');
-        $steps = json_decode($template->workflow_steps ?? '', true)['steps'] ?? [];
+        $decoded = json_decode($template->workflow_steps ?? '', true) ?: [];
+        $steps = $decoded['steps'] ?? [];
+        $stepsMeta = $decoded['meta'] ?? [];
         $data['variant'] = $template->form_factor ?? $template->title;   // platform + notify label
 
-        [$device, $project] = DB::transaction(function () use ($data, $companyId, $steps, $template) {
+        [$device, $project] = DB::transaction(function () use ($data, $companyId, $steps, $stepsMeta, $template) {
             $device = Device::create([
                 'company_id' => $companyId,
                 'device_type_id' => $data['device_type_id'],
@@ -99,6 +101,33 @@ class MachineOnboardController extends Controller
                 'notes' => trim("{$template->title} · " . implode(' ', array_filter([$data['brand'] ?? '', $data['model'] ?? '', $data['serial_num'] ?? '']))),
                 'assigned_to' => auth()->id(), 'ord' => $ord++,
             ]);
+
+            // The SOP header's Tools and Safety rows run ahead of the procedure.
+            if (! empty($stepsMeta['tools'])) {
+                Task::create([
+                    'title' => 'Gather tools and materials', 'notes' => $stepsMeta['tools'],
+                    'parent_id' => $project->id, 'week' => $monday, 'origin' => Carbon::now()->toDateString(),
+                    'planned_start' => Carbon::now()->toDateString(), 'due_date' => Carbon::now()->toDateString(),
+                    'assigned_to' => auth()->id(), 'ord' => $ord++,
+                ]);
+            }
+            if (! empty($stepsMeta['safety'])) {
+                $safety = Task::create([
+                    'title' => 'Safety precautions', 'notes' => 'From the SOP header — complete before the procedure.',
+                    'parent_id' => $project->id, 'week' => $monday, 'origin' => Carbon::now()->toDateString(),
+                    'planned_start' => Carbon::now()->toDateString(), 'due_date' => Carbon::now()->toDateString(),
+                    'assigned_to' => auth()->id(), 'ord' => $ord++,
+                ]);
+                foreach (preg_split('/\n+/', $stepsMeta['safety']) as $line) {
+                    if (trim($line) === '') continue;
+                    Task::create([
+                        'title' => trim($line),
+                        'parent_id' => $safety->id, 'week' => $monday, 'origin' => Carbon::now()->toDateString(),
+                        'planned_start' => Carbon::now()->toDateString(), 'due_date' => Carbon::now()->toDateString(),
+                        'assigned_to' => auth()->id(), 'ord' => $ord++,
+                    ]);
+                }
+            }
 
             foreach ($steps as $step) {
                 $card = [];

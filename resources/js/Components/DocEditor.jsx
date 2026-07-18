@@ -115,6 +115,17 @@ const SopStep = Node.create({
                 mkBtn('↑', 'move step up', () => moveSibling(editor, getPos, -1)),
                 mkBtn('↓', 'move step down', () => moveSibling(editor, getPos, 1)),
                 mkBtn('≡', 'collapse / expand', () => { collapsed = !collapsed; card.classList.toggle('sop-collapsed', collapsed); }),
+                mkBtn('⊞', 'add fields (Why / How / Done when / Record)', () => {
+                    const pos = getPos();
+                    const n = editor.state.doc.nodeAt(pos);
+                    if (!n || !n.firstChild) return;
+                    // Right after the title; skip if the card already has a table.
+                    let hasTable = false;
+                    n.forEach((c) => { if (c.type.name === 'table') hasTable = true; });
+                    if (hasTable) return;
+                    editor.chain().focus().insertContentAt(pos + 1 + n.firstChild.nodeSize,
+                        '<table><tbody>' + fieldRows(['Why', 'How', 'Done when', 'Record']) + '</tbody></table>').run();
+                }),
                 mkBtn('↳+', 'add substep', () => {
                     const pos = getPos();
                     const n = editor.state.doc.nodeAt(pos);
@@ -203,20 +214,25 @@ const asSubstep = (e, text) => {
     return e.chain().focus().insertContent(`<ul><li><p>${esc(text)}</p></li></ul>`).run();
 };
 
-// The /step scaffold: a step CARD — bold title + the playbook fields as a 2-column
-// table (add or remove rows like any table). ↳+ on the card adds substeps.
-const STEP_SCAFFOLD = '<section data-sop-step><p><strong>New step</strong></p><table><tbody>'
-    + ['Why', 'How', 'Done when', 'Record'].map((l) => `<tr><td><p><strong>${l}:</strong></p></td><td><p></p></td></tr>`).join('')
-    + '</tbody></table></section><p></p>';
+// The /step scaffold: a LEAN step card — steps are just steps (actions); add a
+// field row (Done when etc.) or substeps only where a step earns them.
+const STEP_SCAFFOLD = '<section data-sop-step><p><strong>New step</strong></p><p></p></section><p></p>';
+const fieldRows = (labels) => labels.map((l) => `<tr><td><p><strong>${l}:</strong></p></td><td><p></p></td></tr>`).join('');
+// The /sop scaffold: the document-level header table of a formal SOP — purpose,
+// approach, tools, safety, governance. Every row optional; remove what you don't need.
+const SOP_SCAFFOLD = '<table><tbody>'
+    + fieldRows(['Why', 'How', 'Tools and Materials', 'Safety Precautions', 'Owner', 'Version'])
+    + '</tbody></table><p></p>';
 
 const SLASH = [
     // /step inside an existing card inserts the new card AFTER it (never nested).
-    { key: 'step', label: 'Step', hint: 'New SOP step — title + Why/How/Done when/Record table', run: (e) => {
+    { key: 'step', label: 'Step', hint: 'New SOP step — a lean action card; ⊞ adds fields, ↳+ substeps', run: (e) => {
         const step = stepAncestor(e);
         return step
             ? e.chain().focus().insertContentAt(step.pos + step.node.nodeSize, STEP_SCAFFOLD).run()
             : e.chain().focus().insertContent(STEP_SCAFFOLD).run();
     } },
+    { key: 'sop', label: 'SOP header', hint: 'Top table: Why/How, Tools, Safety, Owner… (rows removable)', run: (e) => e.chain().focus().insertContent(SOP_SCAFFOLD).run() },
     { key: 'p', label: 'Text', hint: 'Plain paragraph', run: (e) => e.chain().focus().setParagraph().run() },
     { key: 'h1', label: 'Heading 1', hint: 'Big section heading', run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run() },
     { key: 'h2', label: 'Heading 2', hint: 'Medium heading', run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
