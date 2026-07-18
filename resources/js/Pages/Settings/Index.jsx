@@ -401,7 +401,7 @@ function Installers() {
     };
 
     return (
-        <Section title="Installers" desc="Where your installers live, listed over SSH. /install in a runbook reads this list — the directory is the catalog.">
+        <Section title="Installers" desc="Your installers on the Synology Web Station, listed over HTTP. /install in a runbook reads this list; the bench curls the file when installing.">
             <div className="mb-5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
                 <div className="flex items-center justify-between">
                     <div>
@@ -415,14 +415,14 @@ function Installers() {
                 </div>
             </div>
 
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Path per company — host/path (e.g. files.example.com/X Technology/Installers)</p>
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Installers URL per company (Web Station, e.g. http://files.example.com/Installers)</p>
             {companies.map((c) => (
                 <label key={c.id} className="mb-2 block">
                     <span className="mb-1 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                         {c.name}
                         {c._saved && <span className="text-xs text-green-600">Saved ✓</span>}
                     </span>
-                    <input value={c.installers_path || ''} placeholder="files.example.com/X Technology/Installers"
+                    <input value={c.installers_path || ''} placeholder="http://files.example.com/Installers  (or just files.example.com/Installers)"
                         onChange={(e) => setCompanies((cs) => cs.map((x) => (x.id === c.id ? { ...x, installers_path: e.target.value } : x)))}
                         onBlur={(e) => savePath(c.id, e.target.value)}
                         className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
@@ -430,11 +430,10 @@ function Installers() {
             ))}
 
             <div className="mt-4 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
-                <p className="font-medium mb-1">One-time server setup</p>
-                <p>The AssetMost server lists this over SSH — no mount. Give it a read-only SSH key to the host
-                (<code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">INSTALLERS_SSH_USER</code> /
-                <code className="bg-amber-100 dark:bg-amber-500/20 px-1 rounded">INSTALLERS_SSH_KEY</code> in .env), keep
-                <code>Mac/</code> and <code>Windows/</code> subfolders, then "Scan now". A nightly cron runs <code>php artisan installers:index</code>.</p>
+                <p className="font-medium mb-1">One-time setup</p>
+                <p>Serve the Installers folder on the Synology's Web Station with directory listing on. If it needs a
+                login, the credentials live in the server's .env (never in the app). Then "Scan now" reads the list;
+                a nightly cron runs <code>php artisan installers:index</code>.</p>
             </div>
         </Section>
     );

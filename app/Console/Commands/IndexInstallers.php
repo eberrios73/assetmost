@@ -5,23 +5,23 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 /**
- * Index the installers share by listing it OVER SSH — no mount, no CIFS.
+ * Index the installers by listing them over HTTP from the Synology Web Station.
  *
- * The path stored on a company is host/path, e.g.
- *   files.example.com/X Technology/Installers
- * The app ssh'es to the host and lists the Mac/ and Windows/ subfolders. The
- * directory IS the catalog: whatever is there is what /install offers.
+ * companies.installers_path holds the base URL (or host/path — http:// is added).
+ * The web server's directory listing IS the catalog: whatever files are there
+ * are what /install offers. When a machine installs, its bootstrap curls the
+ * file to a tmp folder, runs it, and cleans up — nothing is mounted.
  *
- * SSH auth comes from env: INSTALLERS_SSH_USER (default root) and
- * INSTALLERS_SSH_KEY (a private key readable by the web user). Host-key checking
- * is disabled for the LAN box; scope the key to a read-only account.
+ * HTTP basic-auth credentials come from env (INSTALLERS_HTTP_USER /
+ * INSTALLERS_HTTP_PASS) and are NEVER stored in code or the database.
  */
 class IndexInstallers extends Command
 {
     protected $signature = 'installers:index {--path=}';
-    protected $description = 'Index the installers share over SSH into the installers table';
+    protected $description = 'Index the installers over HTTP into the installers table';
 
     public function handle(): int
     {
@@ -50,92 +50,86 @@ class IndexInstallers extends Command
         return self::SUCCESS;
     }
 
+    /** Base URL from the stored path (http:// added if missing, trailing slash ensured). */
+    public static function baseUrl(string $path): string
+    {
+        if (! preg_match('#^https?://#i', $path)) {
+            $path = 'http://' . ltrim($path, '/');
+        }
+        return rtrim($path, '/') . '/';
+    }
+
     /**
-     * List host/path over SSH. Returns [rows, errorOrNull]. rows: name, relative_path,
-     * platform, arch, is_dir. Up to three levels deep (platform/app/file).
+     * Walk the Web Station directory listing over HTTP (one level of subfolders).
+     * Returns [rows, errorOrNull].
      */
-    public static function scan(string $hostPath): array
+    public static function scan(string $path): array
     {
-        $slash = strpos($hostPath, '/');
-        if ($slash === false) {
-            return [[], 'Path must be host/path, e.g. files.example.com/IT/Installers'];
+        $base = self::baseUrl($path);
+        $user = env('INSTALLERS_HTTP_USER');
+        $pass = env('INSTALLERS_HTTP_PASS');
+
+        $get = function (string $url) use ($user, $pass) {
+            $req = Http::timeout(12)->withOptions(['verify' => false]);
+            if ($user) $req = $req->withBasicAuth($user, $pass ?? '');
+            return $req->get($url);
+        };
+
+        $root = $get($base);
+        if ($root->status() === 401) {
+            return [[], 'The installers URL needs a login — set INSTALLERS_HTTP_USER / INSTALLERS_HTTP_PASS on the server.'];
         }
-        $host = substr($hostPath, 0, $slash);
-        $remote = substr($hostPath, $slash + 1);
-
-        $user = env('INSTALLERS_SSH_USER', 'root');
-        $key = env('INSTALLERS_SSH_KEY');
-        $keyOpt = $key ? '-i ' . escapeshellarg($key) . ' ' : '';
-        $sshBase = "ssh {$keyOpt}-o StrictHostKeyChecking=no -o ConnectTimeout=8 " . escapeshellarg("{$user}@{$host}") . ' ';
-
-        // Linux/NAS: find. Windows (cmd shell): dir /s /b. Try find, fall back to dir —
-        // so it works whether the host is a Synology or a Windows server.
-        $findCmd = 'cd ' . escapeshellarg($remote) . " && find . -maxdepth 3 -mindepth 1 -printf '%y\\t%s\\t%p\\n' 2>/dev/null";
-        exec($sshBase . escapeshellarg($findCmd) . ' 2>&1', $out, $code);
-        if ($code === 0 && $out) {
-            return [self::parseFind($out), null];
+        if (! $root->ok()) {
+            return [[], "Could not read {$base} (HTTP {$root->status()}). Enable directory listing in Web Station for that folder."];
         }
 
-        // Windows fallback: bare recursive listing of dirs then files.
-        $win = 'dir /s /b ' . '"' . str_replace('/', '\\', $remote) . '"';
-        exec($sshBase . escapeshellarg($win) . ' 2>&1', $wout, $wcode);
-        if ($wcode !== 0 || ! $wout) {
-            $why = trim(implode(' ', array_slice($out ?: $wout, 0, 2))) ?: "exit {$code}/{$wcode}";
-            return [[], "Scan failed: {$why} (check INSTALLERS_SSH_KEY / read-only account on {$host}; if Windows, enable OpenSSH Server)"];
-        }
-        return [self::parseWindows($wout, $remote), null];
-    }
-
-    /** Parse GNU find "%y\t%s\t%p" output (Linux/NAS). */
-    private static function parseFind(array $out): array
-    {
         $rows = [];
-        foreach ($out as $line) {
-            $parts = explode("\t", $line, 3);
-            if (count($parts) < 3) continue;
-            [$type, $size, $rel] = $parts;
-            $rel = ltrim($rel, './');
-            if ($rel === '') continue;
-            $rows[$rel] = self::row($rel, str_replace('\\', '/', $rel), $type === 'd', (int) $size);
+        foreach (self::links($root->body()) as $entry) {
+            if ($entry['dir']) {
+                // one level deep: list the subfolder's files
+                $sub = $get($base . rawurlencode(rtrim($entry['name'], '/')) . '/');
+                if ($sub->ok()) {
+                    foreach (self::links($sub->body()) as $f) {
+                        if ($f['dir']) continue;
+                        $rel = rtrim($entry['name'], '/') . '/' . $f['name'];
+                        $rows[$rel] = self::row($f['name'], $rel);
+                    }
+                }
+            } else {
+                $rows[$entry['name']] = self::row($entry['name'], $entry['name']);
+            }
         }
-        return array_values(array_filter($rows));
+        return [array_values(array_filter($rows)), null];
     }
 
-    /** Parse Windows "dir /s /b" full-path output. Depth/platform from the path. */
-    private static function parseWindows(array $out, string $remote): array
+    /** Parse <a href> links from a directory-listing page. Skips parent/sort links. */
+    private static function links(string $html): array
     {
-        $baseNorm = strtolower(rtrim(str_replace('/', '\\', $remote), '\\'));
-        $rows = [];
-        foreach ($out as $full) {
-            $full = rtrim($full);
-            if ($full === '') continue;
-            $pos = strpos(strtolower($full), $baseNorm);
-            $rel = $pos !== false ? ltrim(substr($full, $pos + strlen($baseNorm)), '\\') : $full;
-            $rel = str_replace('\\', '/', $rel);
-            if ($rel === '' || substr_count($rel, '/') > 2) continue;   // cap depth
-            // dir /b doesn't say file vs dir; treat no-extension leaf as a folder.
-            $isDir = ! preg_match('/\.\w{1,5}$/', $rel);
-            $rows[$rel] = self::row($rel, $rel, $isDir, null);
+        if (! preg_match_all('/<a\s[^>]*href="([^"]+)"[^>]*>/i', $html, $m)) return [];
+        $out = [];
+        foreach ($m[1] as $href) {
+            $href = html_entity_decode($href);
+            if ($href === '' || $href[0] === '?' || $href[0] === '#') continue;   // sort/anchor links
+            if (str_starts_with($href, '/') || str_contains($href, '://')) continue; // absolute / parent
+            if (str_starts_with($href, '..')) continue;
+            $name = rawurldecode($href);
+            $out[] = ['name' => rtrim($name, '/') . (str_ends_with($href, '/') ? '/' : ''), 'dir' => str_ends_with($href, '/')];
         }
-        return array_values(array_filter($rows));
+        return $out;
     }
 
-    private static function row(string $rel, string $relSlash, bool $isDir, ?int $size): ?array
+    private static function row(string $name, string $rel): ?array
     {
-        $seg = explode('/', $relSlash);
-        $name = end($seg);
+        $name = rtrim($name, '/');
         if ($name === '' || $name[0] === '.') return null;
         return [
             'name' => $name,
-            'relative_path' => $relSlash,
-            // Platform from the FILE, not a folder convention: .dmg/.pkg/.app = Mac,
-            // .exe/.msi/.appx = Windows. Fall back to a Mac/Windows folder name if
-            // present, else "other". Works whatever the share's layout is.
-            'platform' => self::platform($name, $relSlash),
+            'relative_path' => $rel,
+            'platform' => self::platform($name, $rel),
             'arch' => preg_match('/(^|[^0-9])(32|x86)([^0-9]|$)/i', $name) ? '32'
                 : (preg_match('/(^|[^0-9])(64|x64)([^0-9]|$)/i', $name) ? '64' : null),
-            'is_dir' => $isDir ? 1 : 0,
-            'size_bytes' => $size,
+            'is_dir' => 0,
+            'size_bytes' => null,
         ];
     }
 
