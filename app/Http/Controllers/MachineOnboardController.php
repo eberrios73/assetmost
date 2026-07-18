@@ -302,6 +302,35 @@ class MachineOnboardController extends Controller
         return array_values($out);
     }
 
+    /**
+     * Produce the bootstrap script a Workstation-setup runbook would generate, without a
+     * real machine — device-specifics ({ASSET_TAG} etc.) stay as placeholders, but the
+     * SOP's own /install, /vpn and /mdm all resolve for real. Powers the onboarding
+     * screen's Script tab so you can see (and, later, edit) what a machine will run.
+     */
+    public function previewScript(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $companyId = app(TenantResolver::class)->id();
+        abort_if(! $companyId, 422, 'Pick a company first.');
+        $variant = $request->string('variant')->toString();
+
+        $template = OnboardingTemplate::query()->where('company_id', $companyId)
+            ->where('kind', 'imaging')->where('variant', $variant)->first();
+        abort_if(! $template, 404, 'No Workstation-setup runbook for that variant yet.');
+        $steps = json_decode($template->steps, true)['steps'] ?? [];
+        $files = array_column(self::recipe($steps, $companyId), 'relative_path');
+
+        $device = new Device();
+        $device->asset_tag = '{ASSET_TAG}';
+        $device->setRelation('company', \App\Models\Company::find($companyId));
+
+        $script = $this->script($device, '{TOKEN}', '{BASE_URL}', $variant, $files,
+            self::mdm($steps), self::mdmProfile($steps, $companyId));
+
+        return response()->json(['script' => $script]);
+    }
+
     /** Step tick from the running script. Token-authenticated, no session. */
     public function report(Request $request): JsonResponse
     {

@@ -137,6 +137,8 @@ Route::middleware('auth')->group(function () {
     $mo = \App\Http\Controllers\MachineOnboardController::class;
     Route::get('/onboard', [$mo, 'page'])->name('machine.onboard');
     Route::post('/onboard/generate', [$mo, 'generate']);
+    // Preview the bootstrap script a runbook (Workstation setup SOP) would produce.
+    Route::get('/data/onboarding-script', [$mo, 'previewScript']);
 
     // Onboarding v2: per-company step template (paste SOP -> steps -> task project).
     $oc = \App\Http\Controllers\OnboardingController::class;

@@ -985,6 +985,48 @@ class DataController extends Controller
         );
     }
 
+    /**
+     * Command-palette resolver: find a device or person by tag, number, name, or email —
+     * "501" lands on PG-WS501 without you having to say it's a workstation. Scoped to the
+     * companies the user can see, so admins can reach a machine wherever it lives.
+     */
+    public function resolve(Request $request): JsonResponse
+    {
+        $term = trim($request->string('q')->toString());
+        if ($term === '') return response()->json([]);
+        $scope = app(\App\Support\Contracts\TenantResolver::class)->scopeIds();
+        $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $term) . '%';
+
+        $devices = Device::query()
+            ->when($scope !== null, fn ($x) => $x->whereIn('company_id', $scope))
+            ->where(fn ($w) => $w->where('asset_tag', 'like', $like)
+                ->orWhere('computer_name', 'like', $like)
+                ->orWhere('serial_num', 'like', $like))
+            ->orderBy('asset_tag')->limit(6)
+            ->get(['id', 'asset_tag', 'computer_name', 'brand', 'model']);
+
+        $people = User::query()
+            ->when($scope !== null, fn ($x) => $x->whereIn('company_id', $scope))
+            ->where(fn ($w) => $w->where('name', 'like', $like)
+                ->orWhere('last', 'like', $like)
+                ->orWhere('email', 'like', $like))
+            ->orderBy('name')->limit(6)
+            ->get(['id', 'name', 'last', 'email']);
+
+        $out = [];
+        foreach ($devices as $d) {
+            $out[] = ['type' => 'device', 'group' => 'assets', 'tab' => 'devices', 'id' => $d->id,
+                'label' => $d->asset_tag ?: ($d->computer_name ?: "Device {$d->id}"),
+                'sub' => trim(($d->brand ?? '') . ' ' . ($d->model ?? '')) ?: 'Device'];
+        }
+        foreach ($people as $p) {
+            $out[] = ['type' => 'person', 'group' => 'people', 'tab' => 'staff', 'id' => $p->id,
+                'label' => trim(($p->name ?? '') . ' ' . ($p->last ?? '')) ?: ($p->email ?? "Person {$p->id}"),
+                'sub' => $p->email ?? ''];
+        }
+        return response()->json($out);
+    }
+
     /** The /install list: whatever the indexed installers share contains. */
     public function installers(Request $request): JsonResponse
     {
