@@ -128,11 +128,23 @@ class IndexInstallers extends Command
         return [
             'name' => $name,
             'relative_path' => $relSlash,
-            'platform' => $seg[0],                                    // Mac | Windows | ...
+            // Platform from the FILE, not a folder convention: .dmg/.pkg/.app = Mac,
+            // .exe/.msi/.appx = Windows. Fall back to a Mac/Windows folder name if
+            // present, else "other". Works whatever the share's layout is.
+            'platform' => self::platform($name, $relSlash),
             'arch' => preg_match('/(^|[^0-9])(32|x86)([^0-9]|$)/i', $name) ? '32'
                 : (preg_match('/(^|[^0-9])(64|x64)([^0-9]|$)/i', $name) ? '64' : null),
             'is_dir' => $isDir ? 1 : 0,
             'size_bytes' => $size,
         ];
+    }
+
+    private static function platform(string $name, string $path): string
+    {
+        if (preg_match('/\.(dmg|pkg|app|mpkg)$/i', $name)) return 'Mac';
+        if (preg_match('/\.(exe|msi|appx|msix)$/i', $name)) return 'Windows';
+        if (preg_match('#(^|/)(mac|macos|osx|apple)(/|$)#i', $path)) return 'Mac';
+        if (preg_match('#(^|/)(win|windows|pc)(/|$)#i', $path)) return 'Windows';
+        return 'other';
     }
 }
