@@ -161,9 +161,11 @@ class StarterTemplates
         if (strcasecmp($variant, 'Windows') === 0) {
             return ['version' => 1, 'steps' => [
                 $intake,
-                $s('image', 'Apply the standard image', 'machine', 0, [], [
-                    $s('img-os', 'Standard build per current baseline; all OS and firmware updates', 'machine', 0),
-                    $s('img-drivers', 'Drivers and vendor tools', 'machine', 0),
+                $s('base', 'Clean current OS', 'machine', 0, [
+                    'why' => 'Golden images are stale five days after you make them — build live from a clean, fully-updated OS instead; configuration comes from the domain and the checklist, not a stamp.',
+                ], [
+                    $s('base-os', 'Clean install / OOBE with all OS and firmware updates', 'machine', 0),
+                    $s('base-drivers', 'Drivers and vendor tools', 'machine', 0),
                 ]),
                 $s('join', 'Name and join', 'machine', 0, [], [
                     $s('join-host', 'Hostname = asset tag', 'machine', 0, [
@@ -192,11 +194,14 @@ class StarterTemplates
         if (strcasecmp($variant, 'Mac') === 0) {
             return ['version' => 1, 'steps' => [
                 $intake,
-                $s('image', 'Base system', 'machine', 0, [], [
-                    $s('img-os', 'Imaged Basic Setup or clean install; all macOS updates', 'machine', 0),
+                $s('base', 'Clean current macOS', 'machine', 0, [
+                    'why' => 'Golden images rot — build live: clean OS, then MDM profiles and the checklist do the configuring.',
+                ], [
+                    $s('base-os', 'Clean install or factory + all macOS updates', 'machine', 0),
                 ]),
                 $s('mdm', 'MDM enrollment', 'machine', 0, [
-                    'why' => 'Macs are managed by MDM, not domain join.',
+                    'why' => 'Macs are managed by MDM, not domain join — profiles carry the config an image used to.',
+                    'how' => 'Zero-touch (DEP/ABM) if enrolled; otherwise manual enrollment.',
                     'done' => 'Device appears in the MDM console (e.g. Jamf) and receives profiles.',
                 ]),
                 $s('filevault', 'Enable FileVault', 'access', 0, [
@@ -251,9 +256,11 @@ class StarterTemplates
         // Generic fallback (no platform variant chosen).
         return ['version' => 1, 'steps' => [
             $intake,
-            $s('image', 'Apply the standard image', 'machine', 0, [], [
-                $s('img-os', 'Standard build per current baseline; all updates', 'machine', 0),
-                $s('img-drivers', 'Drivers and vendor tools', 'machine', 0),
+            $s('base', 'Clean current OS', 'machine', 0, [
+                'why' => 'Golden images are stale on arrival — build live from a clean, updated OS; the checklist is the configuration.',
+            ], [
+                $s('base-os', 'Clean install with all updates', 'machine', 0),
+                $s('base-drivers', 'Drivers and vendor tools', 'machine', 0),
             ]),
             $s('configure', 'Configure and protect', 'machine', 0, [], [
                 $s('cfg-hostname', 'Hostname = asset tag', 'machine', 0),
