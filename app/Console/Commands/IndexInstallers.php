@@ -65,20 +65,19 @@ class IndexInstallers extends Command
         $base = preg_match('#^https?://#i', $baseUrl) ? rtrim($baseUrl, '/') : 'http://' . rtrim($baseUrl, '/');
         $http = fn (string $u) => Http::timeout(15)->withOptions(['verify' => false])->get($u);
 
-        // Prefer the live PHP page; if PHP isn't enabled it serves raw source, so
-        // fall back to a generated installers.json (a scheduled `php installers.php
-        // > installers.json` on the NAS keeps it fresh).
-        $files = null;
-        foreach (["{$base}/installers.php", "{$base}/installers.json"] as $u) {
-            $res = $http($u);
-            if (! $res->ok()) continue;
-            $body = ltrim($res->body());
-            if ($body === '' || str_starts_with($body, '<?php') || $body[0] === '<') continue;  // raw PHP / HTML error
-            $decoded = json_decode($body, true);
-            if (is_array($decoded)) { $files = $decoded; break; }
+        $url = "{$base}/installers.php";
+        $res = $http($url);
+        if (! $res->ok()) {
+            return [[], "Could not reach {$url} (HTTP {$res->status()})."];
         }
-        if ($files === null) {
-            return [[], "No installer list at {$base}/installers.php or /installers.json. Put installers.php in the folder (enable PHP for the service) or generate installers.json."];
+        $body = ltrim($res->body());
+        // Raw PHP source (or a download) means the Web Station service isn't running PHP.
+        if (str_starts_with($body, '<?php') || str_starts_with($body, '<?')) {
+            return [[], "{$url} returned raw PHP, not JSON — the Web Station service is static. Enable PHP for that Web Service (Web Station > Web Service > set PHP backend), then re-scan."];
+        }
+        $files = json_decode($body, true);
+        if (! is_array($files)) {
+            return [[], "{$url} did not return a JSON list (got: " . mb_substr(strip_tags($body), 0, 80) . ')'];
         }
 
         $rows = [];
