@@ -65,7 +65,8 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
     const menuRef = useRef(null);
 
     // Runbook references + installers you can drop into a doc with "/". Typing
-    // /eprotection references the current runbook; /install <name> picks software.
+    // /eprotection references the current runbook; /install <name> picks software;
+    // /vpn <profile> picks a VPN config — both resolve to "fetch from share + install".
     useEffect(() => {
         fetch('/data/runbook-refs', { headers: { Accept: 'application/json' } })
             .then((r) => r.json()).then(setRefs).catch(() => {});
@@ -97,11 +98,17 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         const { $from, empty } = ed.state.selection;
         if (!empty) return setMenu(null);
         const textBefore = $from.parent.textBetween(0, $from.parentOffset, '\n', '\0');
-        // "/install office" — a command that takes an argument (the software).
+        // "/install office" / "/vpn profile" — commands that take an argument, resolved
+        // by the build script to "download this from our share and install it".
         const inst = textBefore.match(/\/install\s+([^/]*)$/i);
         if (inst) {
             const coords = ed.view.coordsAtPos($from.pos);
             return setMenu({ mode: 'install', query: inst[1].trim().toLowerCase(), from: $from.pos - inst[0].length, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
+        }
+        const vpn = textBefore.match(/\/vpn\s+([^/]*)$/i);
+        if (vpn) {
+            const coords = ed.view.coordsAtPos($from.pos);
+            return setMenu({ mode: 'vpn', query: vpn[1].trim().toLowerCase(), from: $from.pos - vpn[0].length, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
         }
         // "/word" — commands and runbook references.
         const m = textBefore.match(/(?:^|\s)\/(\w*)$/);
@@ -123,6 +130,9 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
     // office" narrows to Office. Whatever's typed can always be inserted (works before
     // the share is indexed too).
     const PLAT = { mac: 'mac', macos: 'mac', osx: 'mac', apple: 'mac', win: 'windows', windows: 'windows', pc: 'windows' };
+    // VPN profiles are config files, not software — kept out of /install, and are the
+    // only thing /vpn shows.
+    const VPN_RE = /\.(ovpn|ovpn12|mobileconfig|tblk|visc|visz|conf|wg)$/i;
     let items;
     if (menu?.mode === 'install') {
         const words = menu.query.split(/\s+/).filter(Boolean);
@@ -130,6 +140,7 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         if (words.length && PLAT[words[0]]) { platform = PLAT[words[0]]; words.shift(); }
         const nameQ = words.join(' ');
         const picks = installers
+            .filter((i) => !VPN_RE.test(i.name))                                   // software only
             .filter((i) => !platform || (i.platform || '').toLowerCase() === platform)
             .filter((i) => !nameQ || i.name.toLowerCase().includes(nameQ))
             .slice(0, 8)
@@ -138,6 +149,16 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         // Works before the share is indexed: keep whatever was typed as the reference.
         if (nameQ) picks.push({ key: 'inst:free', label: `Use "${nameQ}"`, hint: 'insert as typed',
             run: (e) => e.chain().focus().insertContent(`/install ${menu.query} `).run() });
+        items = picks;
+    } else if (menu?.mode === 'vpn') {
+        const picks = installers
+            .filter((i) => VPN_RE.test(i.name))                                    // VPN profiles only
+            .filter((i) => !menu.query || i.name.toLowerCase().includes(menu.query))
+            .slice(0, 8)
+            .map((i) => ({ key: `vpn:${i.id}`, label: i.name.replace(VPN_RE, ''), hint: 'VPN profile — download + install',
+                run: (e) => e.chain().focus().insertContent(`/vpn ${i.name} `).run() }));
+        if (menu.query) picks.push({ key: 'vpn:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
+            run: (e) => e.chain().focus().insertContent(`/vpn ${menu.query} `).run() });
         items = picks;
     } else {
         const all = [...SLASH, ...refItems];
