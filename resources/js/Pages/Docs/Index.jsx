@@ -452,6 +452,7 @@ function SnippetEditor({ snippet, api, onChanged, onDeleted }) {
             <p className="mt-2 text-xs text-gray-400">
                 Variables: {paramNames.length ? paramNames.map((p) => `{${p}}`).join(' ') + ' · ' : ''}
                 {'{*} {1}… · {ASSET_TAG} {BASE_URL} {TOKEN} {REPO} {DOMAIN} {LOCAL_DOMAIN}'} — <code>report 'step' true 'note'</code> ticks the checklist.
+                Params given in the SOP bake in; params left out make the script <em>ask and wait</em> at run time (secret-ish names prompt silently).
             </p>
             <label className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
                 <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)}

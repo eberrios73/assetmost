@@ -253,12 +253,30 @@ class MachineOnboardController extends Controller
             $args = $f['args'] === '' ? [] : preg_split('/\s+/', $f['args']);
             $names = array_values(array_filter(array_map('trim', explode(',', $s->params ?? ''))));
             $vars = ['{*}' => $f['args']];
-            foreach ($names as $i => $name) $vars['{' . $name . '}'] = $args[$i] ?? '';
+            // Params supplied in the SOP bake in; params left out become RUNTIME
+            // prompts — the script asks and waits (secret-ish names prompt silently).
+            $prompts = ['sh' => '', 'windows' => ''];
+            foreach ($names as $i => $name) {
+                $val = $args[$i] ?? null;
+                if ($val !== null && $val !== '') {
+                    $vars['{' . $name . '}'] = $val;
+                    continue;
+                }
+                $safe = preg_replace('/[^A-Za-z0-9_]/', '_', $name);
+                $secret = (bool) preg_match('/psk|pass|secret|key|token|pin/i', $name);
+                $prompts['sh'] .= $secret
+                    ? "printf '{$name}: '; read -s SNIP_{$safe}; echo\n"
+                    : "printf '{$name}: '; read SNIP_{$safe}\n";
+                $prompts['windows'] .= "\$SNIP_{$safe} = Read-Host '{$name}'\n";
+                $vars['{' . $name . '}'] = "\$SNIP_{$safe}";   // valid in sh, zsh and PowerShell
+            }
             foreach ($args as $i => $a) $vars['{' . ($i + 1) . '}'] = $a;
             foreach ($ctx as $k => $v) $vars['{' . $k . '}'] = $v ?? '';
 
             foreach (['mac' => 'mac_script', 'windows' => 'windows_script', 'linux' => 'linux_script'] as $p => $col) {
-                if (filled($s->{$col})) $out[$p][] = strtr($s->{$col}, $vars);
+                if (! filled($s->{$col})) continue;
+                $ask = $prompts[$p === 'windows' ? 'windows' : 'sh'];
+                $out[$p][] = ($ask !== '' ? $ask : '') . strtr($s->{$col}, $vars);
             }
         }
         return array_map(fn ($blocks) => implode("\n\n", $blocks), $out);
