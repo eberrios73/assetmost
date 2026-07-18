@@ -91,6 +91,36 @@ class DocController extends Controller
         ]);
     }
 
+    /**
+     * New version = a duplicate to rework while the original stands. Workflow pages
+     * get their meta version bumped (1.0 -> 1.1), status reset to Draft, and the
+     * body regenerated so the header table shows it. Plain docs copy as-is (their
+     * version lives in their own header table — edit it there).
+     */
+    public function newVersion(DocPage $page): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+
+        $copy = $page->replicate(['workflow_slug']);
+        $copy->workflow_shipped = false;
+        $copy->updated_by = auth()->id();
+
+        if ($page->workflow_type && $page->workflow_steps) {
+            $decoded = json_decode($page->workflow_steps, true) ?: [];
+            $meta = $decoded['meta'] ?? [];
+            $meta['version'] = preg_match('/^(\d+)\.(\d+)$/', $meta['version'] ?? '', $m)
+                ? $m[1] . '.' . ($m[2] + 1)
+                : '1.1';
+            $meta['status'] = 'Draft';
+            $decoded['meta'] = $meta;
+            $copy->workflow_steps = json_encode($decoded);
+            $copy->body = \App\Support\SopDocParser::toHtml($decoded['steps'] ?? [], '', $meta);
+        }
+
+        $copy->save();
+        return response()->json(['ok' => true, 'id' => $copy->id], 201);
+    }
+
     /** Search every page the user can see — title first, then body. */
     public function search(Request $request): JsonResponse
     {

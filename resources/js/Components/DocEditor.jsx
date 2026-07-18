@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import ListItem from '@tiptap/extension-list-item';
 import StarterKit from '@tiptap/starter-kit';
@@ -418,6 +418,12 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
 
     useEffect(() => () => clearTimeout(saveTimer.current), []);
 
+    // Row/column controls whenever the cursor is inside a table.
+    const inTable = useEditorState({
+        editor,
+        selector: (ctx) => !!ctx.editor && ctx.editor.isActive('table'),
+    });
+
     // Keep the slash menu inside the viewport: cap its height (it scrolls internally)
     // and flip it above the caret when there isn't room below.
     const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
@@ -429,8 +435,25 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         ...(openUp ? { bottom: vh - (menu.yTop ?? menu.y) + 6 } : { top: menu.y + 4 }),
     } : null;
 
+    const tblBtn = (label, title, fn, danger = false) => (
+        <button type="button" title={title} onMouseDown={(e) => e.preventDefault()} onClick={fn}
+            className={`px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${danger ? 'hover:text-red-600' : ''}`}>
+            {label}
+        </button>
+    );
+
     return (
         <div className="relative">
+            {inTable && editor && (
+                <div className="sticky top-2 z-30 mb-2 inline-flex items-center gap-0.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-1.5 py-1 text-xs text-gray-600 dark:text-gray-300 shadow-sm">
+                    {tblBtn('+ Row', 'add a row below', () => editor.chain().focus().addRowAfter().run())}
+                    {tblBtn('− Row', 'delete this row', () => editor.chain().focus().deleteRow().run())}
+                    {tblBtn('+ Col', 'add a column right', () => editor.chain().focus().addColumnAfter().run())}
+                    {tblBtn('− Col', 'delete this column', () => editor.chain().focus().deleteColumn().run())}
+                    <span className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700" />
+                    {tblBtn('× Table', 'delete the whole table', () => editor.chain().focus().deleteTable().run(), true)}
+                </div>
+            )}
             <EditorContent editor={editor} />
             {menu && items.length > 0 && (
                 <div ref={menuRef} style={menuStyle}

@@ -123,6 +123,14 @@ export default function Index() {
         openPage(null); loadTree();
     };
 
+    // A new version duplicates the doc (workflow pages bump their header Version and
+    // reset Status to Draft); the original stands, you land on the copy.
+    const newVersion = async () => {
+        const { id } = await api(`/data/docs/${selectedId}/new-version`, 'POST');
+        await loadTree();
+        openPage(id);
+    };
+
     // Search every page (title first, then body), debounced; results replace the tree.
     const runSearch = (q) => {
         setSearchQ(q);
@@ -234,6 +242,10 @@ export default function Index() {
                         <option value="">Uncategorized</option>
                         {DOC_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
+                    {(page.workflow_type || ['SOP', 'Runbook'].includes(page.category)) && (
+                        <button onClick={newVersion} title="Duplicate as the next version (original stands)"
+                            className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">New version</button>
+                    )}
                     <button onClick={del} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-red-600">Delete</button>
                 </div>
             </div>
