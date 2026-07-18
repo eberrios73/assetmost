@@ -103,18 +103,18 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         const inst = textBefore.match(/\/install\s+([^/]*)$/i);
         if (inst) {
             const coords = ed.view.coordsAtPos($from.pos);
-            return setMenu({ mode: 'install', query: inst[1].trim().toLowerCase(), from: $from.pos - inst[0].length, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
+            return setMenu({ mode: 'install', query: inst[1].trim().toLowerCase(), from: $from.pos - inst[0].length, to: $from.pos, x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
         }
         const vpn = textBefore.match(/\/vpn\s+([^/]*)$/i);
         if (vpn) {
             const coords = ed.view.coordsAtPos($from.pos);
-            return setMenu({ mode: 'vpn', query: vpn[1].trim().toLowerCase(), from: $from.pos - vpn[0].length, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
+            return setMenu({ mode: 'vpn', query: vpn[1].trim().toLowerCase(), from: $from.pos - vpn[0].length, to: $from.pos, x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
         }
         // "/word" — commands and runbook references.
         const m = textBefore.match(/(?:^|\s)\/(\w*)$/);
         if (!m) return setMenu(null);
         const coords = ed.view.coordsAtPos($from.pos);
-        setMenu({ mode: 'slash', query: m[1].toLowerCase(), from: $from.pos - m[1].length - 1, to: $from.pos, x: coords.left, y: coords.bottom, index: 0 });
+        setMenu({ mode: 'slash', query: m[1].toLowerCase(), from: $from.pos - m[1].length - 1, to: $from.pos, x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
     };
 
     // Reference items are runbooks: picking one inserts the /slug token as plain text —
@@ -195,12 +195,23 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
 
     useEffect(() => () => clearTimeout(saveTimer.current), []);
 
+    // Keep the slash menu inside the viewport: cap its height (it scrolls internally)
+    // and flip it above the caret when there isn't room below.
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const spaceBelow = menu ? vh - menu.y : 0;
+    const openUp = menu ? spaceBelow < 260 && (menu.yTop ?? menu.y) > spaceBelow : false;
+    const menuStyle = menu ? {
+        position: 'fixed', left: menu.x, zIndex: 60,
+        maxHeight: Math.max(160, Math.min(320, openUp ? (menu.yTop ?? menu.y) - 12 : spaceBelow - 12)),
+        ...(openUp ? { bottom: vh - (menu.yTop ?? menu.y) + 6 } : { top: menu.y + 4 }),
+    } : null;
+
     return (
         <div className="relative">
             <EditorContent editor={editor} />
             {menu && items.length > 0 && (
-                <div ref={menuRef} style={{ position: 'fixed', left: menu.x, top: menu.y + 4, zIndex: 60 }}
-                    className="w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl py-1 text-sm">
+                <div ref={menuRef} style={menuStyle}
+                    className="w-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl py-1 text-sm">
                     {items.map((it, i) => (
                         <button key={it.key} onMouseDown={(e) => { e.preventDefault(); apply(it); }}
                             className={`w-full text-left px-3 py-1.5 flex flex-col ${i === menu.index ? 'bg-blue-50 dark:bg-blue-500/15' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
