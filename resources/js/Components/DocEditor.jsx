@@ -242,6 +242,21 @@ const SOP_SCAFFOLD = '<table><tbody>'
     + fieldRows(['Why', 'How', 'Tools and Materials', 'Safety Precautions', 'Owner', 'Version'])
     + '</tbody></table><p></p>';
 
+// Tables never nest: inserting one from inside a table lands AFTER that table.
+const afterTablePos = (e) => {
+    const { $from } = e.state.selection;
+    for (let d = $from.depth; d > 0; d--) {
+        if ($from.node(d).type.name === 'table') return $from.after(d);
+    }
+    return null;
+};
+const insertBlockSafe = (e, html) => {
+    const after = afterTablePos(e);
+    return after !== null
+        ? e.chain().focus().insertContentAt(after, html).run()
+        : e.chain().focus().insertContent(html).run();
+};
+
 const SLASH = [
     // /step inside an existing card inserts the new card AFTER it (never nested).
     { key: 'step', label: 'Step', hint: 'New SOP step — a lean action card; ⊞ adds fields, ↳+ substeps', run: (e) => {
@@ -250,7 +265,8 @@ const SLASH = [
             ? e.chain().focus().insertContentAt(step.pos + step.node.nodeSize, STEP_SCAFFOLD).run()
             : e.chain().focus().insertContent(STEP_SCAFFOLD).run();
     } },
-    { key: 'sop', label: 'SOP header', hint: 'Top table: Why/How, Tools, Safety, Owner… (rows removable)', run: (e) => e.chain().focus().insertContent(SOP_SCAFFOLD).run() },
+    { key: 'sop', label: 'SOP header', alias: 'table header sop', hint: 'Top table: Why/How, Tools, Safety, Owner… (rows removable)', run: (e) => insertBlockSafe(e, SOP_SCAFFOLD) },
+    { key: 'fields', label: 'Step fields table', alias: 'table why how done record fields', hint: '2-column Why / How / Done when / Record table', run: (e) => insertBlockSafe(e, '<table><tbody>' + fieldRows(['Why', 'How', 'Done when', 'Record']) + '</tbody></table>') },
     { key: 'p', label: 'Text', hint: 'Plain paragraph', run: (e) => e.chain().focus().setParagraph().run() },
     { key: 'h1', label: 'Heading 1', hint: 'Big section heading', run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run() },
     { key: 'h2', label: 'Heading 2', hint: 'Medium heading', run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
@@ -259,7 +275,7 @@ const SLASH = [
     { key: 'ol', label: 'Numbered list', hint: 'Ordered steps', run: (e) => e.chain().focus().toggleOrderedList().run() },
     { key: 'quote', label: 'Quote', hint: 'Callout / block quote', run: (e) => e.chain().focus().toggleBlockquote().run() },
     { key: 'code', label: 'Code block', hint: 'Monospace snippet', run: (e) => e.chain().focus().toggleCodeBlock().run() },
-    { key: 'table', label: 'Table', hint: '3×3 with header row', run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+    { key: 'table', label: 'Table', hint: '3×3 with header row', run: (e) => { const after = afterTablePos(e); const c = e.chain().focus(); return (after !== null ? c.setTextSelection(after) : c).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); } },
     { key: 'hr', label: 'Divider', hint: 'Horizontal rule', run: (e) => e.chain().focus().setHorizontalRule().run() },
 ];
 
@@ -409,7 +425,7 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             { key: 'open:form', label: 'Record form', hint: 'The task gets an add-record form', run: (e) => e.chain().focus().insertContent('/form ').run() },
         ];
         const all = [...SLASH, ...openers, ...refItems];
-        items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
+        items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.alias || '').includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
     }
 
     const apply = (item) => {
