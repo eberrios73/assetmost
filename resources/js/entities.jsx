@@ -206,7 +206,6 @@ export const GROUPS = {
         // Rooms have no tab: a room only means something inside its location, so they're
         // managed on the location's screen. (A Vehicles tab may take this slot later.)
         { key: 'locations', label: 'Locations', entity: 'locations' },
-        { key: 'onboard', label: 'Onboard', view: 'asset-onboard' },
         { key: 'onboarding', label: 'Onboarding', view: 'onboarding', wtype: 'device' },
     ] },
     tasks: { title: 'Tasks', tabs: [{ key: 'tasks', label: 'Tasks', view: 'tasks' }] },

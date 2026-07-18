@@ -102,7 +102,7 @@ class StarterTemplates
         return ['version' => 1, 'steps' => [
             $s('intake', 'Intake and inventory', 'machine', 0, [
                 'why' => 'A server that is not in inventory does not exist when it goes missing.',
-                'how' => 'Record it in AssetMost (Assets > Onboard). Hostname = asset tag.',
+                'how' => 'Record it in AssetMost (Assets > Devices > Add). Hostname = asset tag.',
                 'done' => 'Asset tag issued; hostname set.',
                 'record' => 'Device in inventory with tag, serial, model.',
             ]),
@@ -180,7 +180,7 @@ class StarterTemplates
         return ['version' => 1, 'steps' => [
             $s('intake', 'Intake and inventory', 'machine', 0, [
                 'why' => 'This is the generic device runbook - DUPLICATE it for each device class you run (access point, switch, printer, camera) and tailor the steps.',
-                'how' => 'Record it in AssetMost (Assets > Onboard); issue the asset tag and label the unit.',
+                'how' => 'Record it in AssetMost (Assets > Devices > Add); issue the asset tag and label the unit.',
                 'record' => 'Device in inventory with tag, serial, model, location.',
             ]),
             $s('network', 'Network', 'machine', 0, [], [
@@ -364,7 +364,7 @@ class StarterTemplates
 
         $intake = $s('intake', 'Intake and inventory', 'machine', 0, [
             'why' => 'A machine that is not in inventory does not exist when it goes missing.',
-            'how' => 'Record it in AssetMost (Assets > Onboard).',
+            'how' => 'Record it in AssetMost (Assets > Devices > Add).',
             'done' => 'Asset tag issued; it becomes the hostname.',
             'record' => 'Device in inventory with tag, serial, model.',
         ]);

@@ -5,7 +5,6 @@ import AppShell from '@/Layouts/AppShell';
 import EntityList from '@/Components/EntityList';
 import RecordModal from '@/Components/RecordModal';
 import PasswordGate from '@/Components/ui/PasswordGate';
-import AssetOnboard from '@/Components/AssetOnboard';
 import OnboardingSetup from '@/Components/OnboardingSetup';
 import { ENTITIES, GROUPS } from '@/entities';
 import { getLast, setLast } from '@/lib/lastView';
@@ -138,10 +137,6 @@ export default function Workspace({ group }) {
             ? <OnboardingSetup key={sel.id} workflow={sel} onChanged={() => setWfVersion((v) => v + 1)} />
             : <Center>No active workflows here yet.</Center>;
         footerLeft = sel ? `${sel.title} — workflow` : 'Workflows';
-    } else if (tab.view === 'asset-onboard') {
-        listContent = <div className="p-4 text-sm text-gray-500">Onboard a new asset into inventory — identify it, place it at a location, and add it.</div>;
-        detailContent = <AssetOnboard onDone={() => { setListVersion((v) => v + 1); setTabKey('devices'); }} />;
-        footerLeft = 'Onboard a new asset';
     } else {
         listContent = <div className="p-4 text-sm text-gray-400">{g.title}</div>;
         detailContent = <ComingSoon group={group} />;
