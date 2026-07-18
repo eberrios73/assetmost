@@ -126,11 +126,65 @@ function Identity() {
             </div>
 
             <p className="mt-5 text-xs text-gray-400">
-                Signing in through a provider isn't wired up yet — these save the configuration only.
-                A person arriving from a sync is a directory record: whether they can sign in stays a
-                local decision on the Roles &amp; access screen.
+                Identity sync isn't wired up yet; provisioning plugins (Zoom and any pasted below) fire
+                during onboarding when enabled here. A person arriving from a sync is a directory record:
+                whether they can sign in stays a local decision on Roles &amp; access.
             </p>
+
+            <PluginDefs />
         </Section>
+    );
+}
+
+/**
+ * Declarative provisioning plugins: paste a JSON field map, it becomes an
+ * integration card above. One request per plugin — that's the security model;
+ * community plugins are readable at a glance and can't reach anything else.
+ */
+function PluginDefs() {
+    const { pluginDefs = [] } = usePage().props;
+    const [text, setText] = useState('');
+    const [error, setError] = useState(null);
+    const [busy, setBusy] = useState(false);
+
+    const add = async () => {
+        setError(null);
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { setError('Not valid JSON.'); return; }
+        setBusy(true);
+        const r = await post('/settings/provisioner-defs', { definition: parsed });
+        setBusy(false);
+        if (!r) { setError('Rejected — needs plugin_key, name, and request.'); return; }
+        setText('');
+        router.reload();
+    };
+
+    return (
+        <div className="mt-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">Provisioning plugins (JSON)</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                A plugin is a field map: auth recipe + one request. Paste one (yours or the community's) and its
+                integration card appears above. It can only ever make the single request it declares.
+            </p>
+            {pluginDefs.length > 0 && (
+                <ul className="mb-3 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                    {pluginDefs.map((d) => (
+                        <li key={d.id} className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${d.enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                            {d.name} <code className="text-xs text-gray-400">{d.plugin_key}</code>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)}
+                placeholder={'{ "plugin_key": "slack", "name": "Slack", "matches": "slack",\n  "auth": { "type": "bearer" },\n  "request": { "method": "POST", "url": "https://slack.com/api/admin.users.invite", "body": { "email": "{email}" } },\n  "success": [200] }'}
+                className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs font-mono focus:border-blue-500 focus:ring-blue-500" />
+            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            <button onClick={add} disabled={busy || !text.trim()}
+                className="mt-2 px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white disabled:opacity-50">
+                {busy ? 'Saving…' : 'Add plugin'}
+            </button>
+        </div>
     );
 }
 

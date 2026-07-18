@@ -28,7 +28,9 @@ class SettingsController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'tag_prefix', 'domain', 'city', 'state', 'active']),
             'providers' => IdentityProvider::query()->get(),
-            'providerTypes' => IdentityProvider::PROVIDERS,
+            'providerTypes' => IdentityProvider::PROVIDERS
+                + \App\Models\ProvisionerDefinition::query()->where('enabled', true)->pluck('name', 'plugin_key')->all(),
+            'pluginDefs' => \App\Models\ProvisionerDefinition::query()->get(['id', 'plugin_key', 'name', 'enabled']),
         ]);
     }
 
@@ -84,6 +86,26 @@ class SettingsController extends Controller
         return response()->json(['matrix' => Access::matrix()]);
     }
 
+    /** Add or replace a declarative provisioning plugin (paste-in JSON). */
+    public function savePluginDef(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
+        $data = $request->validate(['definition' => 'required|array']);
+        $d = $data['definition'];
+        foreach (['plugin_key', 'name', 'request'] as $need) {
+            abort_unless(isset($d[$need]), 422, "Plugin JSON needs '{$need}'.");
+        }
+        abort_unless(preg_match('/^[a-z0-9_-]{2,40}$/', $d['plugin_key']), 422, 'plugin_key: lowercase letters, digits, dashes.');
+
+        $def = \App\Models\ProvisionerDefinition::updateOrCreate(
+            ['plugin_key' => $d['plugin_key']],
+            ['name' => $d['name'], 'definition' => json_encode($d), 'enabled' => true],
+        );
+        \Illuminate\Support\Facades\Log::info('provisioner.plugin.saved', ['key' => $d['plugin_key'], 'by' => auth()->id()]);
+
+        return response()->json(['ok' => true, 'id' => $def->id]);
+    }
+
     /** Create or update a company's identity provider. */
     public function saveProvider(Request $request): JsonResponse
     {
@@ -91,7 +113,10 @@ class SettingsController extends Controller
 
         $data = $request->validate([
             'company_id' => 'required|exists:companies,id',
-            'provider' => 'required|in:'.implode(',', array_keys(IdentityProvider::PROVIDERS)),
+            'provider' => 'required|in:'.implode(',', array_merge(
+                array_keys(IdentityProvider::PROVIDERS),
+                \App\Models\ProvisionerDefinition::query()->pluck('plugin_key')->all(),
+            )),
             'enabled' => 'boolean',
             'domain' => 'nullable|string|max:255',
             'tenant_id' => 'nullable|string|max:255',
