@@ -191,9 +191,14 @@ const toHtml = (body) => {
 };
 
 // Insert a command token as a SUBSTEP: a bullet under the current step (top-level
-// bullets parse as subtasks). Already inside a bullet? Just insert the text there.
+// bullets parse as subtasks). Already inside a bullet? The text lands right there.
 // Inside a step card — including its field table — the bullet appends to the CARD's
 // substep list, never into a table cell.
+//
+// Everything is POSITION-anchored and runs in one transaction: deleting the typed
+// token used to move the selection out of the substep, so a selection-based insert
+// landed outside the card. Text inserts as a text NODE (a plain string starting
+// with "/" is not parsed as HTML, and escaping it double-escapes).
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const stepAncestor = (e) => {
     const { $from } = e.state.selection;
@@ -202,16 +207,29 @@ const stepAncestor = (e) => {
     }
     return null;
 };
-const asSubstep = (e, text) => {
-    if (e.isActive('listItem')) return e.chain().focus().insertContent(esc(text)).run();
-    const step = stepAncestor(e);
-    if (step) {
-        const end = step.pos + step.node.nodeSize - 1;
-        return step.node.lastChild && step.node.lastChild.type.name === 'bulletList'
-            ? e.chain().focus().insertContentAt(end - 1, `<li><p>${esc(text)}</p></li>`).run()
-            : e.chain().focus().insertContentAt(end, `<ul><li><p>${esc(text)}</p></li></ul>`).run();
+const asSubstep = (e, range, text) => {
+    const $pos = e.state.doc.resolve(range.from);
+    let inLi = false;
+    let step = null;
+    for (let d = $pos.depth; d > 0; d--) {
+        const n = $pos.node(d);
+        if (n.type.name === 'listItem') inLi = true;
+        if (n.type.name === 'sopStep') { step = { node: n, pos: $pos.before(d) }; break; }
     }
-    return e.chain().focus().insertContent(`<ul><li><p>${esc(text)}</p></li></ul>`).run();
+    const shift = range.to - range.from;
+    const del = e.chain().focus().deleteRange(range);
+    if (inLi) {
+        return del.insertContentAt(range.from, { type: 'text', text }).run();
+    }
+    if (step) {
+        // The card's end, in post-delete coordinates (the range sits inside the card).
+        const end = step.pos + step.node.nodeSize - 1 - shift;
+        const hasUl = step.node.lastChild && step.node.lastChild.type.name === 'bulletList';
+        return hasUl
+            ? del.insertContentAt(end - 1, `<li><p>${esc(text)}</p></li>`).run()
+            : del.insertContentAt(end, `<ul><li><p>${esc(text)}</p></li></ul>`).run();
+    }
+    return del.insertContentAt(range.from, `<ul><li><p>${esc(text)}</p></li></ul>`).run();
 };
 
 // The /step scaffold: a LEAN step card — steps are just steps (actions); add a
@@ -346,10 +364,10 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             .filter((i) => !nameQ || i.name.toLowerCase().includes(nameQ))
             .slice(0, 8)
             .map((i) => ({ key: `inst:${i.id}`, label: i.name, hint: `${i.platform}${i.arch ? ' ' + i.arch + '-bit' : ''}`,
-                run: (e) => asSubstep(e, `/install  `) }));
+                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/install  `) }));
         // Works before the share is indexed: keep whatever was typed as the reference.
         if (nameQ) picks.push({ key: 'inst:free', label: `Use "${nameQ}"`, hint: 'insert as typed',
-            run: (e) => asSubstep(e, `/install  `) });
+            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/install  `) });
         items = picks;
     } else if (menu?.mode === 'vpn') {
         const picks = installers
@@ -357,18 +375,18 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             .filter((i) => !menu.query || i.name.toLowerCase().includes(menu.query))
             .slice(0, 8)
             .map((i) => ({ key: `vpn:${i.id}`, label: i.name.replace(VPN_RE, ''), hint: 'VPN profile — download + install',
-                run: (e) => asSubstep(e, `/vpn  `) }));
+                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/vpn  `) }));
         if (menu.query) picks.push({ key: 'vpn:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
-            run: (e) => asSubstep(e, `/vpn  `) });
+            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/vpn  `) });
         items = picks;
     } else if (menu?.mode === 'mdm') {
         // A fixed list, not the share — /mdm names the MDM the bootstrap script enrolls into.
         const MDM = ['Jamf', 'Intune', 'Kandji', 'Mosyle', 'Addigy', 'Workspace ONE'];
         const picks = MDM.filter((n) => !menu.query || n.toLowerCase().includes(menu.query))
             .map((n) => ({ key: `mdm:${n}`, label: n, hint: 'Enroll into this MDM (read from the SOP)',
-                run: (e) => asSubstep(e, `/mdm  `) }));
+                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm  `) }));
         if (menu.query) picks.push({ key: 'mdm:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
-            run: (e) => asSubstep(e, `/mdm  `) });
+            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm  `) });
         items = picks;
     } else if (menu?.mode === 'form') {
         // /form <new|edit> <kind>: the step's generated task carries the record form —
@@ -379,7 +397,7 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             key: `form:${mode}:${k}`,
             label: `${mode === 'new' ? 'New' : 'Edit'} ${k}`,
             hint: mode === 'new' ? `The task gets an "Add ${k}" form` : `The task gets a pick-and-edit ${k} form`,
-            run: (e) => asSubstep(e, `/form   `),
+            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/form   `),
         }))).filter((it) => !menu.query || it.label.toLowerCase().includes(menu.query));
     } else {
         // Discoverable openers so a partial "/inst" or "/vp" surfaces the command;
@@ -396,6 +414,13 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
 
     const apply = (item) => {
         if (!editor || !item) return;
+        // Token picks (self: true) delete their own typed range and insert at an
+        // anchored position in ONE transaction — then the menu closes for good.
+        if (item.self) {
+            item.run(editor);
+            setMenu(null);
+            return;
+        }
         editor.chain().focus().deleteRange({ from: menu.from, to: menu.to }).run();
         item.run(editor);
         // Re-detect instead of just closing: an opener that inserted "/install " or
