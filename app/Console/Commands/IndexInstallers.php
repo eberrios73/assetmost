@@ -62,13 +62,23 @@ class IndexInstallers extends Command
     /** @return array{0: array, 1: ?string} [rows, errorOrNull] */
     public static function scan(string $baseUrl): array
     {
-        $res = Http::timeout(15)->withOptions(['verify' => false])->acceptJson()->get(self::endpoint($baseUrl));
-        if (! $res->ok()) {
-            return [[], 'Could not reach ' . self::endpoint($baseUrl) . " (HTTP {$res->status()}). Put installers.php in the Installers web folder and assign PHP to that Web Station service."];
+        $base = preg_match('#^https?://#i', $baseUrl) ? rtrim($baseUrl, '/') : 'http://' . rtrim($baseUrl, '/');
+        $http = fn (string $u) => Http::timeout(15)->withOptions(['verify' => false])->get($u);
+
+        // Prefer the live PHP page; if PHP isn't enabled it serves raw source, so
+        // fall back to a generated installers.json (a scheduled `php installers.php
+        // > installers.json` on the NAS keeps it fresh).
+        $files = null;
+        foreach (["{$base}/installers.php", "{$base}/installers.json"] as $u) {
+            $res = $http($u);
+            if (! $res->ok()) continue;
+            $body = ltrim($res->body());
+            if ($body === '' || str_starts_with($body, '<?php') || $body[0] === '<') continue;  // raw PHP / HTML error
+            $decoded = json_decode($body, true);
+            if (is_array($decoded)) { $files = $decoded; break; }
         }
-        $files = $res->json();
-        if (! is_array($files)) {
-            return [[], 'installers.php did not return JSON — check PHP is enabled for that Web Station service.'];
+        if ($files === null) {
+            return [[], "No installer list at {$base}/installers.php or /installers.json. Put installers.php in the folder (enable PHP for the service) or generate installers.json."];
         }
 
         $rows = [];
