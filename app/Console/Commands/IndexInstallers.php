@@ -66,17 +66,29 @@ class IndexInstallers extends Command
         $user = env('INSTALLERS_SSH_USER', 'root');
         $key = env('INSTALLERS_SSH_KEY');
         $keyOpt = $key ? '-i ' . escapeshellarg($key) . ' ' : '';
+        $sshBase = "ssh {$keyOpt}-o StrictHostKeyChecking=no -o ConnectTimeout=8 " . escapeshellarg("{$user}@{$host}") . ' ';
 
-        // find is portable and handles spaces; -maxdepth 3 = platform/app/file.
-        $remoteCmd = 'cd ' . escapeshellarg($remote) . " && find . -maxdepth 3 -mindepth 1 -printf '%y\\t%s\\t%p\\n' 2>/dev/null";
-        $ssh = "ssh {$keyOpt}-o StrictHostKeyChecking=no -o ConnectTimeout=8 "
-            . escapeshellarg("{$user}@{$host}") . ' ' . escapeshellarg($remoteCmd) . ' 2>&1';
-
-        exec($ssh, $out, $code);
-        if ($code !== 0) {
-            return [[], 'SSH scan failed: ' . (trim(implode(' ', array_slice($out, 0, 3))) ?: "exit {$code}") . ' (check INSTALLERS_SSH_KEY / the read-only account on ' . $host . ')'];
+        // Linux/NAS: find. Windows (cmd shell): dir /s /b. Try find, fall back to dir —
+        // so it works whether the host is a Synology or a Windows server.
+        $findCmd = 'cd ' . escapeshellarg($remote) . " && find . -maxdepth 3 -mindepth 1 -printf '%y\\t%s\\t%p\\n' 2>/dev/null";
+        exec($sshBase . escapeshellarg($findCmd) . ' 2>&1', $out, $code);
+        if ($code === 0 && $out) {
+            return [self::parseFind($out), null];
         }
 
+        // Windows fallback: bare recursive listing of dirs then files.
+        $win = 'dir /s /b ' . '"' . str_replace('/', '\\', $remote) . '"';
+        exec($sshBase . escapeshellarg($win) . ' 2>&1', $wout, $wcode);
+        if ($wcode !== 0 || ! $wout) {
+            $why = trim(implode(' ', array_slice($out ?: $wout, 0, 2))) ?: "exit {$code}/{$wcode}";
+            return [[], "Scan failed: {$why} (check INSTALLERS_SSH_KEY / read-only account on {$host}; if Windows, enable OpenSSH Server)"];
+        }
+        return [self::parseWindows($wout, $remote), null];
+    }
+
+    /** Parse GNU find "%y\t%s\t%p" output (Linux/NAS). */
+    private static function parseFind(array $out): array
+    {
         $rows = [];
         foreach ($out as $line) {
             $parts = explode("\t", $line, 3);
@@ -84,20 +96,43 @@ class IndexInstallers extends Command
             [$type, $size, $rel] = $parts;
             $rel = ltrim($rel, './');
             if ($rel === '') continue;
-            $seg = explode('/', $rel);
-            $platform = $seg[0];                                  // Mac | Windows | ...
-            $name = end($seg);
-            if ($name === '' || $name[0] === '.') continue;
-            $rows[$rel] = [
-                'name' => $name,
-                'relative_path' => $rel,
-                'platform' => $platform,
-                'arch' => preg_match('/(^|[^0-9])(32|x86)([^0-9]|$)/i', $name) ? '32'
-                    : (preg_match('/(^|[^0-9])(64|x64)([^0-9]|$)/i', $name) ? '64' : null),
-                'is_dir' => $type === 'd' ? 1 : 0,
-                'size_bytes' => $type === 'd' ? null : (int) $size,
-            ];
+            $rows[$rel] = self::row($rel, str_replace('\\', '/', $rel), $type === 'd', (int) $size);
         }
-        return [array_values($rows), null];
+        return array_values(array_filter($rows));
+    }
+
+    /** Parse Windows "dir /s /b" full-path output. Depth/platform from the path. */
+    private static function parseWindows(array $out, string $remote): array
+    {
+        $baseNorm = strtolower(rtrim(str_replace('/', '\\', $remote), '\\'));
+        $rows = [];
+        foreach ($out as $full) {
+            $full = rtrim($full);
+            if ($full === '') continue;
+            $pos = strpos(strtolower($full), $baseNorm);
+            $rel = $pos !== false ? ltrim(substr($full, $pos + strlen($baseNorm)), '\\') : $full;
+            $rel = str_replace('\\', '/', $rel);
+            if ($rel === '' || substr_count($rel, '/') > 2) continue;   // cap depth
+            // dir /b doesn't say file vs dir; treat no-extension leaf as a folder.
+            $isDir = ! preg_match('/\.\w{1,5}$/', $rel);
+            $rows[$rel] = self::row($rel, $rel, $isDir, null);
+        }
+        return array_values(array_filter($rows));
+    }
+
+    private static function row(string $rel, string $relSlash, bool $isDir, ?int $size): ?array
+    {
+        $seg = explode('/', $relSlash);
+        $name = end($seg);
+        if ($name === '' || $name[0] === '.') return null;
+        return [
+            'name' => $name,
+            'relative_path' => $relSlash,
+            'platform' => $seg[0],                                    // Mac | Windows | ...
+            'arch' => preg_match('/(^|[^0-9])(32|x86)([^0-9]|$)/i', $name) ? '32'
+                : (preg_match('/(^|[^0-9])(64|x64)([^0-9]|$)/i', $name) ? '64' : null),
+            'is_dir' => $isDir ? 1 : 0,
+            'size_bytes' => $size,
+        ];
     }
 }
