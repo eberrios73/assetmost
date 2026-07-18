@@ -70,7 +70,7 @@ export default function OnboardingSetup() {
     };
 
     const adoptStarter = async () => {
-        const r = await api(`/data/onboarding-starter?kind=${kind}`);
+        const r = await api(`/data/onboarding-starter?kind=${kind}&variant=${encodeURIComponent(variant)}`);
         await save(r.steps.steps);
     };
 
@@ -195,9 +195,18 @@ function StepCard({ step: s, index, count, nested = false, onChange, onRemove, o
                 <button onClick={onRemove} title="remove" className="px-1 text-gray-300 hover:text-red-600">×</button>
             </div>
             {open && (
-                <div className="border-t border-gray-100 dark:border-gray-800 p-2.5">
-                    <textarea rows={3} value={s.instructions} placeholder="Instructions — your SOP's wording, verbatim. e.g. Log in to DC01 → ADUC → OU=Staff → new user; password never expires."
+                <div className="border-t border-gray-100 dark:border-gray-800 p-2.5 space-y-1.5">
+                    <input value={s.why || ''} placeholder="Why — one line. What breaks if this is skipped."
+                        onChange={(e) => onChange((x) => ({ ...x, why: e.target.value }))}
+                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:border-blue-500 focus:ring-blue-500" />
+                    <textarea rows={3} value={s.instructions} placeholder="How — your SOP's wording, verbatim. Paths, commands, GPO names."
                         onChange={(e) => onChange((x) => ({ ...x, instructions: e.target.value }))}
+                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:border-blue-500 focus:ring-blue-500" />
+                    <input value={s.done_when || ''} placeholder="Done when — something OBSERVABLE. e.g. recovery key visible in AD."
+                        onChange={(e) => onChange((x) => ({ ...x, done_when: e.target.value }))}
+                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:border-blue-500 focus:ring-blue-500" />
+                    <input value={s.record || ''} placeholder="Record — what enters the registry/inventory. e.g. key escrowed against asset tag."
+                        onChange={(e) => onChange((x) => ({ ...x, record: e.target.value }))}
                         className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs focus:border-blue-500 focus:ring-blue-500" />
                     <label className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                         <input type="checkbox" checked={!!s.automatable} onChange={(e) => onChange((x) => ({ ...x, automatable: e.target.checked }))}

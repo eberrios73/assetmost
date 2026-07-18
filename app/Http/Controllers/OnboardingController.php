@@ -54,9 +54,10 @@ class OnboardingController extends Controller
     public function starter(Request $request): JsonResponse
     {
         $kind = $request->string('kind')->toString();
-        $tpl = \App\Support\StarterTemplates::get($kind);
+        $variant = $request->string('variant')->toString();
+        $tpl = \App\Support\StarterTemplates::get($kind, $variant);
         abort_if(! $tpl, 404);
-        return response()->json(['kind' => $kind, 'steps' => $tpl]);
+        return response()->json(['kind' => $kind, 'variant' => $variant, 'steps' => $tpl]);
     }
 
     public function saveTemplate(Request $request): JsonResponse
@@ -156,6 +157,14 @@ class OnboardingController extends Controller
             }
 
             // 4. The task project — the human checklist, chained and planned off the DOH.
+            // A task's notes carry the whole playbook card — bench mode reads these.
+            $card = function (array $step) use (&$sub) {
+                $parts = [];
+                foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
+                    if (! empty($step[$k])) $parts[] = $label . ': ' . $sub($step[$k]);
+                }
+                return implode("\n", $parts);
+            };
             $sub = fn ($s) => str_replace(
                 ['{first}', '{last}', '{username}', '{email}', '{start_date}'],
                 [$data['first'], $data['last'], $data['username'] ?? '', $data['email'], $doh->toDateString()],
@@ -206,7 +215,7 @@ class OnboardingController extends Controller
                 $when = $doh->copy()->addDays((int) ($step['offset_days'] ?? 0));
                 $t = $mkTask([
                     'title' => $sub($step['title']),
-                    'notes' => $sub($step['instructions'] ?? ''),
+                    'notes' => $card($step),
                     'week' => $monday($when), 'origin' => Carbon::now()->toDateString(),
                     'planned_start' => $when->toDateString(), 'due_date' => $when->toDateString(),
                     'depends_on_id' => $prev?->id,
@@ -215,7 +224,7 @@ class OnboardingController extends Controller
                     $whenS = $doh->copy()->addDays((int) ($s['offset_days'] ?? ($step['offset_days'] ?? 0)));
                     $mkTask([
                         'title' => $sub($s['title']),
-                        'notes' => $sub($s['instructions'] ?? ''),
+                        'notes' => $card($s),
                         'parent_id' => $t->id,
                         'week' => $monday($whenS), 'origin' => Carbon::now()->toDateString(),
                         'planned_start' => $whenS->toDateString(), 'due_date' => $whenS->toDateString(),
