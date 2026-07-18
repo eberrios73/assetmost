@@ -113,19 +113,6 @@ export default function Index() {
 
     // ---- weekly grid data ----
     const nonProjects = useMemo(() => tasks.filter((t) => !t.is_project), [tasks]);
-    const weekTasks = useMemo(() => topLevel.filter((t) => t.week === view), [topLevel, view]);
-    const open = useMemo(() => weekTasks.filter((t) => !t.done).sort((a, b) => (b.pri - a.pri) || (a.ord - b.ord)), [weekTasks]);
-    const completedGroups = useMemo(() => {
-        const out = [];
-        for (let i = 0; i < 4; i++) {
-            const wk = ymd(addDays(parseYmd(view), -7 * i));
-            const items = topLevel.filter((t) => t.week === wk && t.done).sort((a, b) => a.ord - b.ord);
-            if (items.length) out.push({ wk, items });
-        }
-        return out;
-    }, [topLevel, view]);
-    const avg = weekTasks.length ? Math.round(weekTasks.reduce((s, t) => s + (t.pct || 0), 0) / weekTasks.length) : 0;
-
     const projects = useMemo(() => tasks.filter((t) => t.is_project).sort((a, b) => a.ord - b.ord), [tasks]);
 
     // Subtasks: parent_id pointing at a TASK (not a project). They render nested
@@ -138,6 +125,19 @@ export default function Index() {
     }, [nonProjects, projectIds]);
     const topLevel = useMemo(() => nonProjects.filter((t) => !(t.parent_id && !projectIds.has(t.parent_id))), [nonProjects, projectIds]);
     const addSub = async (parentId, title, week) => { await api('/data/tasks', 'POST', { title, week, parent_id: parentId }); load(); };
+
+    const weekTasks = useMemo(() => topLevel.filter((t) => t.week === view), [topLevel, view]);
+    const open = useMemo(() => weekTasks.filter((t) => !t.done).sort((a, b) => (b.pri - a.pri) || (a.ord - b.ord)), [weekTasks]);
+    const completedGroups = useMemo(() => {
+        const out = [];
+        for (let i = 0; i < 4; i++) {
+            const wk = ymd(addDays(parseYmd(view), -7 * i));
+            const items = topLevel.filter((t) => t.week === wk && t.done).sort((a, b) => a.ord - b.ord);
+            if (items.length) out.push({ wk, items });
+        }
+        return out;
+    }, [topLevel, view]);
+    const avg = weekTasks.length ? Math.round(weekTasks.reduce((s, t) => s + (t.pct || 0), 0) / weekTasks.length) : 0;
 
     const viewDate = parseYmd(view);
     const doneThisWeek = weekTasks.filter((t) => t.done).length;
