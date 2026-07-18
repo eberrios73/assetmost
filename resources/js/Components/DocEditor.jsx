@@ -1,4 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
+import { Node, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Table } from '@tiptap/extension-table';
@@ -8,6 +9,118 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import CodeBlock from '@tiptap/extension-code-block';
 import { marked } from 'marked';
 import { useEffect, useRef, useState } from 'react';
+
+const STEP_CATEGORIES = ['accounts', 'machine', 'access', 'training', 'other'];
+
+/**
+ * A workflow step as a CARD in the doc — the structured editor's model rendered
+ * by the one editor. Serializes to <section data-sop-step data-category="…">
+ * around the same title + field table + substep list the parser already reads;
+ * the chrome (number, category, reorder, collapse, add-substep, remove) is
+ * node-view UI, never part of the saved document.
+ */
+const SopStep = Node.create({
+    name: 'sopStep',
+    group: 'block',
+    content: 'block+',
+    defining: true,
+    addAttributes() {
+        return { category: {
+            default: 'other',
+            parseHTML: (el) => el.getAttribute('data-category') || 'other',
+            renderHTML: (attrs) => ({ 'data-category': attrs.category }),
+        } };
+    },
+    parseHTML() { return [{ tag: 'section[data-sop-step]' }]; },
+    renderHTML({ HTMLAttributes }) { return ['section', mergeAttributes(HTMLAttributes, { 'data-sop-step': '' }), 0]; },
+    addNodeView() {
+        return ({ node, editor, getPos }) => {
+            const card = document.createElement('section');
+            card.className = 'sop-step';
+
+            const num = document.createElement('span');
+            num.className = 'sop-step-num';
+            num.contentEditable = 'false';
+
+            const chrome = document.createElement('div');
+            chrome.className = 'sop-step-chrome';
+            chrome.contentEditable = 'false';
+
+            const sel = document.createElement('select');
+            sel.className = 'sop-step-cat';
+            for (const c of STEP_CATEGORIES) {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                sel.appendChild(o);
+            }
+            sel.value = node.attrs.category || 'other';
+            sel.addEventListener('mousedown', (e) => e.stopPropagation());
+            sel.addEventListener('change', () => {
+                const pos = getPos();
+                const cur = editor.state.doc.nodeAt(pos);
+                if (cur) editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...cur.attrs, category: sel.value }));
+            });
+
+            const btn = (label, title, fn) => {
+                const b = document.createElement('button');
+                b.type = 'button'; b.textContent = label; b.title = title;
+                b.addEventListener('mousedown', (e) => e.preventDefault());
+                b.addEventListener('click', fn);
+                return b;
+            };
+            const moveStep = (dir) => {
+                const pos = getPos();
+                const $pos = editor.state.doc.resolve(pos);
+                const index = $pos.index();
+                const parent = $pos.parent;
+                if (dir < 0 && index === 0) return;
+                if (dir > 0 && index >= parent.childCount - 1) return;
+                const self = parent.child(index);
+                const sib = parent.child(index + dir);
+                const tr = editor.state.tr.delete(pos, pos + self.nodeSize);
+                tr.insert(dir < 0 ? pos - sib.nodeSize : pos + sib.nodeSize, self);
+                editor.view.dispatch(tr);
+            };
+            let collapsed = false;
+            chrome.append(
+                sel,
+                btn('↑', 'move step up', () => moveStep(-1)),
+                btn('↓', 'move step down', () => moveStep(1)),
+                btn('≡', 'collapse / expand', () => { collapsed = !collapsed; card.classList.toggle('sop-collapsed', collapsed); }),
+                btn('↳+', 'add substep', () => {
+                    const pos = getPos();
+                    const n = editor.state.doc.nodeAt(pos);
+                    if (!n) return;
+                    const end = pos + n.nodeSize - 1;
+                    if (n.lastChild && n.lastChild.type.name === 'bulletList') {
+                        editor.chain().focus().insertContentAt(end - 1, '<li><p></p></li>').run();
+                    } else {
+                        editor.chain().focus().insertContentAt(end, '<ul><li><p></p></li></ul>').run();
+                    }
+                }),
+                btn('×', 'remove step', () => {
+                    const pos = getPos();
+                    const n = editor.state.doc.nodeAt(pos);
+                    if (n) editor.chain().deleteRange({ from: pos, to: pos + n.nodeSize }).run();
+                }),
+            );
+
+            const content = document.createElement('div');
+            content.className = 'sop-step-content';
+            card.append(num, chrome, content);
+            return {
+                dom: card,
+                contentDOM: content,
+                update: (updated) => {
+                    if (updated.type.name !== 'sopStep') return false;
+                    const cat = updated.attrs.category || 'other';
+                    if (sel.value !== cat) sel.value = cat;
+                    return true;
+                },
+            };
+        };
+    },
+});
 
 // Code block with a hover "Copy" button (great for runbook commands). The button
 // lives in the node-view wrapper (contentEditable=false) so it never becomes part
@@ -50,11 +163,11 @@ const asSubstep = (e, text) => e.isActive('listItem')
     ? e.chain().focus().insertContent(esc(text)).run()
     : e.chain().focus().insertContent(`<ul><li><p>${esc(text)}</p></li></ul>`).run();
 
-// The /step scaffold: bold title + the playbook fields as a 2-column table (add or
-// remove rows like any table). Bullets under it are its substeps.
-const STEP_SCAFFOLD = '<p><strong>New step</strong></p><table><tbody>'
+// The /step scaffold: a step CARD — bold title + the playbook fields as a 2-column
+// table (add or remove rows like any table). ↳+ on the card adds substeps.
+const STEP_SCAFFOLD = '<section data-sop-step data-category="other"><p><strong>New step</strong></p><table><tbody>'
     + ['Why', 'How', 'Done when', 'Record'].map((l) => `<tr><td><p><strong>${l}:</strong></p></td><td><p></p></td></tr>`).join('')
-    + '</tbody></table><p></p>';
+    + '</tbody></table></section><p></p>';
 
 const SLASH = [
     { key: 'step', label: 'Step', hint: 'New SOP step — title + Why/How/Done when/Record table', run: (e) => e.chain().focus().insertContent(STEP_SCAFFOLD).run() },
@@ -92,6 +205,7 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         extensions: [
             StarterKit.configure({ codeBlock: false }),
             CodeBlockWithCopy,
+            SopStep,
             Placeholder.configure({ placeholder: "Type '/' for commands, or just start writing…" }),
             Table.configure({ resizable: true }),
             TableRow,
