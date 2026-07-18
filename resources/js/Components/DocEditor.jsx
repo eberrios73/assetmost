@@ -128,10 +128,27 @@ const toHtml = (body) => {
 
 // Insert a command token as a SUBSTEP: a bullet under the current step (top-level
 // bullets parse as subtasks). Already inside a bullet? Just insert the text there.
+// Inside a step card — including its field table — the bullet appends to the CARD's
+// substep list, never into a table cell.
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const asSubstep = (e, text) => e.isActive('listItem')
-    ? e.chain().focus().insertContent(esc(text)).run()
-    : e.chain().focus().insertContent(`<ul><li><p>${esc(text)}</p></li></ul>`).run();
+const stepAncestor = (e) => {
+    const { $from } = e.state.selection;
+    for (let d = $from.depth; d > 0; d--) {
+        if ($from.node(d).type.name === 'sopStep') return { node: $from.node(d), pos: $from.before(d) };
+    }
+    return null;
+};
+const asSubstep = (e, text) => {
+    if (e.isActive('listItem')) return e.chain().focus().insertContent(esc(text)).run();
+    const step = stepAncestor(e);
+    if (step) {
+        const end = step.pos + step.node.nodeSize - 1;
+        return step.node.lastChild && step.node.lastChild.type.name === 'bulletList'
+            ? e.chain().focus().insertContentAt(end - 1, `<li><p>${esc(text)}</p></li>`).run()
+            : e.chain().focus().insertContentAt(end, `<ul><li><p>${esc(text)}</p></li></ul>`).run();
+    }
+    return e.chain().focus().insertContent(`<ul><li><p>${esc(text)}</p></li></ul>`).run();
+};
 
 // The /step scaffold: a step CARD — bold title + the playbook fields as a 2-column
 // table (add or remove rows like any table). ↳+ on the card adds substeps.
@@ -140,7 +157,13 @@ const STEP_SCAFFOLD = '<section data-sop-step><p><strong>New step</strong></p><t
     + '</tbody></table></section><p></p>';
 
 const SLASH = [
-    { key: 'step', label: 'Step', hint: 'New SOP step — title + Why/How/Done when/Record table', run: (e) => e.chain().focus().insertContent(STEP_SCAFFOLD).run() },
+    // /step inside an existing card inserts the new card AFTER it (never nested).
+    { key: 'step', label: 'Step', hint: 'New SOP step — title + Why/How/Done when/Record table', run: (e) => {
+        const step = stepAncestor(e);
+        return step
+            ? e.chain().focus().insertContentAt(step.pos + step.node.nodeSize, STEP_SCAFFOLD).run()
+            : e.chain().focus().insertContent(STEP_SCAFFOLD).run();
+    } },
     { key: 'p', label: 'Text', hint: 'Plain paragraph', run: (e) => e.chain().focus().setParagraph().run() },
     { key: 'h1', label: 'Heading 1', hint: 'Big section heading', run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run() },
     { key: 'h2', label: 'Heading 2', hint: 'Medium heading', run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
