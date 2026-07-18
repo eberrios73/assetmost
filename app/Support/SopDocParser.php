@@ -79,8 +79,33 @@ class SopDocParser
             // stays in the doc and out of the template.
             if (! $isHeading && $section !== '' && preg_match('/purpose|scope|verification|rollback|revision/i', $section)) continue;
 
+            // Prose paragraphs (long sentences) are context, not steps: before any step
+            // they're the doc's intro; after one, they join its How.
+            if ($cellsFree = str_word_count($trim) > 20 && ! preg_match('/^[o§·▪☐□☑✓]/u', $trim)) {
+                if ($lastStep === null) continue;
+                $steps[$lastStep]['instructions'] = trim(($steps[$lastStep]['instructions'] ?? '') . "\n" . $trim);
+                continue;
+            }
+
             // Word-paste sub-bullets arrive as flat lines starting "o " / "§ " / "· ".
-            if (preg_match('/^[o§·▪☐□☑✓]\s+(.+)$/u', $trim, $wm)) {
+            // A checkbox line splits on INNER checkboxes too: "☐ Ram ☐ HD" = two items.
+            if (preg_match('/^[☐□☑✓]\s*/u', $trim)) {
+                $parts = array_values(array_filter(array_map('trim', preg_split('/[☐□☑✓]/u', $trim)), fn ($x) => $x !== ''));
+                if (count($parts) > 1) {
+                    foreach ($parts as $part) {
+                        $item = ['id' => substr(md5($part . count($steps)), 0, 8), 'title' => $part,
+                            'category' => self::category($part), 'offset_days' => $currentOffset,
+                            'why' => '', 'instructions' => '', 'done_when' => '', 'record' => '',
+                            'automatable' => false, 'subtasks' => []];
+                        if ($lastStep !== null) { $steps[$lastStep]['subtasks'][] = $item; $lastWasSub = true; }
+                        else { $steps[] = $item; $lastStep = array_key_last($steps); }
+                    }
+                    continue;
+                }
+                $trim = $parts[0] ?? '';
+                if ($trim === '') continue;
+                $depth = max($depth, 1);
+            } elseif (preg_match('/^[o§·▪]\s+(.+)$/u', $trim, $wm)) {
                 $trim = trim($wm[1]);
                 $depth = max($depth, 1);
             }

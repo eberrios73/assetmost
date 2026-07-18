@@ -80,6 +80,7 @@ class DataController extends Controller
         return $this->applyUpdate($company, $r, [
             'name' => 'required|string|max:255', 'domain' => 'nullable|string|max:255',
             'local_domain' => 'nullable|string|max:255',
+            'installers_path' => 'nullable|string|max:500',
             'contact_name' => 'nullable|string|max:255', 'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255', 'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:2',
@@ -824,6 +825,7 @@ class DataController extends Controller
             'tag_prefix' => 'required|string|max:4|alpha_num|unique:companies,tag_prefix',
             'domain' => 'nullable|string|max:255',
             'local_domain' => 'nullable|string|max:255',
+            'installers_path' => 'nullable|string|max:500',
             'email' => 'nullable|email|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:2',
@@ -972,6 +974,22 @@ class DataController extends Controller
                 ->get(['id', 'identifier'])
                 ->map(fn ($a) => ['id' => $a->id, 'label' => $a->identifier])
         );
+    }
+
+    /** The /install list: whatever the indexed installers share contains. */
+    public function installers(Request $request): JsonResponse
+    {
+        $q = \Illuminate\Support\Facades\DB::table('installers')->orderBy('name');
+        if ($platform = $request->string('platform')->toString()) {
+            $q->where('platform', $platform);
+        }
+        if ($term = $request->string('q')->toString()) {
+            $q->where('name', 'like', "%{$term}%");
+        }
+        if ($arch = $request->string('arch')->toString()) {
+            $q->where(fn ($w) => $w->where('arch', $arch)->orWhereNull('arch'));
+        }
+        return response()->json($q->limit(50)->get());
     }
 
     /** Unlock the Accounts registry by re-entering your own password. Throttled. */

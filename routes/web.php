@@ -117,6 +117,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/vendor-options', [$dc, 'vendorOptions']);
     Route::get('/data/person-options', [$dc, 'personOptions']);
     Route::get('/data/login-options', [$dc, 'loginOptions']);
+    Route::get('/data/installers', [$dc, 'installers']);
     // Accounts = floating credential identities (People > Accounts). One row per
     // credential; service logins point at it. The registry is a map of the realm's
     // admin credentials, so the whole group sits behind a re-entered password.

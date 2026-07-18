@@ -25,12 +25,27 @@ function guessCategory(title) {
  */
 function parseSop(text) {
     const steps = [];
+    const mk = (title) => ({ id: uid(), title, instructions: '', category: guessCategory(title), automatable: false, subtasks: [] });
     for (const raw of text.replace(/\t/g, '    ').split('\n')) {
         if (!raw.trim()) continue;
         const indent = raw.match(/^ */)[0].length;
-        const title = raw.trim().replace(/^([-*•·]|\d+[.)]|[a-zA-Z][.)])\s+/, '').trim();
+        let line = raw.trim();
+        // Long prose = context, not a step: intro is skipped, later prose joins the last step's How.
+        if (line.split(/\s+/).length > 20 && !/^[☐□☑✓o§·▪-]/.test(line)) {
+            const last = steps[steps.length - 1];
+            if (last) last.instructions = (last.instructions ? last.instructions + '\n' : '') + line;
+            continue;
+        }
+        // Checkbox lines are items; inner checkboxes split into several ("☐ Ram ☐ HD" = two).
+        if (/^[☐□☑✓]/.test(line)) {
+            const parts = line.split(/[☐□☑✓]/).map((x) => x.trim()).filter(Boolean);
+            const parent = steps[steps.length - 1];
+            for (const part of parts) (parent ? parent.subtasks : steps).push(mk(part));
+            continue;
+        }
+        const title = line.replace(/^([-*•·o§▪]|\d+[.)]|[a-zA-Z][.)])\s+/, '').trim();
         if (!title) continue;
-        const step = { id: uid(), title, instructions: '', category: guessCategory(title), automatable: false, subtasks: [] };
+        const step = mk(title);
         if (indent >= 2 && steps.length) steps[steps.length - 1].subtasks.push(step);
         else steps.push(step);
     }
