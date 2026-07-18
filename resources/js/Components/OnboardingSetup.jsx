@@ -268,15 +268,20 @@ function ScriptPanel({ wf }) {
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const scriptable = wf.type === 'device' && wf.form_factor;
+    // Platform selector — defaults to the runbook's form factor, overridable so one
+    // SOP can show its Mac / Windows / Linux rendering.
+    const defaultPlatform = /mac/i.test(wf.form_factor || '') ? 'mac'
+        : /linux/i.test(wf.form_factor || '') ? 'linux' : 'windows';
+    const [platform, setPlatform] = useState(defaultPlatform);
 
-    const gen = () => {
+    const gen = (p = platform) => {
         setLoading(true);
-        api(`/data/onboarding-script?workflow=${wf.id}`)
+        api(`/data/onboarding-script?workflow=${wf.id}&platform=${p}`)
             .then((r) => setScript(r.script || ''))
             .catch((e) => setScript(`# ${Object.values(e?.errors || {}).flat()[0] || e?.message || 'Could not generate a script for this runbook.'}`))
             .finally(() => setLoading(false));
     };
-    useEffect(() => { if (scriptable) gen(); else setScript(''); }, [wf.id]);
+    useEffect(() => { setPlatform(defaultPlatform); if (scriptable) gen(defaultPlatform); else setScript(''); }, [wf.id]);
 
     if (wf.type === 'people') {
         return <p className="text-sm text-gray-500 dark:text-gray-400">People workflows build a chained <strong>task project</strong>, not a machine script — see <em>Preview tasks</em> under Info.</p>;
@@ -288,12 +293,22 @@ function ScriptPanel({ wf }) {
     return (
         <div className="space-y-2">
             <div className="flex items-start justify-between gap-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Generated from this workflow's steps — <code>{'{ASSET_TAG}'}</code> and friends fill in per machine; the SOP's
-                    <code className="mx-1">/install</code><code className="mr-1">/vpn</code><code>/mdm</code> resolve for real.
-                </p>
+                <div>
+                    <div className="mb-2 flex items-center gap-1">
+                        {[['mac', 'Mac'], ['windows', 'Windows'], ['linux', 'Linux']].map(([k, label]) => (
+                            <button key={k} onClick={() => { setPlatform(k); gen(k); }}
+                                className={`rounded-md px-3 py-1.5 text-sm ${platform === k ? 'bg-blue-600 text-white' : 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Generated from this workflow's steps — <code>{'{ASSET_TAG}'}</code> and friends fill in per machine; the SOP's
+                        <code className="mx-1">/install</code><code className="mr-1">/vpn</code><code>/mdm</code> resolve for real.
+                    </p>
+                </div>
                 <div className="flex gap-2 shrink-0">
-                    <button onClick={gen} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Regenerate</button>
+                    <button onClick={() => gen()} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Regenerate</button>
                     <button onClick={() => { navigator.clipboard?.writeText(script); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
                         className="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">{copied ? 'Copied ✓' : 'Copy'}</button>
                 </div>

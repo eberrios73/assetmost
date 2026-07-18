@@ -365,7 +365,14 @@ class MachineOnboardController extends Controller
         $device->asset_tag = '{ASSET_TAG}';
         $device->setRelation('company', \App\Models\Company::find($companyId));
 
-        $script = $this->script($device, '{TOKEN}', '{BASE_URL}', $template->form_factor ?? $template->title, $files,
+        // The Script tab's platform selector overrides the form factor — one SOP
+        // can show its Mac (zsh), Windows (PowerShell) or Linux (bash) rendering.
+        $platform = strtolower($request->string('platform')->toString());
+        $variant = in_array($platform, ['mac', 'windows', 'linux'], true)
+            ? ucfirst($platform)
+            : ($template->form_factor ?? $template->title);
+
+        $script = $this->script($device, '{TOKEN}', '{BASE_URL}', $variant, $files,
             self::mdm($steps), self::mdmProfile($steps, $companyId));
 
         return response()->json(['script' => $script]);
