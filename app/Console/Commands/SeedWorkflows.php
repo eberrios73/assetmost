@@ -104,8 +104,12 @@ class SeedWorkflows extends Command
     {
         $meta = StarterTemplates::CATALOG[$slug];
         $steps ??= StarterTemplates::workflow($slug);
-        $spaceId = Space::withoutGlobalScopes()->where('company_id', $companyId)
-            ->orderBy('position')->value('id')
+        // File next to the company's existing workflow docs (siblings cluster in the
+        // tree); first space by position only when there are none yet.
+        $spaceId = DocPage::withoutGlobalScopes()->where('company_id', $companyId)
+            ->whereNotNull('workflow_type')->whereNotNull('space_id')->value('space_id')
+            ?? Space::withoutGlobalScopes()->where('company_id', $companyId)
+                ->orderBy('position')->value('id')
             ?? Space::withoutGlobalScopes()->forceCreate(['company_id' => $companyId, 'name' => 'Docs', 'position' => 0])->id;
 
         DocPage::withoutGlobalScopes()->forceCreate([
