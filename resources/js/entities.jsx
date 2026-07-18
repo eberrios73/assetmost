@@ -193,6 +193,7 @@ export const ENTITIES = {
 // procedures live under their own group's Onboarding tab — see `kinds` below.
 export const ONBOARD_KINDS = {
     onboarding: 'Employee onboarding',
+    freelancer: 'Freelancer onboarding',
     offboarding: 'Employee offboarding',
     imaging: 'Workstation setup',
     eprotection: 'Endpoint protection',
@@ -206,7 +207,7 @@ export const GROUPS = {
         // pooled seats, shared mailboxes — plus who holds each.
         { key: 'accounts', label: 'Accounts', entity: 'accounts' },
         { key: 'vendors', label: 'Vendors', entity: 'vendors' },
-        { key: 'onboarding', label: 'Onboarding', view: 'onboarding', kinds: ['onboarding', 'offboarding'] },
+        { key: 'onboarding', label: 'Onboarding', view: 'onboarding', kinds: ['onboarding', 'freelancer', 'offboarding'] },
     ] },
     assets: { title: 'Assets', tabs: [
         { key: 'devices', label: 'Devices', entity: 'devices' },

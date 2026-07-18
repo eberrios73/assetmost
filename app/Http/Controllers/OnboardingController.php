@@ -65,7 +65,7 @@ class OnboardingController extends Controller
         abort_if(! $companyId, 422, 'Pick a company first.');
 
         $data = $request->validate([
-            'kind' => 'required|in:onboarding,offboarding,imaging,eprotection',
+            'kind' => 'required|in:onboarding,freelancer,offboarding,imaging,eprotection',
             'variant' => 'nullable|string|max:100',
         ]);
         $variant = $data['variant'] ?? '';
@@ -99,7 +99,7 @@ class OnboardingController extends Controller
 
         $data = $request->validate([
             'page_id' => 'required|integer|exists:doc_pages,id',
-            'kind' => 'required|in:onboarding,offboarding,imaging,eprotection',
+            'kind' => 'required|in:onboarding,freelancer,offboarding,imaging,eprotection',
             'variant' => 'nullable|string|max:100',
         ]);
         $page = \App\Models\DocPage::query()->findOrFail($data['page_id']);
@@ -184,7 +184,7 @@ class OnboardingController extends Controller
 
         $data = $request->validate([
             'name' => 'nullable|string|max:255',
-            'kind' => 'nullable|in:onboarding,offboarding,imaging,eprotection',
+            'kind' => 'nullable|in:onboarding,freelancer,offboarding,imaging,eprotection',
             'variant' => 'nullable|string|max:100',
             'steps' => 'required|array',
             'steps.version' => 'required|integer',

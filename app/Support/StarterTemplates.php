@@ -20,17 +20,36 @@ namespace App\Support;
  */
 class StarterTemplates
 {
-    public const KINDS = ['onboarding' => 'Employee onboarding', 'offboarding' => 'Employee offboarding', 'imaging' => 'Workstation setup', 'eprotection' => 'Endpoint protection'];
+    public const KINDS = ['onboarding' => 'Employee onboarding', 'freelancer' => 'Freelancer onboarding', 'offboarding' => 'Employee offboarding', 'imaging' => 'Workstation setup', 'eprotection' => 'Endpoint protection'];
 
     public static function get(string $kind, string $variant = ''): ?array
     {
         return match ($kind) {
             'onboarding' => self::onboarding(),
+            'freelancer' => self::freelancer(),
             'offboarding' => self::offboarding(),
             'imaging' => self::imaging($variant),
             'eprotection' => self::eprotection(),
             default => null,
         };
+    }
+
+    /**
+     * Freelancer/contractor onboarding — lighter than an employee: no domain
+     * account by default, time-boxed access, contractor agreement. Placeholder
+     * steps only; edit into your real SOP like any adopted template.
+     */
+    private static function freelancer(): array
+    {
+        $s = fn (...$a) => self::step(...$a);
+        return ['version' => 1, 'steps' => [
+            $s('scope', 'Confirm scope and contract dates', 'other', 0),
+            $s('agreement', 'Contractor agreement / NDA signed', 'other', 0),
+            $s('access', 'Grant limited, time-boxed access', 'access', 0),
+            $s('accounts', 'Create the accounts their role needs', 'accounts', 0),
+            $s('remote', 'Remote access if required', 'access', 0),
+            $s('review', 'Access review at contract end', 'other', 0),
+        ]];
     }
 
     private static function step(string $id, string $title, string $cat, int $offset, array $f = [], array $subs = []): array
