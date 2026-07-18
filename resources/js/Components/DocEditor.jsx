@@ -161,7 +161,13 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             run: (e) => e.chain().focus().insertContent(`/vpn ${menu.query} `).run() });
         items = picks;
     } else {
-        const all = [...SLASH, ...refItems];
+        // Discoverable openers so a partial "/inst" or "/vp" surfaces the command;
+        // picking one inserts the trigger, which opens its picker (see apply()).
+        const openers = [
+            { key: 'open:install', label: 'Install software', hint: 'Pull an installer from the share', run: (e) => e.chain().focus().insertContent('/install ').run() },
+            { key: 'open:vpn', label: 'VPN profile', hint: 'Pull a VPN config from the share', run: (e) => e.chain().focus().insertContent('/vpn ').run() },
+        ];
+        const all = [...SLASH, ...openers, ...refItems];
         items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
     }
 
@@ -169,7 +175,9 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         if (!editor || !item) return;
         editor.chain().focus().deleteRange({ from: menu.from, to: menu.to }).run();
         item.run(editor);
-        setMenu(null);
+        // Re-detect instead of just closing: an opener that inserted "/install " or
+        // "/vpn " should immediately open its picker; anything else closes the menu.
+        detectSlash(editor);
     };
 
     // keyboard nav for the slash menu
