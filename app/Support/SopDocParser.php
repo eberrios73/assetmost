@@ -80,7 +80,7 @@ class SopDocParser
             if (! $isHeading && $section !== '' && preg_match('/purpose|scope|verification|rollback|revision/i', $section)) continue;
 
             // Word-paste sub-bullets arrive as flat lines starting "o " / "§ " / "· ".
-            if (preg_match('/^[o§·▪]\s+(.+)$/u', $trim, $wm)) {
+            if (preg_match('/^[o§·▪☐□☑✓]\s+(.+)$/u', $trim, $wm)) {
                 $trim = trim($wm[1]);
                 $depth = max($depth, 1);
             }
