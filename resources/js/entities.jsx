@@ -171,7 +171,7 @@ export const ENTITIES = {
                 { key: 'tag_prefix', label: 'Tag prefix (e.g. PG)', required: true, maxLength: 4 },
                 { key: 'domain', label: 'Email domain' },
                 { key: 'local_domain', label: 'Local domain (AD/LAN, e.g. acme.local)' },
-                { key: 'installers_path', label: 'Installers share (\\\\nas\\IT\\Installers or smb://…)' },
+                { key: 'installers_url', label: 'Installers URL (e.g. http://files.example.com:8080)' },
                 { key: 'email', label: 'Email', type: 'email' },
                 { key: 'city', label: 'City' },
                 { key: 'state', label: 'State', maxLength: 2 },
@@ -180,7 +180,7 @@ export const ENTITIES = {
         edit: { fields: [
             { key: 'name', label: 'Name', required: true }, { key: 'domain', label: 'Email domain' },
             { key: 'local_domain', label: 'Local domain (AD/LAN)' },
-            { key: 'installers_path', label: 'Installers share (UNC or smb://)' },
+            { key: 'installers_url', label: 'Installers URL' },
             { key: 'contact_name', label: 'Contact' }, { key: 'email', label: 'Email', type: 'email' },
             { key: 'phone', label: 'Phone' }, { key: 'address', label: 'Address' },
             { key: 'city', label: 'City' }, { key: 'state', label: 'State', maxLength: 2 },

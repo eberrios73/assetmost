@@ -415,29 +415,21 @@ function Installers() {
                 </div>
             </div>
 
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Web Station base URL per company (e.g. http://files.example.com:8080)</p>
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Installers URL per company</p>
             {companies.map((c) => (
                 <label key={c.id} className="mb-2 block">
                     <span className="mb-1 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                         {c.name}
                         {c._saved && <span className="text-xs text-green-600">Saved ✓</span>}
                     </span>
-                    <input value={c.installers_path || ''} placeholder="http://files.example.com:8080"
-                        onChange={(e) => setCompanies((cs) => cs.map((x) => (x.id === c.id ? { ...x, installers_path: e.target.value } : x)))}
+                    <input value={c.installers_url || ''} placeholder="http://files.example.com:8080"
+                        onChange={(e) => setCompanies((cs) => cs.map((x) => (x.id === c.id ? { ...x, installers_url: e.target.value } : x)))}
                         onBlur={(e) => savePath(c.id, e.target.value)}
                         className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
                 </label>
             ))}
 
-            <div className="mt-4 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
-                <p className="font-medium mb-1">One-time setup on the Synology</p>
-                <ol className="list-decimal ml-4 space-y-0.5">
-                    <li>Drop <code>installers.php</code> (from the app repo, public/synology-installers.php) into the Installers web folder.</li>
-                    <li>Assign a PHP 8.x backend to that Web Station service.</li>
-                    <li>Test <code>{`{base}`}/installers.php</code> in a browser — it returns a JSON file list.</li>
-                    <li>Set the base URL above and hit "Scan now". The bench downloads files unauthenticated from the same base; no login anywhere.</li>
-                </ol>
-            </div>
+            <p className="mt-3 text-xs text-gray-400">The app reads <code>{`{URL}`}/installers.php</code> to build the list; the bench downloads files from the same URL. No login anywhere.</p>
         </Section>
     );
 }

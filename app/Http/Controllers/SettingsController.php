@@ -93,7 +93,7 @@ class SettingsController extends Controller
         return response()->json([
             'count' => \Illuminate\Support\Facades\DB::table('installers')->count(),
             'last_scan' => \Illuminate\Support\Facades\DB::table('installers')->max('indexed_at'),
-            'companies' => \App\Models\Company::query()->withoutGlobalScopes()->orderBy('name')->get(['id','name','installers_path']),
+            'companies' => \App\Models\Company::query()->withoutGlobalScopes()->orderBy('name')->get(['id','name','installers_url']),
         ]);
     }
 
@@ -102,9 +102,7 @@ class SettingsController extends Controller
     {
         abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
         $data = $request->validate(['company_id' => 'required|exists:companies,id', 'path' => 'nullable|string|max:500']);
-        // Store plain host/path — strip any smb:// or leading slashes a paste brings.
-        $path = $data['path'] ? ltrim(preg_replace('#^\w+://#', '', trim($data['path'])), '/') : null;
-        Company::query()->withoutGlobalScopes()->whereKey($data['company_id'])->update(['installers_path' => $path]);
+        Company::query()->withoutGlobalScopes()->whereKey($data['company_id'])->update(['installers_url' => $data['path'] ?: null]);
         return response()->json(['ok' => true]);
     }
 
