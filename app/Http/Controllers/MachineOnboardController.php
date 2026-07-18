@@ -32,8 +32,10 @@ class MachineOnboardController extends Controller
         $companyId = app(TenantResolver::class)->id();
         $variants = OnboardingTemplate::query()
             ->where('company_id', $companyId)->where('kind', 'imaging')
-            ->get(['variant', 'name'])
-            ->map(fn ($t) => ['variant' => $t->variant, 'name' => $t->name]);
+            ->get(['variant', 'name', 'steps'])
+            ->map(fn ($t) => ['variant' => $t->variant, 'name' => $t->name,
+                // The runbook IS the recipe: what its /install and /vpn tokens resolve to.
+                'installs' => self::recipe(json_decode($t->steps, true)['steps'] ?? [], $companyId)]);
 
         return Inertia::render('Onboard/Machine', [
             'variants' => $variants,
@@ -139,11 +141,74 @@ class MachineOnboardController extends Controller
 
         Log::info('machine.onboard.generated', ['device' => $device->id, 'tag' => $device->asset_tag, 'by' => auth()->id()]);
 
+        // The runbook is the recipe: the /install and /vpn tokens in its steps ARE
+        // the fetch list. Any explicitly passed installers are merged in as extras.
+        $recipe = self::recipe($steps, $companyId);
+        $files = array_values(array_unique(array_merge(
+            array_column($recipe, 'relative_path'), $data['installers'] ?? []
+        )));
+
         return response()->json([
             'asset_tag' => $device->asset_tag,
             'project_id' => $project->id,
-            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant'], $data['installers'] ?? []),
+            'recipe' => $recipe,
+            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant'], $files),
         ], 201);
+    }
+
+    /**
+     * The SOP is the recipe. Pull every /install and /vpn token out of the runbook's
+     * steps (and subtasks) and resolve each to a real file in the installers catalog —
+     * that resolved list is what the bootstrap script fetches and installs. Typing the
+     * shorthand in the SOP is how you change what a machine gets; the wizard just reads it.
+     *
+     * @return array<int, array{name:string, relative_path:string, platform:string, kind:string}>
+     */
+    public static function recipe(array $steps, int $companyId): array
+    {
+        $texts = [];
+        $walk = function ($list) use (&$walk, &$texts) {
+            foreach ($list as $s) {
+                foreach (['title', 'why', 'instructions', 'done_when', 'record'] as $k) {
+                    if (! empty($s[$k])) $texts[] = $s[$k];
+                }
+                if (! empty($s['subtasks'])) $walk($s['subtasks']);
+            }
+        };
+        $walk($steps);
+        $blob = implode("\n", $texts);
+
+        if (! preg_match_all('~/(install|vpn)\s+([^\n/]+)~i', $blob, $m, PREG_SET_ORDER)) {
+            return [];
+        }
+
+        $catalog = DB::table('installers')->get();
+        $vpnRe = '/\.(ovpn|ovpn12|mobileconfig|tblk|visc|visz|conf|wg)$/i';
+        $plat = ['mac' => 'Mac', 'macos' => 'Mac', 'osx' => 'Mac', 'apple' => 'Mac', 'win' => 'Windows', 'windows' => 'Windows', 'pc' => 'Windows'];
+        $out = [];
+        foreach ($m as $tok) {
+            $type = strtolower($tok[1]);
+            $arg = trim($tok[2]);
+            if ($arg === '') continue;
+
+            if ($type === 'vpn') {
+                $file = $catalog->first(fn ($i) => preg_match($vpnRe, $i->name)
+                    && (strcasecmp($i->name, $arg) === 0 || stripos($i->name, $arg) !== false));
+                $kind = 'vpn';
+            } else {
+                $words = preg_split('/\s+/', $arg);
+                $platform = null;
+                if (isset($plat[strtolower($words[0])])) { $platform = $plat[strtolower($words[0])]; array_shift($words); }
+                $name = trim(implode(' ', $words));
+                if ($name === '') continue;
+                $file = $catalog->first(fn ($i) => ! preg_match($vpnRe, $i->name)
+                    && (! $platform || $i->platform === $platform)
+                    && (strcasecmp($i->name, $name) === 0 || stripos($i->name, $name) !== false));
+                $kind = 'software';
+            }
+            if ($file) $out[$file->relative_path] = ['name' => $file->name, 'relative_path' => $file->relative_path, 'platform' => $file->platform, 'kind' => $kind];
+        }
+        return array_values($out);
     }
 
     /** Step tick from the running script. Token-authenticated, no session. */

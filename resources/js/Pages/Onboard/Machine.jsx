@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import AddButton from '@/Components/ui/AddButton';
 
@@ -42,9 +42,10 @@ export default function Machine({ variants = [], types = [] }) {
     const [variant, setVariant] = useState(() => pickVariant(initialType));
     const setTypeId = (id) => { setTypeIdRaw(id); setVariant(pickVariant(id)); };
     const [form, setForm] = useState({ brand: '', model: '', serial_num: '' });
-    const [installers, setInstallers] = useState([]);   // available from the share
-    const [picked, setPicked] = useState([]);           // relative_paths to install
-    useEffect(() => { fetch('/data/installers', { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setInstallers).catch(() => {}); }, []);
+    // The runbook is the recipe: what its /install and /vpn tokens resolve to. Change
+    // what a machine gets by editing the SOP (Docs), not by picking here.
+    const runbook = variants.find((v) => v.variant === variant);
+    const installs = runbook?.installs || [];
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -53,7 +54,7 @@ export default function Machine({ variants = [], types = [] }) {
     const generate = async () => {
         setBusy(true); setError(null);
         try {
-            setResult(await api('/onboard/generate', { variant, device_type_id: typeId, ...form, installers: picked }));
+            setResult(await api('/onboard/generate', { variant, device_type_id: typeId, ...form }));
         } catch (e) {
             setError(Object.values(e?.errors || {}).flat()[0] || e?.message || 'Could not generate.');
         }
@@ -99,23 +100,27 @@ export default function Machine({ variants = [], types = [] }) {
                             </label>
                         ))}
                     </div>
-                    {installers.length > 0 && (
-                        <div>
-                            <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">Install on this machine (software & VPN configs from the share)</span>
-                            <div className="max-h-44 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800">
-                                {installers.map((i) => (
-                                    <label key={i.relative_path} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                                        <input type="checkbox" checked={picked.includes(i.relative_path)}
-                                            onChange={(e) => setPicked((p) => e.target.checked ? [...p, i.relative_path] : p.filter((x) => x !== i.relative_path))}
-                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <div>
+                        <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">This runbook installs (from its SOP)</span>
+                        {installs.length > 0 ? (
+                            <div className="rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800">
+                                {installs.map((i) => (
+                                    <div key={i.relative_path} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+                                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${i.kind === 'vpn' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400'}`}>
+                                            {i.kind === 'vpn' ? 'VPN' : 'app'}
+                                        </span>
                                         <span className="text-gray-700 dark:text-gray-200">{i.name}</span>
-                                        <span className="ml-auto text-xs text-gray-400">{i.relative_path.split('/')[0]}</span>
-                                    </label>
+                                        <span className="ml-auto text-xs text-gray-400">{i.platform}</span>
+                                    </div>
                                 ))}
                             </div>
-                            <p className="mt-1 text-xs text-gray-400">The script curls each from {`http://…/`} and installs it — .pkg/.dmg/.exe run, .ovpn imports into the VPN client.</p>
-                        </div>
-                    )}
+                        ) : (
+                            <p className="rounded-md border border-dashed border-gray-200 dark:border-gray-700 px-3 py-2 text-xs text-gray-400">
+                                No <code>/install</code> or <code>/vpn</code> in this runbook yet — add them in the SOP (Docs) and they show up here.
+                            </p>
+                        )}
+                        <p className="mt-1 text-xs text-gray-400">The script curls each from the share and installs it — .pkg/.dmg/.exe run, .ovpn imports into the VPN client. Edit the SOP to change this list.</p>
+                    </div>
                     {error && <p className="text-sm text-red-600">{error}</p>}
                     <AddButton label={busy ? 'Generating…' : 'Issue tag & generate script'} onClick={busy ? () => {} : generate} />
                 </div>
