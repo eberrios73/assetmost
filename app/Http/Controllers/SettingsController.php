@@ -26,7 +26,7 @@ class SettingsController extends Controller
             ],
             'companies' => Company::query()->withoutGlobalScopes()
                 ->orderBy('name')
-                ->get(['id', 'name', 'tag_prefix', 'domain', 'city', 'state', 'active']),
+                ->get(['id', 'name', 'tag_prefix', 'domain', 'local_domain', 'installers_url', 'city', 'state', 'active']),
             'providers' => IdentityProvider::query()->get(),
             'providerTypes' => IdentityProvider::PROVIDERS
                 + \App\Models\ProvisionerDefinition::query()->where('enabled', true)->pluck('name', 'plugin_key')->all(),

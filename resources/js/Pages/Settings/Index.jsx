@@ -8,7 +8,6 @@ import { ENTITIES } from '@/entities';
 const SECTIONS = [
     { key: 'companies', label: 'Companies' },
     { key: 'identity', label: 'Identity & integrations' },
-    { key: 'installers', label: 'Installers' },
     { key: 'email', label: 'Email & signatures' },
     { key: 'backups', label: 'Backups' },
     { key: 'roles', label: 'Roles & access' },
@@ -33,7 +32,6 @@ export default function Index() {
     const RENDER = {
         companies: <Companies />,
         identity: <Identity />,
-        installers: <Installers />,
         email: <Email />,
         backups: <Backups />,
         roles: <RolesAccess />,
@@ -371,68 +369,6 @@ function RoleGroup({ group, access, matrix, toggle }) {
 }
 
 /* ---------------- Still mockups ---------------- */
-
-/**
- * The installers repository — where /install reads its list from. The directory
- * IS the catalog: whatever's in the share is what /install offers.
- */
-function Installers() {
-    const [companies, setCompanies] = useState([]);
-    const [scanning, setScanning] = useState(false);
-    const [status, setStatus] = useState({});
-    const [saved, setSaved] = useState('');
-    // Fetch the current config directly so the saved path always shows on load.
-    const load = () => fetch('/settings/installers-config', { headers: { Accept: 'application/json' } })
-        .then((r) => r.json()).then((d) => { setCompanies(d.companies || []); setStatus(d); });
-    useEffect(() => { load(); }, []);
-
-    const savePath = async (id, path) => {
-        setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, installers_path: path, _saved: true } : c)));
-        await post('/settings/installers-path', { company_id: id, path });
-        setSaved('Saved');
-        setTimeout(() => { setSaved(''); setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, _saved: false } : c))); }, 1500);
-    };
-    const scan = async () => {
-        setScanning(true);
-        const r = await post('/settings/installers-scan', {});
-        setScanning(false);
-        if (r?.ok) setStatus((s) => ({ ...s, count: r.count, last_scan: r.last_scan }));
-        else alert(r?.error || 'Scan failed.');
-    };
-
-    return (
-        <Section title="Installers" desc="Your installers on the Synology Web Station, listed over HTTP. /install in a runbook reads this list; the bench curls the file when installing.">
-            <div className="mb-5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <div className="text-2xl font-semibold text-gray-800 dark:text-gray-100">{status.count ?? 0}</div>
-                        <div className="text-xs uppercase tracking-wide text-gray-400">installers indexed{status.last_scan ? ` · last scan ${new Date(status.last_scan).toLocaleString()}` : ''}</div>
-                    </div>
-                    <button onClick={scan} disabled={scanning}
-                        className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
-                        {scanning ? 'Scanning…' : 'Scan now'}
-                    </button>
-                </div>
-            </div>
-
-            <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Installers URL per company</p>
-            {companies.map((c) => (
-                <label key={c.id} className="mb-2 block">
-                    <span className="mb-1 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        {c.name}
-                        {c._saved && <span className="text-xs text-green-600">Saved ✓</span>}
-                    </span>
-                    <input value={c.installers_url || ''} placeholder="http://files.example.com:8080"
-                        onChange={(e) => setCompanies((cs) => cs.map((x) => (x.id === c.id ? { ...x, installers_url: e.target.value } : x)))}
-                        onBlur={(e) => savePath(c.id, e.target.value)}
-                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500" />
-                </label>
-            ))}
-
-            <p className="mt-3 text-xs text-gray-400">The app reads <code>{`{URL}`}/installers.php</code> to build the list; the bench downloads files from the same URL. No login anywhere.</p>
-        </Section>
-    );
-}
 
 function Email() {
     return (

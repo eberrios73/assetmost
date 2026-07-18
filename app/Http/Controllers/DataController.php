@@ -77,7 +77,8 @@ class DataController extends Controller
 
     public function updateCompany(Request $r, \App\Models\Company $company): JsonResponse
     {
-        return $this->applyUpdate($company, $r, [
+        $before = $company->installers_url;
+        $res = $this->applyUpdate($company, $r, [
             'name' => 'required|string|max:255', 'domain' => 'nullable|string|max:255',
             'local_domain' => 'nullable|string|max:255',
             'installers_url' => 'nullable|string|max:500',
@@ -86,6 +87,14 @@ class DataController extends Controller
             'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:2',
             'zip' => 'nullable|string|max:10', 'active' => 'boolean',
         ]);
+        // Set or change the installers URL → re-scan the catalog from it, best-effort.
+        $url = $company->fresh()->installers_url;
+        if ($url && $url !== $before) {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('installers:index', ['--url' => $url]);
+            } catch (\Throwable) { /* the Assets screens surface scan errors; don't block the save */ }
+        }
+        return $res;
     }
 
     /** Apply a whitelisted sort; falls back to $default. */
