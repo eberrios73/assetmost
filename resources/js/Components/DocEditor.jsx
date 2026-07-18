@@ -443,11 +443,28 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
 
     useEffect(() => () => clearTimeout(saveTimer.current), []);
 
-    // Row/column controls whenever the cursor is inside a table.
+    // Row/column controls whenever the cursor is inside a table — pinned to THAT
+    // table's top-right corner (measured after render), not a detached bar.
     const inTable = useEditorState({
         editor,
         selector: (ctx) => !!ctx.editor && ctx.editor.isActive('table'),
     });
+    const [tblPos, setTblPos] = useState(null);
+    const wrapRef = useRef(null);
+    useEffect(() => {
+        if (!inTable || !editor || !wrapRef.current) { setTblPos(null); return; }
+        try {
+            const dom = editor.view.domAtPos(editor.state.selection.from).node;
+            const el = (dom.nodeType === 1 ? dom : dom.parentElement)?.closest('table');
+            if (!el) { setTblPos(null); return; }
+            const tr = el.getBoundingClientRect();
+            const wr = wrapRef.current.getBoundingClientRect();
+            // Just above the table's top-right corner; tucked inside the corner when
+            // the table is flush with the top of the doc.
+            const above = tr.top - wr.top - 26;
+            setTblPos({ top: above >= 0 ? above : tr.top - wr.top + 2, right: Math.max(wr.right - tr.right, 0) });
+        } catch { setTblPos(null); }
+    }, [inTable, editor, editor && editor.state.selection.from]);
 
     // Keep the slash menu inside the viewport: cap its height (it scrolls internally)
     // and flip it above the caret when there isn't room below.
@@ -462,21 +479,21 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
 
     const tblBtn = (label, title, fn, danger = false) => (
         <button type="button" title={title} onMouseDown={(e) => e.preventDefault()} onClick={fn}
-            className={`px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${danger ? 'hover:text-red-600' : ''}`}>
+            className={`px-1 py-0 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${danger ? 'hover:text-red-600' : 'hover:text-gray-700 dark:hover:text-gray-200'}`}>
             {label}
         </button>
     );
 
     return (
-        <div className="relative">
-            {inTable && editor && (
-                <div className="sticky top-2 z-30 mb-2 inline-flex items-center gap-0.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-1.5 py-1 text-xs text-gray-600 dark:text-gray-300 shadow-sm">
-                    {tblBtn('+ Row', 'add a row below', () => editor.chain().focus().addRowAfter().run())}
-                    {tblBtn('− Row', 'delete this row', () => editor.chain().focus().deleteRow().run())}
-                    {tblBtn('+ Col', 'add a column right', () => editor.chain().focus().addColumnAfter().run())}
-                    {tblBtn('− Col', 'delete this column', () => editor.chain().focus().deleteColumn().run())}
-                    <span className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700" />
-                    {tblBtn('× Table', 'delete the whole table', () => editor.chain().focus().deleteTable().run(), true)}
+        <div className="relative" ref={wrapRef}>
+            {inTable && editor && tblPos && (
+                <div style={{ position: 'absolute', top: tblPos.top, right: tblPos.right, zIndex: 30 }}
+                    className="inline-flex items-center gap-0.5 rounded bg-white/90 dark:bg-gray-900/90 px-1 text-[11px] leading-5 text-gray-400 backdrop-blur-sm">
+                    {tblBtn('+row', 'add a row below', () => editor.chain().focus().addRowAfter().run())}
+                    {tblBtn('−row', 'delete this row', () => editor.chain().focus().deleteRow().run())}
+                    {tblBtn('+col', 'add a column right', () => editor.chain().focus().addColumnAfter().run())}
+                    {tblBtn('−col', 'delete this column', () => editor.chain().focus().deleteColumn().run())}
+                    {tblBtn('×', 'delete the whole table', () => editor.chain().focus().deleteTable().run(), true)}
                 </div>
             )}
             <EditorContent editor={editor} />
