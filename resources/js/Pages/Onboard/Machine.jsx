@@ -46,6 +46,7 @@ export default function Machine({ variants = [], types = [] }) {
     // what a machine gets by editing the SOP (Docs), not by picking here.
     const runbook = variants.find((v) => v.variant === variant);
     const installs = runbook?.installs || [];
+    const mdm = runbook?.mdm || '';
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -102,6 +103,12 @@ export default function Machine({ variants = [], types = [] }) {
                     </div>
                     <div>
                         <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">This runbook installs (from its SOP)</span>
+                        {mdm && (
+                            <div className="mb-2 flex items-center gap-2 text-sm">
+                                <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400">MDM</span>
+                                <span className="text-gray-700 dark:text-gray-200">Enrolls into <span className="capitalize">{mdm}</span></span>
+                            </div>
+                        )}
                         {installs.length > 0 ? (
                             <div className="rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800">
                                 {installs.map((i) => (

@@ -33,9 +33,13 @@ class MachineOnboardController extends Controller
         $variants = OnboardingTemplate::query()
             ->where('company_id', $companyId)->where('kind', 'imaging')
             ->get(['variant', 'name', 'steps'])
-            ->map(fn ($t) => ['variant' => $t->variant, 'name' => $t->name,
-                // The runbook IS the recipe: what its /install and /vpn tokens resolve to.
-                'installs' => self::recipe(json_decode($t->steps, true)['steps'] ?? [], $companyId)]);
+            ->map(fn ($t) => [
+                'variant' => $t->variant, 'name' => $t->name,
+                // The runbook IS the recipe: what its /install and /vpn tokens resolve to,
+                // and which MDM its /mdm token enrolls into.
+                'installs' => self::recipe(json_decode($t->steps, true)['steps'] ?? [], $companyId),
+                'mdm' => self::mdm(json_decode($t->steps, true)['steps'] ?? []),
+            ]);
 
         return Inertia::render('Onboard/Machine', [
             'variants' => $variants,
@@ -152,7 +156,7 @@ class MachineOnboardController extends Controller
             'asset_tag' => $device->asset_tag,
             'project_id' => $project->id,
             'recipe' => $recipe,
-            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant'], $files),
+            'script' => $this->script($device, $token, $request->getSchemeAndHttpHost(), $data['variant'], $files, self::mdm($steps)),
         ], 201);
     }
 
@@ -164,7 +168,8 @@ class MachineOnboardController extends Controller
      *
      * @return array<int, array{name:string, relative_path:string, platform:string, kind:string}>
      */
-    public static function recipe(array $steps, int $companyId): array
+    /** Flatten every text field of the steps (and subtasks) into one blob for scanning. */
+    private static function stepsText(array $steps): string
     {
         $texts = [];
         $walk = function ($list) use (&$walk, &$texts) {
@@ -176,7 +181,20 @@ class MachineOnboardController extends Controller
             }
         };
         $walk($steps);
-        $blob = implode("\n", $texts);
+        return implode("\n", $texts);
+    }
+
+    /** The MDM the runbook enrolls into: the first /mdm token, lowercased ('' if none). */
+    public static function mdm(array $steps): string
+    {
+        return preg_match('~/mdm\s+([a-z0-9 ]+?)\s*(?:$|\n|/)~im', self::stepsText($steps), $m)
+            ? strtolower(trim($m[1]))
+            : '';
+    }
+
+    public static function recipe(array $steps, int $companyId): array
+    {
+        $blob = self::stepsText($steps);
 
         if (! preg_match_all('~/(install|vpn)\s+([^\n/]+)~i', $blob, $m, PREG_SET_ORDER)) {
             return [];
@@ -284,7 +302,7 @@ class MachineOnboardController extends Controller
     }
 
     /** The idempotent bootstrap script — platform decided by the runbook variant. */
-    private function script(Device $device, string $token, string $base, string $variant = '', array $installers = []): string
+    private function script(Device $device, string $token, string $base, string $variant = '', array $installers = [], string $mdm = ''): string
     {
         $tag = $device->asset_tag;
         $domain = $device->company?->local_domain ?: 'your.domain';
@@ -301,6 +319,10 @@ class MachineOnboardController extends Controller
             $macFetch .= self::macInstall($url, $file);
             $winFetch .= self::winInstall($url, $file);
         }
+
+        // MDM enrollment block from the SOP's /mdm token (empty if none).
+        $macMdm = self::macMdm($mdm);
+        $winMdm = self::winMdm($mdm);
 
         if (preg_match('/mac/i', $variant)) {
             $sh = <<<'SH'
@@ -328,16 +350,19 @@ else
   report 'FileVault' true 'Already on'
 fi
 
-# 3. Pull + set up software and VPN configs from the installers share
+# 3. MDM enrollment (from the runbook's /mdm)
+__MDM__
+
+# 4. Pull + set up software and VPN configs from the installers share
 __FETCH__
 
-# 4. Updates
+# 5. Updates
 softwareupdate --install --all 2>/dev/null
 report 'updates' true 'softwareupdate pass attempted'
 
-echo 'Bootstrap done - finish the remaining checklist in AssetMost (MDM enrollment, hardening).'
+echo 'Bootstrap done - finish the remaining checklist in AssetMost (hardening).'
 SH;
-            return str_replace(['__TAG__', '__TOKEN__', '__BASE__', '__FETCH__'], [$tag, $token, $base, $macFetch ?: '# (no installers selected)'], $sh);
+            return str_replace(['__TAG__', '__TOKEN__', '__BASE__', '__MDM__', '__FETCH__'], [$tag, $token, $base, $macMdm, $macFetch ?: '# (no installers selected)'], $sh);
         }
 
         $ps = <<<PS
@@ -381,16 +406,61 @@ if (\$key) {
     } catch { Report 'BitLocker' \$false \$_.Exception.Message }
 }
 
-# 4. Pull + set up software and VPN configs from the installers share
+# 4. MDM enrollment (from the runbook's /mdm)
+__MDM__
+
+# 5. Pull + set up software and VPN configs from the installers share
 __FETCH__
 
-# 5. Updates (best effort; finish in Settings if needed)
+# 6. Updates (best effort; finish in Settings if needed)
 try { Install-Module PSWindowsUpdate -Force -Scope CurrentUser -ErrorAction Stop; Get-WindowsUpdate -AcceptAll -Install -IgnoreReboot } catch {}
 Report 'Apply all updates' \$true 'Windows Update pass attempted'
 
 Write-Host 'Bootstrap done — finish the remaining checklist in AssetMost.' -ForegroundColor Green
 PS;
-        return str_replace('__FETCH__', $winFetch ?: '# (no installers selected)', $ps);
+        return str_replace(['__MDM__', '__FETCH__'], [$winMdm, $winFetch ?: '# (no installers selected)'], $ps);
+    }
+
+    /**
+     * macOS MDM enrollment from the /mdm token. ABM/DEP re-enrollment (`profiles renew`)
+     * is the same command for any Apple MDM — Jamf, Kandji, Mosyle, Addigy, Intune —
+     * so the name is just what we report; non-ABM devices fail gracefully to a note.
+     */
+    private static function macMdm(string $mdm): string
+    {
+        if ($mdm === '') return '# (no /mdm in the runbook)';
+        $name = ucwords($mdm);
+
+        return <<<SH
+# Enroll into {$name} - ABM/DEP-assigned devices renew here; otherwise install the enrollment profile from your {$name} portal
+if profiles renew -type enrollment 2>/dev/null; then
+  report 'MDM enrollment' true 'Enrollment renewed ({$name})'
+else
+  report 'MDM enrollment' false 'Auto-enroll failed - enroll from your {$name} portal'
+fi
+SH;
+    }
+
+    /**
+     * Windows MDM enrollment from the /mdm token. Intune uses Azure AD auto-enrollment
+     * (deviceenroller); other MDMs need their own agent/URL, so we emit a clear note.
+     */
+    private static function winMdm(string $mdm): string
+    {
+        if ($mdm === '') return '# (no /mdm in the runbook)';
+        if (str_contains($mdm, 'intune')) {
+            return <<<'PS'
+# Enroll into Intune - Azure AD auto-enrollment (the device must be Azure AD joined)
+try {
+    Start-Process -FilePath "$env:WINDIR\System32\deviceenroller.exe" -ArgumentList '/c','/AutoEnrollMDM' -Wait -NoNewWindow
+    Report 'MDM enrollment' $true 'AutoEnrollMDM triggered (Intune)'
+} catch { Report 'MDM enrollment' $false $_.Exception.Message }
+PS;
+        }
+        $name = ucwords($mdm);
+
+        return "# Enroll into {$name} - install its agent / enrollment profile from your {$name} console (no standard silent command)\n"
+            . "Report 'MDM enrollment' \$false 'Enroll {$name} manually'";
     }
 
     /**

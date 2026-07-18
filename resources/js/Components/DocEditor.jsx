@@ -110,6 +110,11 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
             const coords = ed.view.coordsAtPos($from.pos);
             return setMenu({ mode: 'vpn', query: vpn[1].trim().toLowerCase(), from: $from.pos - vpn[0].length, to: $from.pos, x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
         }
+        const mdm = textBefore.match(/\/mdm\s+([^/]*)$/i);
+        if (mdm) {
+            const coords = ed.view.coordsAtPos($from.pos);
+            return setMenu({ mode: 'mdm', query: mdm[1].trim().toLowerCase(), from: $from.pos - mdm[0].length, to: $from.pos, x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
+        }
         // "/word" — commands and runbook references.
         const m = textBefore.match(/(?:^|\s)\/(\w*)$/);
         if (!m) return setMenu(null);
@@ -160,12 +165,22 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         if (menu.query) picks.push({ key: 'vpn:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
             run: (e) => e.chain().focus().insertContent(`/vpn ${menu.query} `).run() });
         items = picks;
+    } else if (menu?.mode === 'mdm') {
+        // A fixed list, not the share — /mdm names the MDM the bootstrap script enrolls into.
+        const MDM = ['Jamf', 'Intune', 'Kandji', 'Mosyle', 'Addigy', 'Workspace ONE'];
+        const picks = MDM.filter((n) => !menu.query || n.toLowerCase().includes(menu.query))
+            .map((n) => ({ key: `mdm:${n}`, label: n, hint: 'Enroll into this MDM (read from the SOP)',
+                run: (e) => e.chain().focus().insertContent(`/mdm ${n} `).run() }));
+        if (menu.query) picks.push({ key: 'mdm:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
+            run: (e) => e.chain().focus().insertContent(`/mdm ${menu.query} `).run() });
+        items = picks;
     } else {
         // Discoverable openers so a partial "/inst" or "/vp" surfaces the command;
         // picking one inserts the trigger, which opens its picker (see apply()).
         const openers = [
             { key: 'open:install', label: 'Install software', hint: 'Pull an installer from the share', run: (e) => e.chain().focus().insertContent('/install ').run() },
             { key: 'open:vpn', label: 'VPN profile', hint: 'Pull a VPN config from the share', run: (e) => e.chain().focus().insertContent('/vpn ').run() },
+            { key: 'open:mdm', label: 'MDM enrollment', hint: 'Enroll into Jamf, Intune, …', run: (e) => e.chain().focus().insertContent('/mdm ').run() },
         ];
         const all = [...SLASH, ...openers, ...refItems];
         items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
