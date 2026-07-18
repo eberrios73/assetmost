@@ -7,7 +7,7 @@ import RecordModal from '@/Components/RecordModal';
 import PasswordGate from '@/Components/ui/PasswordGate';
 import AssetOnboard from '@/Components/AssetOnboard';
 import OnboardingSetup from '@/Components/OnboardingSetup';
-import { ENTITIES, GROUPS } from '@/entities';
+import { ENTITIES, GROUPS, ONBOARD_KINDS } from '@/entities';
 import { getLast, setLast } from '@/lib/lastView';
 
 const ONB_STEPS = ['User info', 'Services', 'Active Directory', 'Hardware', 'Software', 'Security'];
@@ -29,7 +29,11 @@ export default function Workspace({ group }) {
     const [step, setStep] = useState(0);
     // Guarded tabs (Accounts) re-prompt on EVERY entry — switching away re-locks.
     const [unlocked, setUnlocked] = useState(false);
-    useEffect(() => setUnlocked(false), [tabKey]);
+    // Onboarding: which procedure (kind) is selected in the left-column list, and its
+    // department variant. Lifted here so the left list drives the wizard on the right.
+    const [onbKind, setOnbKind] = useState(null);
+    const [onbVariant, setOnbVariant] = useState('');
+    useEffect(() => { setUnlocked(false); setOnbKind(null); setOnbVariant(''); }, [tabKey]);
 
     const refetchDetail = () => {
         if (entity && selectedId) fetch(entity.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setDetail);
@@ -99,15 +103,20 @@ export default function Workspace({ group }) {
             </span>
         );
     } else if (tab.view === 'onboarding') {
+        const kinds = tab.kinds || Object.keys(ONBOARD_KINDS);
+        const activeKind = kinds.includes(onbKind) ? onbKind : kinds[0];
         listContent = (
-            <div className="p-4 text-sm text-gray-500 dark:text-gray-400 space-y-2">
-                <p className="font-medium text-gray-700 dark:text-gray-200">Onboarding</p>
-                <p>Each company keeps its own steps — paste your SOP once, rearrange, done.</p>
-                <p>Running the wizard creates the person, their credentials in the registry, and a chained task project from these steps.</p>
+            <div className="p-3 space-y-1">
+                {kinds.map((k) => (
+                    <button key={k} onClick={() => { setOnbKind(k); setOnbVariant(''); }}
+                        className={`w-full rounded-md px-3 py-2 text-left text-sm ${activeKind === k ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                        {ONBOARD_KINDS[k]}
+                    </button>
+                ))}
             </div>
         );
-        detailContent = <OnboardingSetup />;
-        footerLeft = 'Onboarding — company step template';
+        detailContent = <OnboardingSetup kind={activeKind} variant={onbVariant} onVariant={setOnbVariant} />;
+        footerLeft = `${ONBOARD_KINDS[activeKind]} — company step template`;
     } else if (tab.view === 'asset-onboard') {
         listContent = <div className="p-4 text-sm text-gray-500">Onboard a new asset into inventory — identify it, place it at a location, and add it.</div>;
         detailContent = <AssetOnboard onDone={() => { setListVersion((v) => v + 1); setTabKey('devices'); }} />;

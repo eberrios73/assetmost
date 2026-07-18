@@ -62,10 +62,10 @@ const api = async (url, method = 'GET', body) => {
     return res.ok ? res.json().catch(() => ({})) : Promise.reject(await res.json().catch(() => ({})));
 };
 
-export default function OnboardingSetup() {
+// kind/variant are controlled by the left-column list in Workspace so the list
+// drives which procedure this wizard edits.
+export default function OnboardingSetup({ kind, variant, onVariant }) {
     const [meta, setMeta] = useState({ kinds: {}, existing: [] });
-    const [kind, setKind] = useState('onboarding');
-    const [variant, setVariant] = useState('');
     const [loaded, setLoaded] = useState(false);
     const [steps, setSteps] = useState(null);        // null = nothing saved for this kind/variant
     const [source, setSource] = useState(null);      // {id,title} of the master Docs page
@@ -78,6 +78,8 @@ export default function OnboardingSetup() {
     const [pasting, setPasting] = useState(false);
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
+    // Switching procedures leaves paste mode.
+    useEffect(() => setPasting(false), [kind]);
 
     const load = (k = kind, v = variant) => {
         setLoaded(false);
@@ -104,7 +106,7 @@ export default function OnboardingSetup() {
     const variants = ['', ...new Set(meta.existing.filter((e) => e.kind === kind && e.variant).map((e) => e.variant))];
     const newVariant = () => {
         const v = prompt('Department variant name (e.g. Design):');
-        if (v?.trim()) setVariant(v.trim());
+        if (v?.trim()) onVariant(v.trim());
     };
 
     // list surgery helpers — operate on top-level or a parent's subtasks uniformly
@@ -112,16 +114,10 @@ export default function OnboardingSetup() {
     const removeById = (list, id) => list.filter((s) => s.id !== id).map((s) => ({ ...s, subtasks: removeById(s.subtasks || [], id) }));
     const move = (list, i, dir) => { const n = [...list]; const j = i + dir; if (j < 0 || j >= n.length) return list; [n[i], n[j]] = [n[j], n[i]]; return n; };
 
-    const kindBar = (
+    const variantBar = (
         <div className="mb-4 flex items-center gap-2">
-            {Object.entries(meta.kinds || {}).map(([k, label]) => (
-                <button key={k} onClick={() => { setKind(k); setVariant(''); setPasting(false); }}
-                    className={`px-3 py-1.5 text-sm rounded-md ${kind === k ? 'bg-blue-600 text-white' : 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                    {label}
-                </button>
-            ))}
-            <span className="mx-1 text-gray-300">|</span>
-            <select value={variant} onChange={(e) => e.target.value === '__new__' ? newVariant() : setVariant(e.target.value)}
+            <span className="text-xs uppercase tracking-wide text-gray-400">Variant</span>
+            <select value={variant} onChange={(e) => e.target.value === '__new__' ? newVariant() : onVariant(e.target.value)}
                 className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-sm py-1.5 text-gray-600 dark:text-gray-300">
                 {variants.map((v) => <option key={v} value={v}>{v || 'Default'}</option>)}
                 <option value="__new__">+ Department variant…</option>
@@ -129,12 +125,12 @@ export default function OnboardingSetup() {
         </div>
     );
 
-    if (!loaded) return <div className="max-w-3xl">{kindBar}<p className="text-sm text-gray-400 py-6">Loading…</p></div>;
+    if (!loaded) return <div className="max-w-3xl">{variantBar}<p className="text-sm text-gray-400 py-6">Loading…</p></div>;
 
     if (steps === null || pasting) {
         return (
             <div className="max-w-3xl">
-                {kindBar}
+                {variantBar}
                 <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-1">
                     {meta.kinds[kind]}{variant ? ` — ${variant}` : ''}
                 </h2>
@@ -175,7 +171,7 @@ export default function OnboardingSetup() {
 
     return (
         <div className="max-w-3xl">
-            {kindBar}
+            {variantBar}
             {kind === 'onboarding' && <RunCard />}
             <div className="flex items-center justify-between mb-1">
                 <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">
