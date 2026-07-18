@@ -455,14 +455,15 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         if (!inTable || !editor || !wrapRef.current) { setTblPos(null); return; }
         try {
             const dom = editor.view.domAtPos(editor.state.selection.from).node;
-            const el = (dom.nodeType === 1 ? dom : dom.parentElement)?.closest('table');
+            const base = dom.nodeType === 1 ? dom : dom.parentElement;
+            const el = base?.closest('table');
             if (!el) { setTblPos(null); return; }
-            const tr = el.getBoundingClientRect();
+            const t = el.getBoundingClientRect();
+            const row = base?.closest('tr')?.getBoundingClientRect();
+            const cell = base?.closest('td,th')?.getBoundingClientRect();
             const wr = wrapRef.current.getBoundingClientRect();
-            // Just above the table's top-right corner; tucked inside the corner when
-            // the table is flush with the top of the doc.
-            const above = tr.top - wr.top - 26;
-            setTblPos({ top: above >= 0 ? above : tr.top - wr.top + 2, right: Math.max(wr.right - tr.right, 0) });
+            const rel = (r) => r && { top: r.top - wr.top, left: r.left - wr.left, right: r.right - wr.left, bottom: r.bottom - wr.top, width: r.width, height: r.height };
+            setTblPos({ table: rel(t), row: rel(row), cell: rel(cell) });
         } catch { setTblPos(null); }
     }, [inTable, editor, editor && editor.state.selection.from]);
 
@@ -477,24 +478,33 @@ export default function DocEditor({ pageId, initialBody, onSave }) {
         ...(openUp ? { bottom: vh - (menu.yTop ?? menu.y) + 6 } : { top: menu.y + 4 }),
     } : null;
 
-    const tblBtn = (label, title, fn, danger = false) => (
+    // Numbers-style edge handles: small round buttons ON the table frame.
+    const handle = (style, title, label, fn, danger = false) => (
         <button type="button" title={title} onMouseDown={(e) => e.preventDefault()} onClick={fn}
-            className={`px-1 py-0 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${danger ? 'hover:text-red-600' : 'hover:text-gray-700 dark:hover:text-gray-200'}`}>
+            style={{ position: 'absolute', zIndex: 30, ...style }}
+            className={`flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[13px] leading-none text-gray-400 shadow-sm ${danger ? 'hover:text-red-600 hover:border-red-300' : 'hover:text-blue-600 hover:border-blue-300'}`}>
             {label}
         </button>
     );
 
     return (
         <div className="relative" ref={wrapRef}>
-            {inTable && editor && tblPos && (
-                <div style={{ position: 'absolute', top: tblPos.top, right: tblPos.right, zIndex: 30 }}
-                    className="inline-flex items-center gap-0.5 rounded bg-white/90 dark:bg-gray-900/90 px-1 text-[11px] leading-5 text-gray-400 backdrop-blur-sm">
-                    {tblBtn('+row', 'add a row below', () => editor.chain().focus().addRowAfter().run())}
-                    {tblBtn('−row', 'delete this row', () => editor.chain().focus().deleteRow().run())}
-                    {tblBtn('+col', 'add a column right', () => editor.chain().focus().addColumnAfter().run())}
-                    {tblBtn('−col', 'delete this column', () => editor.chain().focus().deleteColumn().run())}
-                    {tblBtn('×', 'delete the whole table', () => editor.chain().focus().deleteTable().run(), true)}
-                </div>
+            {inTable && editor && tblPos?.table && (
+                <>
+                    {/* + on the bottom edge: add row. + on the right edge: add column. */}
+                    {handle({ top: tblPos.table.bottom - 10, left: tblPos.table.left + tblPos.table.width / 2 - 10 },
+                        'add a row', '+', () => editor.chain().focus().addRowAfter().run())}
+                    {handle({ top: tblPos.table.top + tblPos.table.height / 2 - 10, left: tblPos.table.right - 10 },
+                        'add a column', '+', () => editor.chain().focus().addColumnAfter().run())}
+                    {/* − rides the CURRENT row / column, just outside the frame. */}
+                    {tblPos.row && handle({ top: tblPos.row.top + tblPos.row.height / 2 - 10, left: tblPos.table.left - 24 },
+                        'delete this row', '−', () => editor.chain().focus().deleteRow().run(), true)}
+                    {tblPos.cell && handle({ top: Math.max(tblPos.table.top - 24, 2), left: tblPos.cell.left + tblPos.cell.width / 2 - 10 },
+                        'delete this column', '−', () => editor.chain().focus().deleteColumn().run(), true)}
+                    {/* the table handle: top-left corner, removes the table */}
+                    {handle({ top: Math.max(tblPos.table.top - 24, 2), left: tblPos.table.left - 24 },
+                        'delete the whole table', '×', () => editor.chain().focus().deleteTable().run(), true)}
+                </>
             )}
             <EditorContent editor={editor} />
             {menu && items.length > 0 && (
