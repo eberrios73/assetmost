@@ -77,6 +77,7 @@ class SopDocParser
                         'review by' => 'review_by', 'approver' => 'approver', 'status' => 'status',
                         'why' => 'why', 'purpose' => 'why',
                         'how' => 'how', 'scope' => 'scope',
+                        'os' => 'os', 'platform' => 'os',
                         'tools and materials' => 'tools', 'tools' => 'tools', 'materials' => 'tools',
                         'safety precautions' => 'safety', 'safety' => 'safety',
                     ];
@@ -327,7 +328,7 @@ class SopDocParser
         // The SOP header: document-level Why/How, Tools, Safety and governance as
         // one table at the top — every row optional; parse() reads them back to meta.
         $header = '';
-        $headerRows = ['why' => 'Why', 'how' => 'How', 'scope' => 'Scope',
+        $headerRows = ['os' => 'OS', 'why' => 'Why', 'how' => 'How', 'scope' => 'Scope',
             'tools' => 'Tools and Materials', 'safety' => 'Safety Precautions',
             'owner' => 'Owner', 'version' => 'Version', 'effective' => 'Effective',
             'review_by' => 'Review by', 'approver' => 'Approver', 'status' => 'Status'];

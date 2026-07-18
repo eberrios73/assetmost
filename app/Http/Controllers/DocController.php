@@ -132,6 +132,9 @@ class DocController extends Controller
             ? $m[1] . '.' . ($m[2] + 1)
             : '1.1';
         $meta['status'] = 'Draft';
+        if (empty($meta['os']) && $page->form_factor) {
+            $meta['os'] = self::osFromFormFactor($page->form_factor);
+        }
 
         // The copy inherits the identity — including the slug — because it IS the
         // document now; replicate() copies workflow_slug along with everything else.
@@ -159,6 +162,19 @@ class DocController extends Controller
         return response()->json(['ok' => true, 'id' => $copy->id], 201);
     }
 
+    /** The OS a form factor implies, for the SOP header's OS row. */
+    public static function osFromFormFactor(?string $ff): string
+    {
+        return match (true) {
+            (bool) preg_match('/mac/i', $ff ?? '') => 'macOS',
+            (bool) preg_match('/windows/i', $ff ?? '') => 'Windows',
+            (bool) preg_match('/linux/i', $ff ?? '') => 'Linux',
+            (bool) preg_match('/ios/i', $ff ?? '') => 'iOS',
+            (bool) preg_match('/android/i', $ff ?? '') => 'Android',
+            default => $ff ?? '',
+        };
+    }
+
     /**
      * The blank SOP scaffold: the FULL header table (empty rows ready to fill —
      * the compiled renderer skips empty fields, an authoring scaffold must not),
@@ -168,7 +184,7 @@ class DocController extends Controller
     {
         $esc = fn ($v) => htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8');
         $rows = '';
-        foreach (['Why' => '', 'How' => '', 'Scope' => '', 'Tools and Materials' => '', 'Safety Precautions' => '',
+        foreach (['OS' => $meta['os'] ?? '', 'Why' => '', 'How' => '', 'Scope' => '', 'Tools and Materials' => '', 'Safety Precautions' => '',
             'Owner' => '', 'Version' => $meta['version'] ?? '1.0', 'Status' => $meta['status'] ?? 'Draft'] as $label => $value) {
             $rows .= "<tr><td><p><strong>{$label}:</strong></p></td><td><p>{$esc($value)}</p></td></tr>";
         }

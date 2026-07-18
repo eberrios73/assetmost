@@ -239,7 +239,7 @@ const fieldRows = (labels) => labels.map((l) => `<tr><td><p><strong>${l}:</stron
 // The /sop scaffold: the document-level header table of a formal SOP — purpose,
 // approach, tools, safety, governance. Every row optional; remove what you don't need.
 const SOP_SCAFFOLD = '<table><tbody>'
-    + fieldRows(['Why', 'How', 'Tools and Materials', 'Safety Precautions', 'Owner', 'Version'])
+    + fieldRows(['OS', 'Why', 'How', 'Tools and Materials', 'Safety Precautions', 'Owner', 'Version'])
     + '</tbody></table><p></p>';
 
 // Tables never nest: inserting one from inside a table lands AFTER that table.
