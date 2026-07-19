@@ -106,6 +106,7 @@ class DocController extends Controller
             'category' => $page->category,
             // A workflow page renders with its Info | SOP | Script tabs in Docs too.
             'workflow_type' => $page->workflow_type,
+            'company_id' => $page->company_id,
             'updated_at' => $page->updated_at,
             'editor' => $page->editor ? trim("{$page->editor->name} {$page->editor->last}") : null,
             'versions' => $versions,          // older versions, newest first

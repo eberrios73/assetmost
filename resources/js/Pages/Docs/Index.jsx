@@ -290,7 +290,7 @@ export default function Index() {
                 // Info | SOP | Script tabs as the onboarding side. One page, one look.
                 <OnboardingSetup key={page.id} workflow={{ id: page.id }} onChanged={loadTree} />
             ) : (
-                <DocEditor key={page.id} pageId={page.id} initialBody={page.body} onSave={saveBody} ownerDefault={me} />
+                <DocEditor key={page.id} pageId={page.id} initialBody={page.body} onSave={saveBody} ownerDefault={me} companyId={page.company_id} />
             )}
             {page.versions?.length > 0 && (
                 <div className="mt-8 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">

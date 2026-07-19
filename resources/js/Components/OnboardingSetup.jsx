@@ -214,7 +214,7 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                             <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code>
                             fill in at run time.
                         </p>
-                        <DocEditor key={`${wf.id}:${bodyRev}`} pageId={wf.id} initialBody={wf.body} onSave={saveBody} ownerDefault={me}
+                        <DocEditor key={`${wf.id}:${bodyRev}`} pageId={wf.id} initialBody={wf.body} onSave={saveBody} ownerDefault={me} companyId={wf.company_id}
                             osDefault={wf.sop_meta?.os || (/mac/i.test(wf.form_factor || '') ? 'macOS'
                                 : /windows/i.test(wf.form_factor || '') ? 'Windows'
                                 : /linux/i.test(wf.form_factor || '') ? 'Linux'

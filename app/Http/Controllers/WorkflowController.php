@@ -59,6 +59,7 @@ class WorkflowController extends Controller
             'slug' => $page->workflow_slug, 'form_factor' => $page->form_factor,
             'active' => (bool) $page->workflow_active, 'shipped' => (bool) $page->workflow_shipped,
             'wizard' => (bool) $page->workflow_wizard,
+            'company_id' => $page->company_id,
             'steps' => $steps,
             'sop_meta' => $steps['meta'] ?? null,
             // The SOP tab edits the page itself in the same DocEditor as Docs —
