@@ -20,6 +20,63 @@ const parseFormToken = (text) => {
     return m ? { mode: (m[1] || 'new').toLowerCase(), kind: m[2].toLowerCase() } : null;
 };
 
+// --- drag & drop for steps and substeps ------------------------------------
+// A grip on each card / substep starts a drag; cards and substeps accept drops.
+// getPos closures stay valid, so positions are read AT DROP TIME; the move is
+// one transaction (delete + mapped insert). A substep that is its list's only
+// item takes the empty list with it.
+let sopDrag = null;   // { type: 'step'|'sub', getPos, editor }
+
+const mkGrip = (type, getPos, editor, dragEl) => {
+    const g = document.createElement('span');
+    g.className = 'sop-grip';
+    g.textContent = '⠿';
+    g.title = 'drag to move';
+    g.draggable = true;
+    g.contentEditable = 'false';
+    g.addEventListener('dragstart', (e) => {
+        sopDrag = { type, getPos, editor };
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'sop-drag');
+        if (dragEl) e.dataTransfer.setDragImage(dragEl, 12, 12);
+        e.stopPropagation();
+    });
+    g.addEventListener('dragend', () => { sopDrag = null; });
+    return g;
+};
+
+const moveDragged = (editor, insertPosPreDelete, wrapInList = false) => {
+    if (!sopDrag) return;
+    const srcPos = sopDrag.getPos();
+    const state = editor.state;
+    const srcNode = state.doc.nodeAt(srcPos);
+    if (!srcNode) { sopDrag = null; return; }
+    const $src = state.doc.resolve(srcPos);
+    let delFrom = srcPos;
+    let delTo = srcPos + srcNode.nodeSize;
+    if (sopDrag.type === 'sub' && $src.parent.type.name === 'bulletList' && $src.parent.childCount === 1) {
+        delFrom = $src.before($src.depth);
+        delTo = delFrom + $src.parent.nodeSize;
+    }
+    if (insertPosPreDelete >= delFrom && insertPosPreDelete <= delTo) { sopDrag = null; return; }
+    let tr = state.tr.delete(delFrom, delTo);
+    const payload = wrapInList ? editor.schema.nodes.bulletList.create(null, srcNode) : srcNode;
+    tr = tr.insert(tr.mapping.map(insertPosPreDelete), payload);
+    editor.view.dispatch(tr);
+    sopDrag = null;
+};
+
+const acceptDrops = (el, onDrop) => {
+    el.addEventListener('dragover', (e) => { if (sopDrag) { e.preventDefault(); e.stopPropagation(); el.classList.add('sop-drop'); } });
+    el.addEventListener('dragleave', () => el.classList.remove('sop-drop'));
+    el.addEventListener('drop', (e) => {
+        if (!sopDrag) return;
+        e.preventDefault(); e.stopPropagation();
+        el.classList.remove('sop-drop');
+        onDrop();
+    });
+};
+
 // Shared node-view chrome helpers (step cards + substep mini-cards).
 const mkBtn = (label, title, fn) => {
     const b = document.createElement('button');
@@ -101,10 +158,26 @@ const SopListItem = ListItem.extend({
 
             chrome.append(
                 formBtn,
+                mkGrip('sub', getPos, editor, li),
                 mkBtn('↑', 'move substep up', () => moveSibling(editor, getPos, -1)),
                 mkBtn('↓', 'move substep down', () => moveSibling(editor, getPos, 1)),
                 mkBtn('×', 'remove substep', removeSub),
             );
+            // Dropping a substep here lands it right after this one (any card);
+            // dropping a whole step lands the step after this substep's card.
+            acceptDrops(li, () => {
+                const tgtPos = getPos();
+                const tgtNode = editor.state.doc.nodeAt(tgtPos);
+                if (!tgtNode || !sopDrag) return;
+                if (sopDrag.type === 'sub') {
+                    moveDragged(editor, tgtPos + tgtNode.nodeSize);
+                } else {
+                    const $t = editor.state.doc.resolve(tgtPos);
+                    for (let d = $t.depth; d > 0; d--) {
+                        if ($t.node(d).type.name === 'sopStep') { moveDragged(editor, $t.after(d)); break; }
+                    }
+                }
+            });
             li.append(chrome, content);
             return {
                 dom: li,
@@ -148,6 +221,7 @@ const SopStep = Node.create({
 
             let collapsed = false;
             chrome.append(
+                mkGrip('step', getPos, editor, card),
                 mkBtn('↑', 'move step up', () => moveSibling(editor, getPos, -1)),
                 mkBtn('↓', 'move step down', () => moveSibling(editor, getPos, 1)),
                 mkBtn('≡', 'collapse / expand', () => { collapsed = !collapsed; card.classList.toggle('sop-collapsed', collapsed); }),
@@ -183,6 +257,22 @@ const SopStep = Node.create({
             const content = document.createElement('div');
             content.className = 'sop-step-content';
             card.append(num, chrome, content);
+            // Dropping a step here reorders it after this card; dropping a
+            // substep ADOPTS it — appended to this card's substep list (created
+            // if the card has none). Drops on a substep are handled by the
+            // substep itself and never bubble up here.
+            acceptDrops(card, () => {
+                const pos = getPos();
+                const n = editor.state.doc.nodeAt(pos);
+                if (!n || !sopDrag) return;
+                if (sopDrag.type === 'step') {
+                    moveDragged(editor, pos + n.nodeSize);
+                } else if (n.lastChild && n.lastChild.type.name === 'bulletList') {
+                    moveDragged(editor, pos + n.nodeSize - 2);
+                } else {
+                    moveDragged(editor, pos + n.nodeSize - 1, true);
+                }
+            });
             return {
                 dom: card,
                 contentDOM: content,
@@ -384,6 +474,10 @@ const SLASH = [
 ];
 
 /** Notion/Docmost-style canvas: rich text + "/" slash menu. Autosaves HTML (debounced). */
+// Real extensions exported so the headless harness tests the SHIPPED node
+// views (chrome, drag & drop), not a re-implementation.
+export { SopStep, SopListItem };
+
 export default function DocEditor({ pageId, initialBody, onSave, osDefault = '', ownerDefault = '', companyId = null }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
     const [helpOpen, setHelpOpen] = useState(false);
