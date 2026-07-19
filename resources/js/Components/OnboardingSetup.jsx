@@ -78,7 +78,6 @@ export default function OnboardingSetup({ workflow, onChanged }) {
     const [wf, setWf] = useState(null);              // full detail
     const [steps, setSteps] = useState(null);
     const [bodyRev, setBodyRev] = useState(0);       // re-key the editor when body reloads
-    const [preview, setPreview] = useState(null);    // 'load' | {rows:[...]}
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
     const [tab, setTab] = useState('steps');         // run | steps | script
@@ -92,10 +91,6 @@ export default function OnboardingSetup({ workflow, onChanged }) {
         }).catch(() => {});
     };
     useEffect(() => { load(true); }, [wfId]);
-    useEffect(() => {
-        if (preview !== 'load') return;
-        api(`/data/workflows/${wfId}/preview`).then(setPreview).catch(() => setPreview(null));
-    }, [preview, wfId]);
 
     const save = async (next) => {
         setSteps(next);
@@ -111,7 +106,6 @@ export default function OnboardingSetup({ workflow, onChanged }) {
     const adopt = async () => { await api(`/data/workflows/${wfId}/adopt`, 'POST'); load(); };
     const importDoc = async (pageId) => { if (!pageId) return; await api(`/data/workflows/${wfId}/parse-doc`, 'POST', { page_id: pageId }); load(); };
     const toggleActive = async () => { await api(`/data/workflows/${wfId}`, 'PATCH', { active: !wf.active }); load(); onChanged?.(); };
-    const duplicate = async () => { await api(`/data/workflows/${wfId}/duplicate`, 'POST'); onChanged?.(); };
 
     // Only the tabs this workflow can use: people wizards run, devices script.
     const tabs = wf?.wizard ? [['run', 'Run'], ['steps', 'SOP']]
@@ -142,50 +136,19 @@ export default function OnboardingSetup({ workflow, onChanged }) {
 
             {tab === 'steps' && (
                 <div>
-                    {/* What Info used to hold, as one slim row on the SOP itself. */}
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    {/* Just the flag the user asked for — everything else about a
+                        doc (versioning, templates, delete) lives in Docs. */}
+                    <div className="mb-3 flex items-center justify-between gap-3">
                         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer"
                             title="Off = hidden from the Onboarding lists and it can't run. The doc itself stays in Docs either way.">
                             <input type="checkbox" checked={!!wf.active} onChange={toggleActive}
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                             Listed in Onboarding
                         </label>
-                        <div className="flex items-center gap-2">
-                            {steps !== null && (
-                                <button onClick={() => setPreview(preview ? null : 'load')}
-                                    className="px-3 py-1.5 text-sm rounded-md border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10">
-                                    {preview ? 'Hide task preview' : 'Preview tasks'}
-                                </button>
-                            )}
-                            <button onClick={duplicate}
-                                className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                title="Copy this SOP to make a variant (e.g. Other Device -> Access Point)">Duplicate</button>
-                            <a href={`/docs?page=${wf.id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0" title="This workflow IS a Docs page">
-                                Open in Docs
-                            </a>
-                        </div>
+                        <a href={`/docs?page=${wf.id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0" title="This workflow IS a Docs page — version it, retire it, or file it there">
+                            Open in Docs
+                        </a>
                     </div>
-                    {preview === 'load' && <p className="mb-3 text-sm text-gray-400">Building preview…</p>}
-                    {preview && preview !== 'load' && (
-                        <div className="mb-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-500/5 p-4">
-                            <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
-                                The checklist this becomes — {preview.rows.length} tasks. Steps pulled from a referenced runbook
-                                (like <code>/eprotection</code>) are marked <span className="rounded bg-amber-100 dark:bg-amber-500/15 px-1 text-[10px] text-amber-700 dark:text-amber-400">linked</span> and stay current.
-                            </p>
-                            <ol className="space-y-0.5">
-                                {preview.rows.map((r, i) => (
-                                    <li key={i} className={`flex items-start gap-2 text-sm ${r.depth ? 'pl-6 text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-medium'}`}>
-                                        <span className="text-gray-300 dark:text-gray-600">{r.depth ? '↳' : '•'}</span>
-                                        <span>
-                                            {r.title}
-                                            {r.ref && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:text-amber-400">linked</span>}
-                                            {r.form && <span className="ml-2 rounded bg-blue-100 dark:bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-normal text-blue-700 dark:text-blue-400">form: {r.form}</span>}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ol>
-                        </div>
-                    )}
                     {(steps === null && !wf.body) ? (
                         <ImportSources pasting={false} shipped={wf.shipped}
                             text={text} setText={setText}
@@ -195,11 +158,8 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                     ) : (
                     <div>
                         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-                            This IS the doc — the same page, same editor as Docs. Type <code className="text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">/</code> for
-                            commands (<code className="text-xs">/install</code> <code className="text-xs">/vpn</code> <code className="text-xs">/mdm</code> <code className="text-xs">/form</code>);
-                            steps and tasks compile from what you write. Placeholders
-                            <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code>
-                            fill in at run time.
+                            Type <code className="text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">/</code> for
+                            commands — <code className="text-xs">/help</code> lists them all. Steps, tasks and the script compile from what you write.
                         </p>
                         <DocEditor key={`${wf.id}:${bodyRev}`} pageId={wf.id} initialBody={wf.body} onSave={saveBody} ownerDefault={me} companyId={wf.company_id}
                             osDefault={wf.sop_meta?.os || (/mac/i.test(wf.form_factor || '') ? 'macOS'
