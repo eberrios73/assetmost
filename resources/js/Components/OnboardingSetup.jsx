@@ -248,9 +248,9 @@ function ScriptPanel({ wf }) {
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                     {os
                         ? <span className="mr-1 rounded bg-blue-100 dark:bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400">OS: {os}</span>
-                        : <span className="mr-1 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">No OS in the SOP header — using the form factor</span>}
-                    Generated from this workflow's steps — <code>{'{ASSET_TAG}'}</code> and friends fill in per machine; the SOP's
-                    <code className="mx-1">/install</code><code className="mr-1">/vpn</code><code>/mdm</code> resolve for real.
+                        : <span className="mr-1 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">No OS in the SOP header — no script until /sop sets one</span>}
+                    Every block traces to a /command in the SOP, in SOP order — nothing implicit.
+                    <code className="mx-1">{'{ASSET_TAG}'}</code> and friends fill in per machine.
                 </p>
                 <div className="flex gap-2 shrink-0">
                     <button onClick={() => gen()} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Regenerate</button>
