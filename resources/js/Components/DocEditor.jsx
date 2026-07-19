@@ -10,14 +10,11 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import CodeBlock from '@tiptap/extension-code-block';
 import { marked } from 'marked';
 import { useEffect, useRef, useState } from 'react';
-import RecordModal from '@/Components/RecordModal';
-import SearchSelect from '@/Components/SearchSelect';
-import { ENTITIES } from '@/entities';
+import { openRecordForm } from '@/lib/formBus';
 
-// The SOP is the workflow: a substep carrying a /form token renders the actual
-// record form right on the doc. The nodeview shows the button; the editor
-// component hosts the modal (same one RecordModal as everywhere else).
-const FORM_ENTITY = { device: 'devices', person: 'people', account: 'accounts', location: 'locations' };
+// The SOP is the workflow: a substep carrying a /form token shows its live
+// button, which summons the ONE app-wide record drawer (GlobalFormDrawer)
+// with this page's company as context; the saved record flows back here.
 const parseFormToken = (text) => {
     const m = /\/form\s+(?:(new|edit)\s+)?(device|person|account|location)/i.exec(text || '');
     return m ? { mode: (m[1] || 'new').toLowerCase(), kind: m[2].toLowerCase() } : null;
@@ -390,8 +387,7 @@ const SLASH = [
 export default function DocEditor({ pageId, initialBody, onSave, osDefault = '', ownerDefault = '', companyId = null }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
     const [helpOpen, setHelpOpen] = useState(false);
-    const [formReq, setFormReq] = useState(null);   // { mode, kind } from a /form substep button
-    const [editRec, setEditRec] = useState(null);   // fetched record for edit mode
+    const [flash, setFlash] = useState(null);       // "✓ device recorded: …" after a /form save
     const [refs, setRefs] = useState([]);         // runbook references: [{slug, name}]
     const [installers, setInstallers] = useState([]);   // indexed installers share
     const [snippets, setSnippets] = useState([]);       // the commands registry
@@ -620,14 +616,26 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
 
     useEffect(() => () => clearTimeout(saveTimer.current), []);
 
-    // /form substep buttons bubble a custom event up from the node views.
+    // /form substep buttons bubble up from the node views; they summon the
+    // app-wide drawer with this page's context, and the result flashes back.
     useEffect(() => {
         const el = wrapRef.current;
         if (!el) return;
-        const h = (e) => { setEditRec(null); setFormReq(e.detail); };
+        const h = (e) => {
+            const { mode, kind } = e.detail || {};
+            if (!kind) return;
+            openRecordForm({
+                mode, kind, companyId,
+                onSaved: (rec) => {
+                    const label = rec?.asset_tag || rec?.identifier || rec?.name || '';
+                    setFlash(`✓ ${kind} ${mode === 'edit' ? 'updated' : 'recorded'}${label ? `: ${label}` : ''}`);
+                    setTimeout(() => setFlash(null), 4000);
+                },
+            });
+        };
         el.addEventListener('sop-form-open', h);
         return () => el.removeEventListener('sop-form-open', h);
-    }, []);
+    }, [companyId]);
 
     // Row/column controls whenever the cursor is inside a table — pinned to THAT
     // table's top-right corner (measured after render), not a detached bar.
@@ -677,37 +685,12 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
         <li className="flex gap-3"><code className="shrink-0 w-40 text-blue-700 dark:text-blue-300">{cmd}</code><span className="text-gray-600 dark:text-gray-300">{text}</span></li>
     );
 
-    const formEntity = formReq ? ENTITIES[FORM_ENTITY[formReq.kind]] : null;
-
     return (
         <div className="relative" ref={wrapRef}>
-            {formReq && formReq.mode === 'edit' && !editRec && formEntity && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setFormReq(null)}>
-                    <div onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-md rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-xl">
-                        <p className="mb-2 text-sm font-medium text-gray-800 dark:text-gray-100">Pick the {formReq.kind} to update</p>
-                        <SearchSelect value={null} portal
-                            endpoint={`/data/form-options?kind=${formReq.kind}${companyId ? `&company=${companyId}` : ''}`}
-                            placeholder={`Search ${formReq.kind}s…`}
-                            onChange={(id) => {
-                                if (!id) return;
-                                fetch(formEntity.detailEndpoint(id), { headers: { Accept: 'application/json' } })
-                                    .then((r) => (r.ok ? r.json() : null))
-                                    .then((rec) => { if (rec) setEditRec(rec); });
-                            }} />
-                    </div>
+            {flash && (
+                <div className="fixed bottom-4 right-4 z-50 rounded-md border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-500/10 px-3 py-1.5 text-sm text-green-700 dark:text-green-400 shadow-sm">
+                    {flash}
                 </div>
-            )}
-            {formReq && formEntity && (formReq.mode === 'new' || editRec) && (
-                <RecordModal
-                    title={formReq.mode === 'edit' ? `Edit ${formReq.kind}` : `Add ${formReq.kind}`}
-                    endpoint={formReq.mode === 'edit' ? formEntity.detailEndpoint(editRec.id) : formEntity.add.endpoint}
-                    method={formReq.mode === 'edit' ? 'PATCH' : 'POST'}
-                    fields={formReq.mode === 'edit' ? formEntity.edit.fields : formEntity.add.fields}
-                    initial={formReq.mode === 'edit' ? editRec : {}}
-                    extra={formReq.mode === 'new' && companyId ? { company_id: companyId } : {}}
-                    onClose={() => { setFormReq(null); setEditRec(null); }}
-                    onSaved={() => { setFormReq(null); setEditRec(null); }} />
             )}
             {helpOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setHelpOpen(false)}>

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import BrandMark from '@/Components/BrandMark';
 import ThemeToggle from '@/Components/ThemeToggle';
 import RecordModal from '@/Components/RecordModal';
+import GlobalFormDrawer from '@/Components/GlobalFormDrawer';
 
 /** Fields for the inline "Add company" in the switcher. */
 const COMPANY_FIELDS = [
@@ -27,6 +28,7 @@ export default function AppShell({ nav = null, detail = null, active = null, foo
 
     return (
         <div className="h-screen overflow-hidden bg-gray-100 dark:bg-gray-950 flex flex-col">
+            <GlobalFormDrawer />
             {/* Row 1 — global header */}
             <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shadow-sm">
                 <div className="flex items-center gap-6">
