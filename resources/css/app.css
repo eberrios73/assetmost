@@ -206,6 +206,14 @@ section.sop-step { padding: 0.5rem 0.9rem 0.5rem 2.3rem; margin: 0.5rem 0; }
 .sop-step-content ul > li::before { top: 0.35rem; left: 0.7rem; }
 .sop-sub-chrome { top: 0.25rem; }
 
+/* Recognized slash commands render as pills — proof the token parsed. */
+.sop-cmd-pill {
+    border: 1px solid #bfdbfe; border-radius: 9999px;
+    background: #eff6ff; color: #1d4ed8;
+    padding: 0.05rem 0.45rem; font-weight: 500;
+}
+.dark .sop-cmd-pill { border-color: #1e3a8a; background: rgba(59, 130, 246, 0.1); color: #93c5fd; }
+
 /* The /form substep's live button — the form opens right on the SOP. */
 .sop-form-btn {
     border: 1px solid #bfdbfe; border-radius: 0.375rem;

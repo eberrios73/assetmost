@@ -1,5 +1,7 @@
 import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node, mergeAttributes, Extension } from '@tiptap/core';
+import { Plugin } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import ListItem from '@tiptap/extension-list-item';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -19,6 +21,70 @@ const parseFormToken = (text) => {
     const m = /\/form\s+(?:(new|edit)\s+)?(device|person|account|location)/i.exec(text || '');
     return m ? { mode: (m[1] || 'new').toLowerCase(), kind: m[2].toLowerCase() } : null;
 };
+
+// --- command pills ----------------------------------------------------------
+// Recognized slash commands render as PILLS — visible proof the token parsed
+// and will resolve at generation. The registry arrives async: setKnownCmds()
+// swaps the set and the editor nudges itself to re-decorate.
+let KNOWN_CMDS = new Set(['install', 'vpn', 'mdm', 'form']);
+const setKnownCmds = (names) => {
+    KNOWN_CMDS = new Set(['install', 'vpn', 'mdm', 'form', ...names.filter(Boolean).map((n) => n.toLowerCase())]);
+};
+
+/** Same-named commands: the company row overrides the shipped one, blank
+ *  fields falling back — mirrors the generator, so the menu shows ONE entry
+ *  per command and it's the one that actually runs. */
+const mergeSnippets = (list) => {
+    const byCmd = new Map();
+    for (const s of list) {
+        const k = s.command.toLowerCase();
+        const prev = byCmd.get(k);
+        if (!prev) { byCmd.set(k, s); continue; }
+        const company = s.shipped ? prev : s;
+        const global = s.shipped ? s : prev;
+        byCmd.set(k, {
+            ...company,
+            label: company.label || global.label,
+            params: company.params || global.params,
+            mac_script: company.mac_script || global.mac_script,
+            windows_script: company.windows_script || global.windows_script,
+            linux_script: company.linux_script || global.linux_script,
+        });
+    }
+    return [...byCmd.values()];
+};
+
+const CmdPills = Extension.create({
+    name: 'cmdPills',
+    addProseMirrorPlugins() {
+        return [new Plugin({
+            props: {
+                decorations(state) {
+                    const decos = [];
+                    state.doc.descendants((node, pos) => {
+                        if (!node.isTextblock) return true;
+                        // textBetween with 1-char leaf placeholders keeps offsets 1:1
+                        // with doc positions (textContent would drift past hard breaks).
+                        const text = node.textBetween(0, node.content.size, '￼', '￼');
+                        const re = /\/([a-zA-Z][\w-]*)/g;
+                        let m;
+                        while ((m = re.exec(text))) {
+                            // Path segments (/installs/mac, http://…) stay plain: a pill
+                            // needs start-or-whitespace before and a break after.
+                            if (m.index > 0 && !/\s/.test(text[m.index - 1])) continue;
+                            const next = text[m.index + m[0].length];
+                            if (next && !/\s/.test(next)) continue;
+                            if (!KNOWN_CMDS.has(m[1].toLowerCase())) continue;
+                            decos.push(Decoration.inline(pos + 1 + m.index, pos + 1 + m.index + m[0].length, { class: 'sop-cmd-pill' }));
+                        }
+                        return false;
+                    });
+                    return DecorationSet.create(state.doc, decos);
+                },
+            },
+        })];
+    },
+});
 
 // --- drag & drop for steps and substeps ------------------------------------
 // A grip on each card / substep starts a drag; cards and substeps accept drops.
@@ -475,8 +541,8 @@ const SLASH = [
 
 /** Notion/Docmost-style canvas: rich text + "/" slash menu. Autosaves HTML (debounced). */
 // Real extensions exported so the headless harness tests the SHIPPED node
-// views (chrome, drag & drop), not a re-implementation.
-export { SopStep, SopListItem };
+// views (chrome, drag & drop, pills), not a re-implementation.
+export { SopStep, SopListItem, CmdPills, setKnownCmds, mergeSnippets };
 
 export default function DocEditor({ pageId, initialBody, onSave, osDefault = '', ownerDefault = '', companyId = null }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
@@ -500,12 +566,20 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
             .then((r) => r.json()).then((d) => setSnippets(Array.isArray(d) ? d : [])).catch(() => {});
     }, []);
 
+    // One menu entry per command (company overrides shipped) — also the pill set.
+    const activeSnippets = mergeSnippets(snippets.filter((s) => s.active));
+    useEffect(() => {
+        setKnownCmds([...activeSnippets.map((s) => s.command), ...refs.map((r) => r.slug)]);
+        if (editor && !editor.isDestroyed) editor.view.dispatch(editor.state.tr);
+    }, [snippets, refs]);
+
     const editor = useEditor({
         extensions: [
             StarterKit.configure({ codeBlock: false, listItem: false }),
             SopListItem,
             CodeBlockWithCopy,
             SopStep,
+            CmdPills,
             Placeholder.configure({ placeholder: "Type '/' for commands, or just start writing…" }),
             Table.configure({ resizable: true }),
             TableRow,
@@ -659,7 +733,7 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
         ];
         // Registry commands: everything in Docs > Commands is a slash command. The
         // hint shows its declared params; args are typed after it on the substep line.
-        const snippetItems = snippets.filter((s) => s.active).map((s) => ({
+        const snippetItems = activeSnippets.map((s) => ({
             key: `snip:${s.command}`,
             label: `/${s.command}${s.params ? ' ' + s.params.split(',').map((p) => p.trim()).join(' ') : ''}`,
             hint: s.label || 'SOP command',

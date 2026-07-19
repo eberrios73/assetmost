@@ -242,6 +242,22 @@ class MachineOnboardController extends Controller
             ->where(fn ($w) => $w->whereNull('company_id')->orWhere('company_id', $companyId))
             ->get();
 
+        // Same-named commands: the company row OVERRIDES the shipped one, blank
+        // fields falling back to it — an empty stub saved under Commands must not
+        // shadow (or double-emit next to) a working shipped command.
+        $byCmd = [];
+        foreach ($snippets as $s) {
+            $k = strtolower($s->command);
+            $prev = $byCmd[$k] ?? null;
+            if (! $prev) { $byCmd[$k] = $s; continue; }
+            [$company, $global] = $s->company_id ? [$s, $prev] : [$prev, $s];
+            foreach (['label', 'params', 'mac_script', 'windows_script', 'linux_script'] as $f) {
+                if (blank($company->$f)) $company->$f = $global->$f;
+            }
+            $byCmd[$k] = $company;
+        }
+        $snippets = collect(array_values($byCmd));
+
         $found = [];
         foreach ($snippets as $s) {
             if (! preg_match_all('~/' . preg_quote($s->command, '~') . '\b([^\n/]*)~i', $blob, $m, PREG_OFFSET_CAPTURE)) continue;
