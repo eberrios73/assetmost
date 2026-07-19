@@ -86,6 +86,36 @@ const CmdPills = Extension.create({
     },
 });
 
+// Two back-to-back substep lists in one card read as one list — make the
+// document agree: whenever an edit leaves a step card with directly-adjacent
+// bulletLists, join them (re-runs until stable; a paragraph between lists is
+// content and blocks the join).
+const JoinSubLists = Extension.create({
+    name: 'joinSubLists',
+    addProseMirrorPlugins() {
+        return [new Plugin({
+            appendTransaction(trs, oldState, newState) {
+                if (!trs.some((t) => t.docChanged)) return null;
+                let tr = null;
+                newState.doc.descendants((node, pos) => {
+                    if (tr || node.type.name !== 'sopStep') return !tr;
+                    let child = pos + 1;
+                    let prevWasUl = false;
+                    node.forEach((c) => {
+                        if (!tr && c.type.name === 'bulletList' && prevWasUl) {
+                            try { tr = newState.tr.join(child); } catch { /* not joinable */ }
+                        }
+                        prevWasUl = c.type.name === 'bulletList';
+                        child += c.nodeSize;
+                    });
+                    return false;
+                });
+                return tr;
+            },
+        })];
+    },
+});
+
 // --- drag & drop for steps and substeps ------------------------------------
 // A grip on each card / substep starts a drag; cards and substeps accept drops.
 // getPos closures stay valid, so positions are read AT DROP TIME; the move is
@@ -306,12 +336,9 @@ const SopStep = Node.create({
                     const pos = getPos();
                     const n = editor.state.doc.nodeAt(pos);
                     if (!n) return;
-                    const end = pos + n.nodeSize - 1;
-                    if (n.lastChild && n.lastChild.type.name === 'bulletList') {
-                        editor.chain().focus().insertContentAt(end - 1, '<li><p></p></li>').run();
-                    } else {
-                        editor.chain().focus().insertContentAt(end, '<ul><li><p></p></li></ul>').run();
-                    }
+                    const slot = subListSlot(n, pos);
+                    editor.chain().focus().insertContentAt(slot.at,
+                        slot.hasList ? '<li><p></p></li>' : '<ul><li><p></p></li></ul>').run();
                 }),
                 mkBtn('×', 'remove step', () => {
                     const pos = getPos();
@@ -333,10 +360,9 @@ const SopStep = Node.create({
                 if (!n || !sopDrag) return;
                 if (sopDrag.type === 'step') {
                     moveDragged(editor, pos + n.nodeSize);
-                } else if (n.lastChild && n.lastChild.type.name === 'bulletList') {
-                    moveDragged(editor, pos + n.nodeSize - 2);
                 } else {
-                    moveDragged(editor, pos + n.nodeSize - 1, true);
+                    const slot = subListSlot(n, pos);
+                    moveDragged(editor, slot.at, !slot.hasList);
                 }
             });
             return {
@@ -392,6 +418,20 @@ const toHtml = (body) => {
 // landed outside the card. Text inserts as a text NODE (a plain string starting
 // with "/" is not parsed as HTML, and escaping it double-escapes).
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// The card's substep list is its LAST bulletList child — not necessarily the
+// last child (a trailing paragraph must not spawn a second list). Returns the
+// li-insertion point inside it, or the create-a-list point at the card's end.
+const subListSlot = (node, pos) => {
+    let ulStart = null, ulNode = null;
+    let child = pos + 1;
+    node.forEach((c) => {
+        if (c.type.name === 'bulletList') { ulStart = child; ulNode = c; }
+        child += c.nodeSize;
+    });
+    return ulNode
+        ? { at: ulStart + ulNode.nodeSize - 1, hasList: true }
+        : { at: pos + node.nodeSize - 1, hasList: false };
+};
 const stepAncestor = (e) => {
     const { $from } = e.state.selection;
     for (let d = $from.depth; d > 0; d--) {
@@ -414,12 +454,13 @@ const asSubstep = (e, range, text) => {
         return del.insertContentAt(range.from, { type: 'text', text }).run();
     }
     if (step) {
-        // The card's end, in post-delete coordinates (the range sits inside the card).
-        const end = step.pos + step.node.nodeSize - 1 - shift;
-        const hasUl = step.node.lastChild && step.node.lastChild.type.name === 'bulletList';
-        return hasUl
-            ? del.insertContentAt(end - 1, `<li><p>${esc(text)}</p></li>`).run()
-            : del.insertContentAt(end, `<ul><li><p>${esc(text)}</p></li></ul>`).run();
+        // Post-delete coordinates: the slot only shifts if the typed token sat
+        // before it (title or a paragraph above the list).
+        const slot = subListSlot(step.node, step.pos);
+        const at = slot.at - (range.to <= slot.at ? shift : 0);
+        return slot.hasList
+            ? del.insertContentAt(at, `<li><p>${esc(text)}</p></li>`).run()
+            : del.insertContentAt(at, `<ul><li><p>${esc(text)}</p></li></ul>`).run();
     }
     return del.insertContentAt(range.from, `<ul><li><p>${esc(text)}</p></li></ul>`).run();
 };
@@ -542,7 +583,7 @@ const SLASH = [
 /** Notion/Docmost-style canvas: rich text + "/" slash menu. Autosaves HTML (debounced). */
 // Real extensions exported so the headless harness tests the SHIPPED node
 // views (chrome, drag & drop, pills), not a re-implementation.
-export { SopStep, SopListItem, CmdPills, setKnownCmds, mergeSnippets };
+export { SopStep, SopListItem, CmdPills, JoinSubLists, setKnownCmds, mergeSnippets, asSubstep };
 
 export default function DocEditor({ pageId, initialBody, onSave, osDefault = '', ownerDefault = '', companyId = null }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
@@ -580,6 +621,7 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
             CodeBlockWithCopy,
             SopStep,
             CmdPills,
+            JoinSubLists,
             Placeholder.configure({ placeholder: "Type '/' for commands, or just start writing…" }),
             Table.configure({ resizable: true }),
             TableRow,

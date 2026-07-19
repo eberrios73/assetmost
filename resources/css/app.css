@@ -122,7 +122,10 @@ section.sop-step {
 /* Collapsed: title-only, for scanning long SOPs. */
 .sop-collapsed .sop-step-content > *:not(:first-child) { display: none; }
 /* Substeps: numbered mini-cards. */
-.sop-step-content ul { list-style: none; padding-left: 0.5rem; counter-reset: sop-sub; }
+/* The substep counter lives on the CARD, not the list — numbering runs
+   continuously even if the card ends up holding more than one list. */
+.sop-step-content { counter-reset: sop-sub; }
+.sop-step-content ul { list-style: none; padding-left: 0.5rem; }
 .sop-step-content ul > li {
     counter-increment: sop-sub;
     position: relative;
