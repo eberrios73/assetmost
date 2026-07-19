@@ -208,11 +208,13 @@ class MachineOnboardController extends Controller
                 'ASSET_TAG' => $device->asset_tag, 'BASE_URL' => $base, 'TOKEN' => $token,
                 'REPO' => rtrim($device->company?->installers_url ?? '', '/'),
                 'DOMAIN' => $device->company?->domain, 'LOCAL_DOMAIN' => $device->company?->local_domain,
-                // Company credentials — inserted at generation, never in docs.
+                // Company credentials — inserted at generation, never in docs. The
+                // domain-join credential is a LOGIN in the registry the company
+                // points at; rotate it there and the next script picks it up.
                 'LOCAL_ADMIN_USER' => $device->company?->local_admin_user,
                 'LOCAL_ADMIN_PASS' => $device->company?->local_admin_pass,
-                'DOMAIN_JOIN_USER' => $device->company?->domain_join_user,
-                'DOMAIN_JOIN_PASS' => $device->company?->domain_join_pass,
+                'DOMAIN_JOIN_USER' => ($dj = \App\Models\Login::withoutGlobalScopes()->find($device->company?->domain_join_login_id))?->login_id,
+                'DOMAIN_JOIN_PASS' => $dj?->login_pass,
             ])
             : '';
 
