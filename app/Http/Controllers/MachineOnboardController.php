@@ -35,8 +35,7 @@ class MachineOnboardController extends Controller
         // The active device workflows — the machine picks from these runbooks.
         $workflows = \App\Models\DocPage::query()
             ->where('workflow_type', 'device')->where('workflow_active', true)
-            ->whereNotNull('form_factor')
-            ->orderBy('form_factor')
+            ->orderByRaw('form_factor IS NULL')->orderBy('form_factor')
             ->get(['id', 'title', 'form_factor', 'workflow_steps'])
             ->map(function ($p) use ($companyId) {
                 $steps = json_decode($p->workflow_steps ?? '', true)['steps'] ?? [];

@@ -166,6 +166,29 @@ class DocController extends Controller
         return response()->json(['ok' => true, 'id' => $copy->id], 201);
     }
 
+    /**
+     * Promote a plain doc into a runnable workflow: it gains the Info | SOP |
+     * Script tabs, compiles its body into steps, shows in its type's onboarding
+     * list, and its /form tokens produce record forms on generated tasks.
+     */
+    public function promote(Request $request, DocPage $page): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        abort_if($page->workflow_type, 422, 'Already a workflow.');
+        $data = $request->validate(['type' => 'required|in:people,device']);
+
+        $parsed = \App\Support\SopDocParser::parse($page->body ?? '');
+        $page->forceFill([
+            'workflow_type' => $data['type'],
+            'workflow_active' => true,
+            'workflow_shipped' => false,
+            'workflow_wizard' => $data['type'] === 'people',   // people SOPs get the run wizard
+            'workflow_steps' => json_encode($parsed),
+        ])->save();
+
+        return response()->json(['ok' => true]);
+    }
+
     /** The OS a form factor implies, for the SOP header's OS row. */
     public static function osFromFormFactor(?string $ff): string
     {

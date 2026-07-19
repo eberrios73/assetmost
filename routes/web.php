@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/data/snippets/{snippet}', [$sn, 'update']);
     Route::delete('/data/snippets/{snippet}', [$sn, 'destroy']);
     Route::post('/data/docs/{page}/new-version', [$doc, 'newVersion']);
+    Route::post('/data/docs/{page}/promote', [$doc, 'promote']);
     Route::post('/data/docs', [$doc, 'store']);
     Route::get('/data/docs/{page}', [$doc, 'show']);
     Route::patch('/data/docs/{page}', [$doc, 'update']);

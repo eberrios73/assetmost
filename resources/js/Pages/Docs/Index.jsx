@@ -133,6 +133,15 @@ export default function Index() {
         openPage(id);
     };
 
+    // Promote a plain doc into a runnable workflow (people or device).
+    const promote = async (type) => {
+        if (!type) return;
+        await api(`/data/docs/${selectedId}/promote`, 'POST', { type });
+        const p = await api(`/data/docs/${selectedId}`);
+        if (p && p.id) setPage(p);
+        loadTree();
+    };
+
     // Search every page (title first, then body), debounced; results replace the tree.
     const runSearch = (q) => {
         setSearchQ(q);
@@ -261,6 +270,14 @@ export default function Index() {
                         <option value="">Uncategorized</option>
                         {DOC_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
+                    {!page.workflow_type && (
+                        <select value="" onChange={(e) => promote(e.target.value)} title="Make this doc runnable — it compiles to steps, tasks and scripts"
+                            className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-sm py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Static doc</option>
+                            <option value="people">Run as People workflow</option>
+                            <option value="device">Run as Device workflow</option>
+                        </select>
+                    )}
                     {(page.workflow_type || ['SOP', 'Runbook'].includes(page.category)) && (
                         <button onClick={newVersion} title="Duplicate as the next version (original stands)"
                             className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">New version</button>
