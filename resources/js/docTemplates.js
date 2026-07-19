@@ -6,7 +6,6 @@
 // compile to chained checklist tasks. Guidance paragraphs are deliberately over 20
 // words — the parser treats long prose as context, never as a step.
 const SOP = `
-<p>An SOP is a recipe: anyone competent should get the same result by following it. Fill in the header, keep each step a single action, and say how you prove it worked. Delete the grey guidance as you go.</p>
 <table><tbody>
 <tr><td><p><strong>Why:</strong></p></td><td colspan="7"><p></p></td></tr>
 <tr><td><p><strong>How:</strong></p></td><td colspan="7"><p></p></td></tr>
