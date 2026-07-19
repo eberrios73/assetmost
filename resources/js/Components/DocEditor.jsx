@@ -236,11 +236,6 @@ const asSubstep = (e, range, text) => {
 // field row (Done when etc.) or substeps only where a step earns them.
 const STEP_SCAFFOLD = '<section data-sop-step><p><strong>New step</strong></p><p></p></section><p></p>';
 const fieldRows = (labels) => labels.map((l) => `<tr><td><p><strong>${l}:</strong></p></td><td><p></p></td></tr>`).join('');
-// The /sop scaffold: the document-level header table of a formal SOP — purpose,
-// approach, tools, safety, governance. Every row optional; remove what you don't need.
-const SOP_SCAFFOLD = '<table><tbody>'
-    + fieldRows(['OS', 'Why', 'How', 'Tools and Materials', 'Safety Precautions', 'Owner', 'Version'])
-    + '</tbody></table><p></p>';
 
 /**
  * /sop inserts OR REFRESHES the SOP header: if the doc already has a header
@@ -249,7 +244,9 @@ const SOP_SCAFFOLD = '<table><tbody>'
  * values and custom rows kept. The command IS how a header catches up when
  * the vocabulary grows.
  */
-const SOP_STD_ROWS = ['OS', 'Why', 'How', 'Scope', 'Tools and Materials', 'Safety Precautions', 'Owner', 'Version', 'Status'];
+const SOP_TRIO = ['OS', 'Owner', 'Version'];                       // one compact row
+const SOP_SINGLE_ROWS = ['Why', 'How', 'Scope', 'Tools and Materials', 'Safety Precautions', 'Status'];
+const OS_CHOICES = ['macOS', 'Windows', 'Linux', 'iOS', 'Android'];
 const refreshSopHeader = (e, osDefault = '') => {
     const doc = e.state.doc;
     let tablePos = null;
@@ -261,35 +258,42 @@ const refreshSopHeader = (e, osDefault = '') => {
         if (child.type.name === 'table') { tablePos = offset; tableNode = child; }
     });
 
+    // Read label/value PAIRS from every row (handles single- and multi-pair rows).
     const existing = new Map();
     if (tableNode) {
         tableNode.forEach((row) => {
-            if (row.childCount < 2) return;
-            const label = row.child(0).textContent.replace(/:\s*$/, '').trim();
-            if (!label) return;
-            const lines = [];
-            row.child(1).forEach((p) => { if (p.textContent.trim() !== '') lines.push(p.textContent); });
-            existing.set(label.toLowerCase(), { label, lines });
+            for (let i = 0; i + 1 < row.childCount; i += 2) {
+                const label = row.child(i).textContent.replace(/:\s*$/, '').trim();
+                if (!label) continue;
+                const lines = [];
+                row.child(i + 1).forEach((p) => { if (p.textContent.trim() !== '') lines.push(p.textContent); });
+                existing.set(label.toLowerCase(), { label, lines });
+            }
         });
     }
 
-    const rowHtml = (label, lines) =>
-        `<tr><td><p><strong>${esc(label)}:</strong></p></td><td>${lines.length ? lines.map((l) => `<p>${esc(l)}</p>`).join('') : '<p></p>'}</td></tr>`;
-    let rows = '';
+    const cellHtml = (lines) => (lines.length ? lines.map((l) => `<p>${esc(l)}</p>`).join('') : '<p></p>');
     const used = new Set();
-    for (const label of SOP_STD_ROWS) {
+    const lookup = (label, def = []) => {
         used.add(label.toLowerCase());
         const ex = existing.get(label.toLowerCase());
         let lines = ex ? ex.lines : [];
-        if (!lines.length) {
-            if (label === 'OS' && osDefault) lines = [osDefault];
-            if (label === 'Version' && !ex) lines = ['1.0'];
-            if (label === 'Status' && !ex) lines = ['Draft'];
-        }
-        rows += rowHtml(label, lines);
+        if (!lines.length && !ex) lines = def;
+        if (label === 'OS' && !lines.length && osDefault) lines = [osDefault];
+        return lines;
+    };
+    let trioCells = '';
+    for (const label of SOP_TRIO) {
+        const lines = lookup(label, label === 'Version' ? ['1.0'] : []);
+        trioCells += `<td><p><strong>${esc(label)}:</strong></p></td><td>${cellHtml(lines)}</td>`;
+    }
+    let rows = `<tr>${trioCells}</tr>`;
+    for (const label of SOP_SINGLE_ROWS) {
+        const lines = lookup(label, label === 'Status' ? ['Draft'] : []);
+        rows += `<tr><td><p><strong>${esc(label)}:</strong></p></td><td>${cellHtml(lines)}</td></tr>`;
     }
     for (const [key, ex] of existing) {
-        if (!used.has(key)) rows += rowHtml(ex.label, ex.lines);   // custom rows survive
+        if (!used.has(key)) rows += `<tr><td><p><strong>${esc(ex.label)}:</strong></p></td><td>${cellHtml(ex.lines)}</td></tr>`;
     }
     const html = `<table><tbody>${rows}</tbody></table>`;
 
@@ -382,6 +386,27 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '' 
     const detectSlash = (ed) => {
         const { $from, empty } = ed.state.selection;
         if (!empty) return setMenu(null);
+        // The OS value cell (right after an "OS:" label) is a SELECTOR, not free
+        // text — entering it pops the canonical OS list.
+        for (let d = $from.depth; d > 0; d--) {
+            const n = $from.node(d);
+            if (n.type.name === 'tableCell' || n.type.name === 'tableHeader') {
+                const row = $from.node(d - 1);
+                if (row && row.type.name === 'tableRow') {
+                    const idx = $from.index(d - 1);
+                    if (idx % 2 === 1) {
+                        const label = row.child(idx - 1).textContent.replace(/:\s*$/, '').trim().toLowerCase();
+                        if (label === 'os' || label === 'platform') {
+                            const coords = ed.view.coordsAtPos($from.pos);
+                            return setMenu({ mode: 'os', query: n.textContent.trim().toLowerCase(),
+                                from: $from.start(d), to: $from.end(d),
+                                x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
+                        }
+                    }
+                }
+                break;
+            }
+        }
         const textBefore = $from.parent.textBetween(0, $from.parentOffset, '\n', '\0');
         // "/install office" / "/vpn profile" — commands that take an argument, resolved
         // by the build script to "download this from our share and install it".
@@ -455,6 +480,15 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '' 
         if (menu.query) picks.push({ key: 'vpn:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
             self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/vpn ${menu.query} `) });
         items = picks;
+    } else if (menu?.mode === 'os') {
+        // Canonical values only — never "Win" or "Windows, 11" or "Ubuntu".
+        items = OS_CHOICES.filter((o) => !menu.query || o.toLowerCase().includes(menu.query) || menu.query === o.toLowerCase())
+            .map((o) => ({ key: `os:${o}`, label: o, hint: "Set this SOP's OS", self: true,
+                run: (e) => e.chain().focus().deleteRange({ from: menu.from, to: menu.to }).insertContentAt(menu.from, `<p>${o}</p>`).run() }));
+        if (!items.length) {
+            items = OS_CHOICES.map((o) => ({ key: `os:${o}`, label: o, hint: "Set this SOP's OS", self: true,
+                run: (e) => e.chain().focus().deleteRange({ from: menu.from, to: menu.to }).insertContentAt(menu.from, `<p>${o}</p>`).run() }));
+        }
     } else if (menu?.mode === 'mdm') {
         // A fixed list, not the share — /mdm names the MDM the bootstrap script enrolls into.
         const MDM = ['Jamf', 'Intune', 'Kandji', 'Mosyle', 'Addigy', 'Workspace ONE'];

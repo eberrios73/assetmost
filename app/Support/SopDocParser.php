@@ -84,7 +84,9 @@ class SopDocParser
                     for ($i = 0; $i + 1 < count($cells); $i += 2) {
                         $k = strtolower(trim(rtrim(trim($cells[$i]), ':')));
                         if ($k !== '' && $cells[$i + 1] !== '' && isset($metaMap[$k])) {
-                            $meta[$metaMap[$k]] = $cells[$i + 1];
+                            $meta[$metaMap[$k]] = $metaMap[$k] === 'os'
+                                ? self::canonicalOs($cells[$i + 1])
+                                : $cells[$i + 1];
                         }
                     }
                 } elseif (preg_match('/procedure/i', $section)) {
@@ -304,6 +306,20 @@ class SopDocParser
         return $out;
     }
 
+    /** Whatever someone typed ("Win", "Windows, 11", "Ubuntu") → the canonical OS. */
+    public static function canonicalOs(string $v): string
+    {
+        $s = strtolower($v);
+        return match (true) {
+            (bool) preg_match('/mac|osx|os x/', $s) => 'macOS',
+            (bool) preg_match('/win/', $s) => 'Windows',
+            (bool) preg_match('/linux|ubuntu|debian|fedora|centos|rhel|mint/', $s) => 'Linux',
+            (bool) preg_match('/ios|iphone|ipad/', $s) => 'iOS',
+            (bool) preg_match('/android/', $s) => 'Android',
+            default => trim($v),
+        };
+    }
+
     private static function text(\DOMNode $n): string
     {
         $t = $n->textContent ?? '';
@@ -327,11 +343,19 @@ class SopDocParser
         };
         // The SOP header: document-level Why/How, Tools, Safety and governance as
         // one table at the top — every row optional; parse() reads them back to meta.
+        // OS, Owner and Version share ONE compact row (three label/value pairs).
         $header = '';
-        $headerRows = ['os' => 'OS', 'why' => 'Why', 'how' => 'How', 'scope' => 'Scope',
+        $trio = '';
+        foreach (['os' => 'OS', 'owner' => 'Owner', 'version' => 'Version'] as $k => $label) {
+            if (! empty($meta[$k])) {
+                $trio .= "<td><p><strong>{$label}:</strong></p></td><td>{$cellLines($meta[$k])}</td>";
+            }
+        }
+        if ($trio !== '') $header .= "<tr>{$trio}</tr>";
+        $headerRows = ['why' => 'Why', 'how' => 'How', 'scope' => 'Scope',
             'tools' => 'Tools and Materials', 'safety' => 'Safety Precautions',
-            'owner' => 'Owner', 'version' => 'Version', 'effective' => 'Effective',
-            'review_by' => 'Review by', 'approver' => 'Approver', 'status' => 'Status'];
+            'effective' => 'Effective', 'review_by' => 'Review by',
+            'approver' => 'Approver', 'status' => 'Status'];
         foreach ($headerRows as $k => $label) {
             if (! empty($meta[$k])) {
                 $header .= "<tr><td><p><strong>{$label}:</strong></p></td><td>{$cellLines($meta[$k])}</td></tr>";

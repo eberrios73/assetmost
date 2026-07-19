@@ -183,9 +183,14 @@ class DocController extends Controller
     public static function blankSopBody(array $meta = []): string
     {
         $esc = fn ($v) => htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8');
-        $rows = '';
-        foreach (['OS' => $meta['os'] ?? '', 'Why' => '', 'How' => '', 'Scope' => '', 'Tools and Materials' => '', 'Safety Precautions' => '',
-            'Owner' => '', 'Version' => $meta['version'] ?? '1.0', 'Status' => $meta['status'] ?? 'Draft'] as $label => $value) {
+        // OS · Owner · Version share one compact row; the rest get a row each.
+        $rows = '<tr>'
+            . "<td><p><strong>OS:</strong></p></td><td><p>{$esc($meta['os'] ?? '')}</p></td>"
+            . '<td><p><strong>Owner:</strong></p></td><td><p></p></td>'
+            . "<td><p><strong>Version:</strong></p></td><td><p>{$esc($meta['version'] ?? '1.0')}</p></td>"
+            . '</tr>';
+        foreach (['Why' => '', 'How' => '', 'Scope' => '', 'Tools and Materials' => '', 'Safety Precautions' => '',
+            'Status' => $meta['status'] ?? 'Draft'] as $label => $value) {
             $rows .= "<tr><td><p><strong>{$label}:</strong></p></td><td><p>{$esc($value)}</p></td></tr>";
         }
         return "<table><tbody>{$rows}</tbody></table>"
