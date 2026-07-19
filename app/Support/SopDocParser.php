@@ -347,16 +347,16 @@ class SopDocParser
         // present, single-row values span the width (colspan) so columns stay clean.
         $header = '';
         $trio = '';
-        foreach (['os' => 'OS', 'owner' => 'Owner', 'version' => 'Version'] as $k => $label) {
+        foreach (['os' => 'OS', 'owner' => 'Owner', 'version' => 'Version', 'status' => 'Status'] as $k => $label) {
             if (! empty($meta[$k])) {
                 $trio .= "<td><p><strong>{$label}:</strong></p></td><td>{$cellLines($meta[$k])}</td>";
             }
         }
-        $span = $trio !== '' ? ' colspan="5"' : '';
+        $span = $trio !== '' ? ' colspan="7"' : '';
         $headerRows = ['why' => 'Why', 'how' => 'How', 'scope' => 'Scope',
             'tools' => 'Tools and Materials', 'safety' => 'Safety Precautions',
             'effective' => 'Effective', 'review_by' => 'Review by',
-            'approver' => 'Approver', 'status' => 'Status'];
+            'approver' => 'Approver'];
         foreach ($headerRows as $k => $label) {
             if (! empty($meta[$k])) {
                 $header .= "<tr><td><p><strong>{$label}:</strong></p></td><td{$span}>{$cellLines($meta[$k])}</td></tr>";

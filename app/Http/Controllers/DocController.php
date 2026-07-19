@@ -186,14 +186,14 @@ class DocController extends Controller
         // Content rows first (values span the width); OS · Owner · Version share
         // one compact row as the LAST row.
         $rows = '';
-        foreach (['Why' => '', 'How' => '', 'Scope' => '', 'Tools and Materials' => '', 'Safety Precautions' => '',
-            'Status' => $meta['status'] ?? 'Draft'] as $label => $value) {
-            $rows .= "<tr><td><p><strong>{$label}:</strong></p></td><td colspan=\"5\"><p>{$esc($value)}</p></td></tr>";
+        foreach (['Why' => '', 'How' => '', 'Scope' => '', 'Tools and Materials' => '', 'Safety Precautions' => ''] as $label => $value) {
+            $rows .= "<tr><td><p><strong>{$label}:</strong></p></td><td colspan=\"7\"><p>{$esc($value)}</p></td></tr>";
         }
         $rows .= '<tr>'
             . "<td><p><strong>OS:</strong></p></td><td><p>{$esc($meta['os'] ?? '')}</p></td>"
             . '<td><p><strong>Owner:</strong></p></td><td><p></p></td>'
             . "<td><p><strong>Version:</strong></p></td><td><p>{$esc($meta['version'] ?? '1.0')}</p></td>"
+            . "<td><p><strong>Status:</strong></p></td><td><p>{$esc($meta['status'] ?? 'Draft')}</p></td>"
             . '</tr>';
         return "<table><tbody>{$rows}</tbody></table>"
             . '<h2>Procedure</h2><section data-sop-step><p><strong>New step</strong></p><p></p></section>';

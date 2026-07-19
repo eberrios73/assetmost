@@ -244,8 +244,8 @@ const fieldRows = (labels) => labels.map((l) => `<tr><td><p><strong>${l}:</stron
  * values and custom rows kept. The command IS how a header catches up when
  * the vocabulary grows.
  */
-const SOP_TRIO = ['OS', 'Owner', 'Version'];                       // one compact row
-const SOP_SINGLE_ROWS = ['Why', 'How', 'Scope', 'Tools and Materials', 'Safety Precautions', 'Status'];
+const SOP_TRIO = ['OS', 'Owner', 'Version', 'Status'];             // one compact LAST row
+const SOP_SINGLE_ROWS = ['Why', 'How', 'Scope', 'Tools and Materials', 'Safety Precautions'];
 const OS_CHOICES = ['macOS', 'Windows', 'Linux', 'iOS', 'Android'];
 const refreshSopHeader = (e, osDefault = '') => {
     const doc = e.state.doc;
@@ -287,16 +287,16 @@ const refreshSopHeader = (e, osDefault = '') => {
     // before the custom-row sweep.
     let trioCells = '';
     for (const label of SOP_TRIO) {
-        const lines = lookup(label, label === 'Version' ? ['1.0'] : []);
+        const lines = lookup(label, label === 'Version' ? ['1.0'] : label === 'Status' ? ['Draft'] : []);
         trioCells += `<td><p><strong>${esc(label)}:</strong></p></td><td>${cellHtml(lines)}</td>`;
     }
     let rows = '';
     for (const label of SOP_SINGLE_ROWS) {
-        const lines = lookup(label, label === 'Status' ? ['Draft'] : []);
-        rows += `<tr><td><p><strong>${esc(label)}:</strong></p></td><td colspan="5">${cellHtml(lines)}</td></tr>`;
+        const lines = lookup(label);
+        rows += `<tr><td><p><strong>${esc(label)}:</strong></p></td><td colspan="7">${cellHtml(lines)}</td></tr>`;
     }
     for (const [key, ex] of existing) {
-        if (!used.has(key)) rows += `<tr><td><p><strong>${esc(ex.label)}:</strong></p></td><td colspan="5">${cellHtml(ex.lines)}</td></tr>`;
+        if (!used.has(key)) rows += `<tr><td><p><strong>${esc(ex.label)}:</strong></p></td><td colspan="7">${cellHtml(ex.lines)}</td></tr>`;
     }
     rows += `<tr>${trioCells}</tr>`;
     const html = `<table><tbody>${rows}</tbody></table>`;
