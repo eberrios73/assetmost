@@ -15,10 +15,9 @@ const SOP = `
 <tr><td><p><strong>OS:</strong></p></td><td><p></p></td><td><p><strong>Owner:</strong></p></td><td><p>__OWNER__</p></td><td><p><strong>Version:</strong></p></td><td><p>1.0</p></td><td><p><strong>Status:</strong></p></td><td><p>Draft</p></td></tr>
 </tbody></table>
 <h2>Procedure</h2>
-<p><em>One action per step card, in order, written as a command ("Lock out the power source"). Type /step for a new card, use the card's ↳+ for substeps and ⊞ for a Why/How/Done-when table on a step that earns one; /install, /vpn, /mdm and /form drop live commands into the procedure.</em></p>
 <section data-sop-step><p><strong>New step</strong></p><p></p></section>
-<h2>Verification</h2><p><em>How you PROVE it worked — something observable, not "I did the steps." (BitLocker isn't done when the bar fills; it's done when the key is visible in AD.)</em></p>
-<h2>Rollback / recovery</h2><p><em>If it goes wrong: how to get back to a known-good state.</em></p>
+<h2>Verification</h2><p></p>
+<h2>Rollback / recovery</h2><p></p>
 <h2>Revision history</h2>
 <table><tbody>
 <tr><th>Date</th><th>Version</th><th>Change</th><th>By</th></tr>

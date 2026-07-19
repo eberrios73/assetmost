@@ -323,6 +323,8 @@ const insertBlockSafe = (e, html) => {
 };
 
 const SLASH = [
+    // Opens the cheatsheet panel instead of inserting anything (handled in apply).
+    { key: 'help', label: 'Help', hint: 'The SOP cheatsheet — commands, cards, header rows', help: true, run: () => {} },
     // /step inside an existing card inserts the new card AFTER it (never nested).
     { key: 'step', label: 'Step', hint: 'New SOP step — a lean action card; ⊞ adds fields, ↳+ substeps', run: (e) => {
         const step = stepAncestor(e);
@@ -348,6 +350,7 @@ const SLASH = [
 /** Notion/Docmost-style canvas: rich text + "/" slash menu. Autosaves HTML (debounced). */
 export default function DocEditor({ pageId, initialBody, onSave, osDefault = '', ownerDefault = '' }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
+    const [helpOpen, setHelpOpen] = useState(false);
     const [refs, setRefs] = useState([]);         // runbook references: [{slug, name}]
     const [installers, setInstallers] = useState([]);   // indexed installers share
     const [snippets, setSnippets] = useState([]);       // the commands registry
@@ -540,6 +543,13 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
 
     const apply = (item) => {
         if (!editor || !item) return;
+        // /help opens the cheatsheet; the typed token is removed, nothing inserted.
+        if (item.help) {
+            editor.chain().focus().deleteRange({ from: menu.from, to: menu.to }).run();
+            setMenu(null);
+            setHelpOpen(true);
+            return;
+        }
         // Token picks (self: true) delete their own typed range and insert at an
         // anchored position in ONE transaction — then the menu closes for good.
         if (item.self) {
@@ -613,8 +623,41 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
         </button>
     );
 
+    const helpRow = (cmd, text) => (
+        <li className="flex gap-3"><code className="shrink-0 w-40 text-blue-700 dark:text-blue-300">{cmd}</code><span className="text-gray-600 dark:text-gray-300">{text}</span></li>
+    );
+
     return (
         <div className="relative" ref={wrapRef}>
+            {helpOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setHelpOpen(false)}>
+                    <div onClick={(e) => e.stopPropagation()}
+                        className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 text-sm shadow-xl">
+                        <div className="mb-3 flex items-center justify-between">
+                            <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">SOP cheatsheet</h2>
+                            <button onClick={() => setHelpOpen(false)} className="px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">×</button>
+                        </div>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Structure</p>
+                        <ul className="mb-3 space-y-1">
+                            {helpRow('/sop', 'Insert or refresh the header table — adds missing rows, keeps your values. OS is a picker; Tools and Safety lines become real tasks ahead of the procedure.')}
+                            {helpRow('/step', 'A new step card — one action per card, written as a command. ↑↓ move · ≡ collapse · ⊞ add a Why/How/Done-when table · ↳+ add a substep · × remove.')}
+                            {helpRow('/table', 'Generic table, the SOP header, or a step-fields table.')}
+                        </ul>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Live commands (insert as substeps)</p>
+                        <ul className="mb-3 space-y-1">
+                            {helpRow('/install name', 'Pull an installer from the share — picker reads the catalog; "/install mac office" filters by platform.')}
+                            {helpRow('/vpn profile', 'Pull and import a VPN config from the share.')}
+                            {helpRow('/mdm system', 'Enroll into Jamf, Intune, … (profile fetched from the share when present).')}
+                            {helpRow('/form new device', 'The generated task carries an add-record form (new) or a pick-and-edit form (edit) — device, person, account, location.')}
+                            {helpRow('/banner, /wifi…', 'Commands from Docs > Commands — args after the name map onto their params; anything left out is asked at the bench. Add your own there.')}
+                        </ul>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Header rows</p>
+                        <p className="mb-3 text-gray-600 dark:text-gray-300">Every row is optional. Why = purpose, How = approach, Scope = boundaries. The OS row decides which script the SOP generates. Owner is the one person who keeps the document true; Version bumps on every change; Status stays Draft until approved.</p>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Placeholders (fill at run time)</p>
+                        <p className="text-gray-600 dark:text-gray-300"><code>{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code> in people SOPs; <code>{'{ASSET_TAG} {REPO} {BASE_URL}'}</code> in scripts.</p>
+                    </div>
+                </div>
+            )}
             {inTable && editor && tblPos?.table && (
                 <>
                     {/* + centered ON the bottom border: add row. + on the right border: add column. */}
