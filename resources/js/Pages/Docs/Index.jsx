@@ -469,7 +469,7 @@ function SnippetEditor({ snippet, api, onChanged, onDeleted }) {
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-950 p-4 font-mono text-xs leading-relaxed text-green-300 focus:border-blue-500 focus:ring-blue-500" />
             <p className="mt-2 text-xs text-gray-400">
                 Variables: {paramNames.length ? paramNames.map((p) => `{${p}}`).join(' ') + ' · ' : ''}
-                {'{*} {1}… · {ASSET_TAG} {BASE_URL} {TOKEN} {REPO} {DOMAIN} {LOCAL_DOMAIN}'} — <code>report 'step' true 'note'</code> ticks the checklist.
+                {'{*} {1}… · {ASSET_TAG} {BASE_URL} {TOKEN} {REPO} {DOMAIN} {LOCAL_DOMAIN} {LOCAL_ADMIN_USER} {LOCAL_ADMIN_PASS} {DOMAIN_JOIN_USER} {DOMAIN_JOIN_PASS}'} — <code>report 'step' true 'note'</code> ticks the checklist.
                 Params given in the SOP bake in; params left out make the script <em>ask and wait</em> at run time (secret-ish names prompt silently).
             </p>
             <label className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">

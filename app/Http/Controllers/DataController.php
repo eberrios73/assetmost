@@ -85,6 +85,8 @@ class DataController extends Controller
             'installers_url' => 'nullable|string|max:500',
             'local_admin_user' => 'nullable|string|max:255',
             'local_admin_pass' => 'nullable|string|max:255',
+            'domain_join_user' => 'nullable|string|max:255',
+            'domain_join_pass' => 'nullable|string|max:255',
             'contact_name' => 'nullable|string|max:255', 'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255', 'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:2',

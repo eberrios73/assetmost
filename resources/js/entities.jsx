@@ -201,6 +201,8 @@ export const ENTITIES = {
             { key: 'installers_url', label: 'Installers URL' },
             { key: 'local_admin_user', label: 'Local admin user (/localadmin)' },
             { key: 'local_admin_pass', label: 'Local admin password', type: 'password' },
+            { key: 'domain_join_user', label: 'Domain join user (/domainjoin)' },
+            { key: 'domain_join_pass', label: 'Domain join password', type: 'password' },
             { key: 'contact_name', label: 'Contact' }, { key: 'email', label: 'Email', type: 'email' },
             { key: 'phone', label: 'Phone' }, { key: 'address', label: 'Address' },
             { key: 'city', label: 'City' }, { key: 'state', label: 'State', maxLength: 2 },

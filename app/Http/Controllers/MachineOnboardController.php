@@ -208,9 +208,11 @@ class MachineOnboardController extends Controller
                 'ASSET_TAG' => $device->asset_tag, 'BASE_URL' => $base, 'TOKEN' => $token,
                 'REPO' => rtrim($device->company?->installers_url ?? '', '/'),
                 'DOMAIN' => $device->company?->domain, 'LOCAL_DOMAIN' => $device->company?->local_domain,
-                // The company's standard local admin — inserted at generation, never in docs.
+                // Company credentials — inserted at generation, never in docs.
                 'LOCAL_ADMIN_USER' => $device->company?->local_admin_user,
                 'LOCAL_ADMIN_PASS' => $device->company?->local_admin_pass,
+                'DOMAIN_JOIN_USER' => $device->company?->domain_join_user,
+                'DOMAIN_JOIN_PASS' => $device->company?->domain_join_pass,
             ])
             : '';
 
@@ -580,6 +582,8 @@ class MachineOnboardController extends Controller
                 // inserted only when a machine script is generated at /onboard.
                 'LOCAL_ADMIN_USER' => '{LOCAL_ADMIN_USER}',
                 'LOCAL_ADMIN_PASS' => '{LOCAL_ADMIN_PASS}',
+                'DOMAIN_JOIN_USER' => '{DOMAIN_JOIN_USER}',
+                'DOMAIN_JOIN_PASS' => '{DOMAIN_JOIN_PASS}',
             ])
             : '';
 
