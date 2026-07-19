@@ -118,6 +118,8 @@ section.sop-step {
 .dark .sop-grip { color: #4b5563; }
 .dark .sop-grip:hover { color: #e5e7eb; }
 .sop-drop { outline: 2px solid #60a5fa; outline-offset: -2px; border-radius: 0.5rem; }
+.sop-dragging, .sop-dragging * { cursor: grabbing !important; user-select: none !important; }
+.sop-drag-src { opacity: 0.45; }
 .sop-step-content > p:first-child { font-weight: 600; padding-right: 8rem; margin-top: 0; }
 /* Collapsed: title-only, for scanning long SOPs. */
 .sop-collapsed .sop-step-content > *:not(:first-child) { display: none; }

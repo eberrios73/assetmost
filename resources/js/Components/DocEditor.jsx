@@ -117,27 +117,92 @@ const JoinSubLists = Extension.create({
 });
 
 // --- drag & drop for steps and substeps ------------------------------------
-// A grip on each card / substep starts a drag; cards and substeps accept drops.
+// POINTER-based, not HTML5 drag-and-drop: inside contentEditable the browser's
+// native text-drag competes with dnd and ProseMirror swallows the mousedown,
+// so the gesture never starts. The grip runs its own session instead:
+// mousedown → hit-test what's under the cursor → highlight → mouseup drops.
 // getPos closures stay valid, so positions are read AT DROP TIME; the move is
 // one transaction (delete + mapped insert). A substep that is its list's only
 // item takes the empty list with it.
 let sopDrag = null;   // { type: 'step'|'sub', getPos, editor }
 
-const mkGrip = (type, getPos, editor, dragEl) => {
+/** What's under the cursor: a substep (li) or a step card. The event's own
+ *  target is the browser's hit-test result — more reliable than a second
+ *  elementFromPoint pass. */
+const gripTarget = (editor, under) => {
+    if (!(under instanceof Element)) return null;
+    const card = under.closest('section.sop-step');
+    if (!card || !editor.view.dom.contains(card)) return null;
+    const li = under.closest('li');
+    return li && card.contains(li) ? { kind: 'li', el: li, card } : { kind: 'card', el: card, card };
+};
+
+/** Node views register their dom → getPos here, so a drop target's position
+ *  comes straight from its own node view. (posAtDOM is NOT usable at drop
+ *  time: the hover-highlight class mutations mark the view dirty between real
+ *  events and it returns -1.) */
+const GRIP_POS = new WeakMap();
+const pmAt = (editor, el) => {
+    const getPos = GRIP_POS.get(el);
+    const pos = typeof getPos === 'function' ? getPos() : null;
+    if (pos == null) return null;
+    const node = editor.state.doc.nodeAt(pos);
+    return node ? { node, pos } : null;
+};
+
+/** Perform the drop: substep after a substep, substep adopted by a card
+ *  (into its list, created if missing), or step after a card. */
+const dropGrip = (target) => {
+    if (!sopDrag || !target) return;
+    const { editor, type } = sopDrag;
+    if (type === 'sub' && target.kind === 'li') {
+        const tgt = pmAt(editor, target.el);
+        if (tgt) moveDragged(editor, tgt.pos + tgt.node.nodeSize);
+    } else if (type === 'sub') {
+        const tgt = pmAt(editor, target.card);
+        if (tgt) {
+            const slot = subListSlot(tgt.node, tgt.pos);
+            moveDragged(editor, slot.at, !slot.hasList);
+        }
+    } else {
+        const tgt = pmAt(editor, target.card);
+        if (tgt) moveDragged(editor, tgt.pos + tgt.node.nodeSize);
+    }
+};
+
+const mkGrip = (type, getPos, editor, srcEl) => {
     const g = document.createElement('span');
     g.className = 'sop-grip';
     g.textContent = '⠿';
     g.title = 'drag to move';
-    g.draggable = true;
     g.contentEditable = 'false';
-    g.addEventListener('dragstart', (e) => {
-        sopDrag = { type, getPos, editor };
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', 'sop-drag');
-        if (dragEl) e.dataTransfer.setDragImage(dragEl, 12, 12);
+    g.addEventListener('mousedown', (e) => {
+        e.preventDefault();       // no text selection; ProseMirror never sees it
         e.stopPropagation();
+        sopDrag = { type, getPos, editor };
+        let target = null;
+        srcEl.classList.add('sop-drag-src');
+        document.body.classList.add('sop-dragging');
+        const clearHi = () => document.querySelectorAll('.sop-drop').forEach((el) => el.classList.remove('sop-drop'));
+        const move = (ev) => {
+            clearHi();
+            target = gripTarget(editor, ev.target instanceof Element ? ev.target : document.elementFromPoint(ev.clientX, ev.clientY));
+            const self = target && (type === 'step' ? target.card === srcEl : (target.kind === 'li' && target.el === srcEl));
+            if (self) target = null;
+            if (target) (type === 'step' ? target.card : target.el).classList.add('sop-drop');
+        };
+        const up = () => {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('mouseup', up);
+            document.body.classList.remove('sop-dragging');
+            srcEl.classList.remove('sop-drag-src');
+            clearHi();
+            if (target) dropGrip(target);
+            sopDrag = null;
+        };
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
     });
-    g.addEventListener('dragend', () => { sopDrag = null; });
     return g;
 };
 
@@ -160,17 +225,6 @@ const moveDragged = (editor, insertPosPreDelete, wrapInList = false) => {
     tr = tr.insert(tr.mapping.map(insertPosPreDelete), payload);
     editor.view.dispatch(tr);
     sopDrag = null;
-};
-
-const acceptDrops = (el, onDrop) => {
-    el.addEventListener('dragover', (e) => { if (sopDrag) { e.preventDefault(); e.stopPropagation(); el.classList.add('sop-drop'); } });
-    el.addEventListener('dragleave', () => el.classList.remove('sop-drop'));
-    el.addEventListener('drop', (e) => {
-        if (!sopDrag) return;
-        e.preventDefault(); e.stopPropagation();
-        el.classList.remove('sop-drop');
-        onDrop();
-    });
 };
 
 // Shared node-view chrome helpers (step cards + substep mini-cards).
@@ -218,6 +272,7 @@ const SopListItem = ListItem.extend({
                 return { dom: li, contentDOM: content };
             }
 
+            GRIP_POS.set(li, getPos);
             const chrome = document.createElement('div');
             chrome.className = 'sop-sub-chrome';
             chrome.contentEditable = 'false';
@@ -259,25 +314,12 @@ const SopListItem = ListItem.extend({
                 mkBtn('↓', 'move substep down', () => moveSibling(editor, getPos, 1)),
                 mkBtn('×', 'remove substep', removeSub),
             );
-            // Dropping a substep here lands it right after this one (any card);
-            // dropping a whole step lands the step after this substep's card.
-            acceptDrops(li, () => {
-                const tgtPos = getPos();
-                const tgtNode = editor.state.doc.nodeAt(tgtPos);
-                if (!tgtNode || !sopDrag) return;
-                if (sopDrag.type === 'sub') {
-                    moveDragged(editor, tgtPos + tgtNode.nodeSize);
-                } else {
-                    const $t = editor.state.doc.resolve(tgtPos);
-                    for (let d = $t.depth; d > 0; d--) {
-                        if ($t.node(d).type.name === 'sopStep') { moveDragged(editor, $t.after(d)); break; }
-                    }
-                }
-            });
             li.append(chrome, content);
             return {
                 dom: li,
                 contentDOM: content,
+                // Chrome/highlight class changes must not dirty the view.
+                ignoreMutation: (m) => m.type === 'attributes' || chrome.contains(m.target),
                 update: (updated) => {
                     if (updated.type.name !== 'listItem') return false;
                     syncForm(updated);
@@ -306,6 +348,7 @@ const SopStep = Node.create({
         return ({ node, editor, getPos }) => {
             const card = document.createElement('section');
             card.className = 'sop-step';
+            GRIP_POS.set(card, getPos);
 
             const num = document.createElement('span');
             num.className = 'sop-step-num';
@@ -350,24 +393,11 @@ const SopStep = Node.create({
             const content = document.createElement('div');
             content.className = 'sop-step-content';
             card.append(num, chrome, content);
-            // Dropping a step here reorders it after this card; dropping a
-            // substep ADOPTS it — appended to this card's substep list (created
-            // if the card has none). Drops on a substep are handled by the
-            // substep itself and never bubble up here.
-            acceptDrops(card, () => {
-                const pos = getPos();
-                const n = editor.state.doc.nodeAt(pos);
-                if (!n || !sopDrag) return;
-                if (sopDrag.type === 'step') {
-                    moveDragged(editor, pos + n.nodeSize);
-                } else {
-                    const slot = subListSlot(n, pos);
-                    moveDragged(editor, slot.at, !slot.hasList);
-                }
-            });
             return {
                 dom: card,
                 contentDOM: content,
+                // Chrome/highlight class changes must not dirty the view.
+                ignoreMutation: (m) => m.type === 'attributes' || chrome.contains(m.target),
                 update: (updated) => updated.type.name === 'sopStep',
             };
         };
