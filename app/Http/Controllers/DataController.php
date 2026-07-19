@@ -252,6 +252,51 @@ class DataController extends Controller
         );
     }
 
+    /** The company's related domain-admin account — the LOGIN /domainjoin
+     *  resolves at generation. One row (or none), shaped like every logins table. */
+    public function companyDomainJoinLogin(Company $company): JsonResponse
+    {
+        $l = $company->domain_join_login_id
+            ? \App\Models\Login::withoutGlobalScopes()->with('vendor:vendorID,name')->find($company->domain_join_login_id)
+            : null;
+        return response()->json($l ? [[
+            'id' => $l->id, 'login_name' => $l->login_name, 'login_id' => $l->login_id,
+            'url' => $l->url, 'type' => $l->type, 'vendor' => $l->vendor?->name,
+            'is_restricted' => $l->is_restricted,
+        ]] : []);
+    }
+
+    /** Add the domain-admin account: link_id designates an existing registry
+     *  login; otherwise create one (service — held by nobody) and designate it. */
+    public function storeCompanyDomainJoinLogin(Request $request, Company $company): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        if ($request->filled('link_id')) {
+            $data = $request->validate(['link_id' => 'integer|exists:logins,loginID']);
+            $company->domain_join_login_id = $data['link_id'];
+            $company->save();
+            return response()->json(['id' => (int) $data['link_id']], 200);
+        }
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
+            'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
+            'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
+            'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
+            'is_active' => 'boolean', 'is_restricted' => 'boolean',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $login = \App\Models\Login::create($v->validated() + [
+            'company_id' => $company->id,
+            'sharing' => 'service',
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+        $company->domain_join_login_id = $login->loginID;
+        $company->save();
+        return response()->json(['id' => $login->id], 201);
+    }
+
     public function personDevices(User $person): JsonResponse
     {
         return response()->json(

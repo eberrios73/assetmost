@@ -201,8 +201,6 @@ export const ENTITIES = {
             { key: 'installers_url', label: 'Installers URL' },
             { key: 'local_admin_user', label: 'Local admin user (/localadmin)' },
             { key: 'local_admin_pass', label: 'Local admin password', type: 'password' },
-            // The join credential IS a login in the registry — pick it, don't retype it.
-            { key: 'domain_join_login_id', label: 'Domain join login (/domainjoin)', type: 'select-search', optionsEndpoint: '/data/login-options' },
             { key: 'contact_name', label: 'Contact' }, { key: 'email', label: 'Email', type: 'email' },
             { key: 'phone', label: 'Phone' }, { key: 'address', label: 'Address' },
             { key: 'city', label: 'City' }, { key: 'state', label: 'State', maxLength: 2 },

@@ -192,6 +192,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/data/companies', [$dc, 'storeCompany']);
     Route::get('/data/companies/{company}', [$dc, 'company']);
     Route::get('/data/companies/{company}/clients', [$dc, 'companyClients']);
+    Route::get('/data/companies/{company}/domain-join-login', [$dc, 'companyDomainJoinLogin']);
+    Route::post('/data/companies/{company}/domain-join-login', [$dc, 'storeCompanyDomainJoinLogin']);
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

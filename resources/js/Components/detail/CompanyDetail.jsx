@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { PlusIcon } from "@/Components/Icons";
 import Tabs from '@/Components/Tabs';
 import Field, { useJson } from '@/Components/detail/Field';
+import LoginsTable from '@/Components/detail/LoginsTable';
+import SearchSelect from '@/Components/SearchSelect';
 
 export default function CompanyDetail({ c }) {
     return (
@@ -28,7 +31,39 @@ export default function CompanyDetail({ c }) {
                         </dl>
                     ) },
                     { key: 'clients', label: 'Clients', render: () => <ClientsTab id={c.id} /> },
+                    { key: 'domainadmin', label: 'Domain admin', render: () => <DomainAdminTab id={c.id} /> },
                 ]} />
+            </div>
+        </div>
+    );
+}
+
+/** The company's related domain-admin account — the login /domainjoin resolves
+ *  at script generation. Same LoginsTable as everywhere; add creates + links,
+ *  or link a login that already exists in the registry. */
+function DomainAdminTab({ id }) {
+    const [rev, setRev] = useState(0);
+    const link = async (loginId) => {
+        if (!loginId) return;
+        const xsrf = decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
+        await fetch(`/data/companies/${id}/domain-join-login`, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf },
+            body: JSON.stringify({ link_id: loginId }),
+        });
+        setRev((v) => v + 1);
+    };
+    return (
+        <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                The account <code className="text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">/domainjoin</code> uses
+                to join machines to the domain — a login in the registry. Rotate it there and the next generated script picks it up.
+            </p>
+            <LoginsTable key={rev} endpoint={`/data/companies/${id}/domain-join-login`}
+                createEndpoint={`/data/companies/${id}/domain-join-login`} />
+            <div className="mt-4 max-w-sm">
+                <p className="mb-1 text-xs uppercase tracking-wide text-gray-400">Or link an existing login</p>
+                <SearchSelect value={null} endpoint="/data/login-options" placeholder="Search the registry…" onChange={link} />
             </div>
         </div>
     );
