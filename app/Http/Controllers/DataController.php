@@ -45,6 +45,7 @@ class DataController extends Controller
             'asset_tag' => 'nullable|string|max:25', 'computer_name' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255', 'serial_num' => 'nullable|string|max:255',
+            'ip_1' => 'nullable|string|max:45', 'ip_2' => 'nullable|string|max:45',
             'active' => 'boolean',
         ]);
     }
@@ -82,6 +83,8 @@ class DataController extends Controller
             'name' => 'required|string|max:255', 'domain' => 'nullable|string|max:255',
             'local_domain' => 'nullable|string|max:255',
             'installers_url' => 'nullable|string|max:500',
+            'local_admin_user' => 'nullable|string|max:255',
+            'local_admin_pass' => 'nullable|string|max:255',
             'contact_name' => 'nullable|string|max:255', 'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255', 'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:2',
@@ -110,7 +113,12 @@ class DataController extends Controller
     public function devices(Request $request): JsonResponse
     {
         $q = Device::query()->with(['location:id,name', 'room:id,name', 'deviceType:id,name,code']);
-        $this->sort($q, $request, ['asset_tag', 'computer_name', 'type'], 'asset_tag');
+        // IPs sort numerically (INET_ATON), everything else alphabetically.
+        if ($request->string('sort')->toString() === 'ip_1') {
+            $q->orderByRaw('ip_1 IS NULL, INET_ATON(ip_1) ' . ($request->string('dir')->toString() === 'desc' ? 'DESC' : 'ASC'));
+        } else {
+            $this->sort($q, $request, ['asset_tag', 'computer_name', 'type'], 'asset_tag');
+        }
 
         if ($s = $request->string('search')->toString()) {
             $q->where(fn ($w) => $w->where('asset_tag', 'like', "%{$s}%")
@@ -129,7 +137,7 @@ class DataController extends Controller
             'id' => $d->id,
             'primary' => $d->asset_tag ?: ($d->computer_name ?: "#{$d->id}"),
             'secondary' => trim((($d->deviceType?->name ?: $d->type) ? ($d->deviceType?->name ?: $d->type) . ' · ' : '') . trim("{$d->brand} {$d->model}")),
-            'badge' => $d->computer_name,
+            'badge' => $d->ip_1,
         ]);
     }
 
@@ -144,6 +152,7 @@ class DataController extends Controller
             'device_type_id' => 'nullable|integer|exists:device_types,id',
             'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255', 'serial_num' => 'nullable|string|max:255',
+            'ip_1' => 'nullable|string|max:45', 'ip_2' => 'nullable|string|max:45',
             'location_id' => 'nullable|integer|exists:locations,id',
             'room_id' => 'nullable|integer|exists:rooms,id',
             // Explicit company (a /form task creates records in ITS workflow's company,

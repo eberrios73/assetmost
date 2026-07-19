@@ -205,6 +205,9 @@ class MachineOnboardController extends Controller
             'ASSET_TAG' => $device->asset_tag, 'BASE_URL' => $base, 'TOKEN' => $token,
             'REPO' => rtrim($device->company?->installers_url ?? '', '/'),
             'DOMAIN' => $device->company?->domain, 'LOCAL_DOMAIN' => $device->company?->local_domain,
+            // The company's standard local admin — inserted at generation, never in docs.
+            'LOCAL_ADMIN_USER' => $device->company?->local_admin_user,
+            'LOCAL_ADMIN_PASS' => $device->company?->local_admin_pass,
         ]);
 
         return response()->json([
@@ -457,6 +460,10 @@ class MachineOnboardController extends Controller
             'ASSET_TAG' => '{ASSET_TAG}', 'BASE_URL' => '{BASE_URL}', 'TOKEN' => '{TOKEN}',
             'REPO' => rtrim($company?->installers_url ?? '', '/'),
             'DOMAIN' => $company?->domain, 'LOCAL_DOMAIN' => $company?->local_domain,
+            // The PREVIEW keeps credentials as placeholders; the real values are
+            // inserted only when a machine script is generated at /onboard.
+            'LOCAL_ADMIN_USER' => '{LOCAL_ADMIN_USER}',
+            'LOCAL_ADMIN_PASS' => '{LOCAL_ADMIN_PASS}',
         ]);
 
         $script = $this->script($device, '{TOKEN}', '{BASE_URL}', $variant, $files,
