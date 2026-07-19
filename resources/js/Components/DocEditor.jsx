@@ -775,14 +775,30 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
             run: (e) => e.chain().focus().deleteRange({ from: menu.from, to: menu.to }).insertContentAt(menu.from, `<p>${o}</p>`).run(),
         }));
     } else if (menu?.mode === 'mdm') {
-        // A fixed list, not the share — /mdm names the MDM the bootstrap script enrolls into.
+        // A fixed list, not the share — /mdm names the MDM the bootstrap script
+        // enrolls into. Picking one opens stage 2: HOW the device enrolls —
+        // auto (bought on the business account, sits in ABM, zero-touch ADE)
+        // vs manual (retail-bought, no ABM record, profile approved by hand).
         const MDM = ['Jamf', 'Intune', 'Kandji', 'Mosyle', 'Addigy', 'Workspace ONE'];
-        const picks = MDM.filter((n) => !menu.query || n.toLowerCase().includes(menu.query))
-            .map((n) => ({ key: `mdm:${n}`, label: n, hint: 'Enroll into this MDM (read from the SOP)',
-                self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${n} `) }));
-        if (menu.query) picks.push({ key: 'mdm:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
-            self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${menu.query} `) });
-        items = picks;
+        const staged = menu.query.match(/^(\S+)\s+(.*)$/);
+        if (staged) {
+            const name = staged[1];
+            items = [
+                { key: 'mdmmode:auto', label: 'Automated (ABM / zero-touch)',
+                  hint: 'Bought through the business account — the device is in Apple Business Manager and enrolls itself',
+                  self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${name} auto `) },
+                { key: 'mdmmode:manual', label: 'Manual (retail-bought)',
+                  hint: 'No ABM record — the enrollment profile is staged and approved by hand',
+                  self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${name} manual `) },
+            ].filter((it) => !staged[2] || it.label.toLowerCase().includes(staged[2]));
+        } else {
+            const picks = MDM.filter((n) => !menu.query || n.toLowerCase().includes(menu.query))
+                .map((n) => ({ key: `mdm:${n}`, label: n, hint: 'Enroll into this MDM — next: automated (ABM) or manual (retail)',
+                    self: true, more: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${n} `) }));
+            if (menu.query) picks.push({ key: 'mdm:free', label: `Use "${menu.query}"`, hint: 'insert as typed',
+                self: true, more: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${menu.query} `) });
+            items = picks;
+        }
     } else if (menu?.mode === 'form') {
         // /form <new|edit> <kind>: the step's generated task carries the record form —
         // new creates, edit picks an existing record and updates it. Both in the
@@ -829,9 +845,11 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
         }
         // Token picks (self: true) delete their own typed range and insert at an
         // anchored position in ONE transaction — then the menu closes for good.
+        // `more` picks have a second stage: re-detect so it opens right away.
         if (item.self) {
             item.run(editor);
-            setMenu(null);
+            if (item.more) detectSlash(editor);
+            else setMenu(null);
             return;
         }
         editor.chain().focus().deleteRange({ from: menu.from, to: menu.to }).run();
@@ -950,7 +968,7 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
                         <ul className="mb-3 space-y-1">
                             {helpRow('/install name', 'Pull an installer from the share — picker reads the catalog; "/install mac office" filters by platform.')}
                             {helpRow('/vpn profile', 'Pull and import a VPN config from the share.')}
-                            {helpRow('/mdm system', 'Enroll into Jamf, Intune, … (profile fetched from the share when present).')}
+                            {helpRow('/mdm system auto|manual', 'Enroll into Jamf, Intune, … auto = bought on the business account, in ABM, zero-touch. manual = retail-bought, profile staged and approved by hand.')}
                             {helpRow('/form new device', 'The generated task carries an add-record form (new) or a pick-and-edit form (edit) — device, person, account, location.')}
                             {helpRow('/banner, /wifi…', 'Commands from Docs > Commands — args after the name map onto their params; anything left out is asked at the bench. Add your own there.')}
                         </ul>

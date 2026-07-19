@@ -344,8 +344,9 @@ class MachineOnboardController extends Controller
                 if (preg_match_all('~/(install|vpn)\s+[^\n/]+~i', $text, $m, PREG_OFFSET_CAPTURE)) {
                     foreach ($m[0] as $hit) $hits[] = ['at' => $hit[1], 'kind' => 'fetch', 'text' => $hit[0]];
                 }
-                if (preg_match_all('~/mdm\s+(\w+)~i', $text, $m, PREG_OFFSET_CAPTURE | PREG_SET_ORDER)) {
-                    foreach ($m as $hit) $hits[] = ['at' => $hit[0][1], 'kind' => 'mdm', 'text' => $hit[0][0], 'name' => strtolower($hit[1][0])];
+                if (preg_match_all('~/mdm\s+(\w+)(?:\s+(auto|manual)\b)?~i', $text, $m, PREG_OFFSET_CAPTURE | PREG_SET_ORDER)) {
+                    foreach ($m as $hit) $hits[] = ['at' => $hit[0][1], 'kind' => 'mdm', 'text' => $hit[0][0],
+                        'name' => strtolower($hit[1][0]), 'mode' => strtolower($hit[2][0] ?? '')];
                 }
                 usort($hits, fn ($a, $b) => $a['at'] <=> $b['at']);
 
@@ -378,8 +379,8 @@ class MachineOnboardController extends Controller
                             $profileFile = basename($rel);
                         }
                         $blocks[] = match ($platform) {
-                            'mac' => rtrim(self::macMdm($h['name'], $profileUrl, $profileFile)),
-                            'windows' => rtrim(self::winMdm($h['name'])),
+                            'mac' => rtrim(self::macMdm($h['name'], $profileUrl, $profileFile, $h['mode'] ?? '')),
+                            'windows' => rtrim(self::winMdm($h['name'], $h['mode'] ?? '')),
                             default => "# /mdm {$h['name']}: enroll from the device's own console (no Linux MDM helper)",
                         };
                     }
@@ -705,19 +706,39 @@ class MachineOnboardController extends Controller
     }
 
     /**
-     * macOS MDM enrollment from the /mdm token. Preferred path: fetch the enrollment
-     * profile that lives on the share and open it for the user to approve (keeps the
-     * enrollment credential out of the script entirely). Fallback when no profile is on
-     * the share: ABM/DEP re-enrollment (`profiles renew`), which needs no file.
+     * macOS MDM enrollment from the /mdm token. The mode is the SOP's purchase
+     * story: 'auto' = bought on the business account, sits in Apple Business
+     * Manager, Automated Device Enrollment (zero-touch); 'manual' = retail-
+     * bought, no ABM record — the enrollment profile is staged from the share
+     * and approved by hand. No mode: profile when one is on the share, else ADE.
      */
-    private static function macMdm(string $mdm, string $profileUrl = '', string $profileFile = ''): string
+    private static function macMdm(string $mdm, string $profileUrl = '', string $profileFile = '', string $mode = ''): string
     {
         if ($mdm === '') return '# (no /mdm in the runbook)';
         $name = ucwords($mdm);
 
-        if ($profileUrl !== '') {
+        if ($mode === 'auto') {
             return <<<SH
-# Enroll into {$name} - fetch the enrollment profile from the share and open it for approval
+# Enroll into {$name} - Automated Device Enrollment (the Mac is in Apple Business Manager)
+if profiles renew -type enrollment 2>/dev/null; then
+  report 'MDM enrollment' true 'ADE enrollment renewed ({$name})'
+else
+  report 'MDM enrollment' false 'ADE failed - is this Mac in ABM? Retail-bought Macs need /mdm {$mdm} manual'
+fi
+SH;
+        }
+
+        if ($mode === 'manual' && $profileUrl === '') {
+            return <<<SH
+# Enroll into {$name} MANUALLY - retail-bought Mac, no ABM record
+report 'MDM enrollment' false 'Drop the {$name} enrollment profile on the share (Mac/... .mobileconfig, zipped) or enroll via the {$name} enrollment URL - then approve it in System Settings > Profiles'
+SH;
+        }
+
+        if ($profileUrl !== '') {
+            $why = $mode === 'manual' ? 'retail-bought Mac, no ABM record - profile staged for hand approval' : 'fetch the enrollment profile from the share and open it for approval';
+            return <<<SH
+# Enroll into {$name} - {$why}
 if curl -fsSL "{$profileUrl}" -o "/tmp/{$profileFile}" 2>/dev/null; then
   open "/tmp/{$profileFile}"
   report 'MDM enrollment' true '{$name} profile staged - approve it in System Settings > Profiles'
@@ -738,12 +759,18 @@ SH;
     }
 
     /**
-     * Windows MDM enrollment from the /mdm token. Intune uses Azure AD auto-enrollment
-     * (deviceenroller); other MDMs need their own agent/URL, so we emit a clear note.
+     * Windows MDM enrollment from the /mdm token. Intune uses Azure AD auto-
+     * enrollment (deviceenroller); 'manual' = retail/BYO device enrolled by hand
+     * through the Company Portal; other MDMs need their own agent/URL.
      */
-    private static function winMdm(string $mdm): string
+    private static function winMdm(string $mdm, string $mode = ''): string
     {
         if ($mdm === '') return '# (no /mdm in the runbook)';
+        if ($mode === 'manual') {
+            $name = ucwords($mdm);
+            return "# Enroll into {$name} MANUALLY - retail/BYO device, no autopilot record\n"
+                . "Report 'MDM enrollment' \$false 'Enroll by hand: {$name} portal/agent (Intune: Company Portal > Settings > Accounts > Access work or school)'";
+        }
         if (str_contains($mdm, 'intune')) {
             return <<<'PS'
 # Enroll into Intune - Azure AD auto-enrollment (the device must be Azure AD joined)
