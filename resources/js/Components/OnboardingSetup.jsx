@@ -63,10 +63,11 @@ const api = async (url, method = 'GET', body) => {
 
 /**
  * The workflow editor — a filtered lens on ONE workflow doc. Tabbed:
- *   Info   — what it is (open in Docs, active toggle, duplicate), the run wizard
- *            for people workflows, task preview, or the import sources when empty.
+ *   Run    — people wizards only: the onboarding form.
  *   SOP    — THE DOC ITSELF, in the same DocEditor as Docs (one renderer, one
  *            look, slash commands included); steps recompile from it on save.
+ *            A slim toolbar carries the listed toggle, task preview, duplicate
+ *            and the Docs link; import sources show here while it's empty.
  *   Script — device workflows: the bootstrap script this SOP produces.
  * The `workflow` summary comes from the left-column list (Workspace).
  */
@@ -78,19 +79,19 @@ export default function OnboardingSetup({ workflow, onChanged }) {
     const [steps, setSteps] = useState(null);
     const [bodyRev, setBodyRev] = useState(0);       // re-key the editor when body reloads
     const [preview, setPreview] = useState(null);    // 'load' | {rows:[...]}
-    const [pasting, setPasting] = useState(false);
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
-    const [tab, setTab] = useState('steps');         // info | steps | script
+    const [tab, setTab] = useState('steps');         // run | steps | script
 
-    const load = () => {
+    const load = (resetTab = false) => {
         api(`/data/workflows/${wfId}`).then((r) => {
             setWf(r);
             setSteps(r.steps?.steps?.length ? r.steps.steps : null);
             setBodyRev((v) => v + 1);
+            if (resetTab) setTab(r.wizard ? 'run' : 'steps');
         }).catch(() => {});
     };
-    useEffect(() => { load(); }, [wfId]);
+    useEffect(() => { load(true); }, [wfId]);
     useEffect(() => {
         if (preview !== 'load') return;
         api(`/data/workflows/${wfId}/preview`).then(setPreview).catch(() => setPreview(null));
@@ -107,15 +108,19 @@ export default function OnboardingSetup({ workflow, onChanged }) {
         setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
         if (r?.recompiled && steps === null) load();
     };
-    const adopt = async () => { await api(`/data/workflows/${wfId}/adopt`, 'POST'); load(); setTab('steps'); };
-    const importDoc = async (pageId) => { if (!pageId) return; await api(`/data/workflows/${wfId}/parse-doc`, 'POST', { page_id: pageId }); load(); setTab('steps'); };
+    const adopt = async () => { await api(`/data/workflows/${wfId}/adopt`, 'POST'); load(); };
+    const importDoc = async (pageId) => { if (!pageId) return; await api(`/data/workflows/${wfId}/parse-doc`, 'POST', { page_id: pageId }); load(); };
     const toggleActive = async () => { await api(`/data/workflows/${wfId}`, 'PATCH', { active: !wf.active }); load(); onChanged?.(); };
     const duplicate = async () => { await api(`/data/workflows/${wfId}/duplicate`, 'POST'); onChanged?.(); };
 
+    // Only the tabs this workflow can use: people wizards run, devices script.
+    const tabs = wf?.wizard ? [['run', 'Run'], ['steps', 'SOP']]
+        : wf?.type === 'device' ? [['steps', 'SOP'], ['script', 'Script']]
+        : [['steps', 'SOP']];
     // Same underline style as the sub-tabs, so the app has one tab language.
     const tabBar = (
         <div className="flex">
-            {[['info', 'Info'], ['steps', 'SOP'], ['script', 'Script']].map(([k, label]) => (
+            {tabs.map(([k, label]) => (
                 <button key={k} onClick={() => setTab(k)}
                     className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${tab === k ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     {label}
@@ -133,79 +138,61 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                 {saved && <span className="pb-2 text-xs text-green-600">{saved}</span>}
             </div>
 
-            {tab === 'info' && (
-                <div className="space-y-4">
-                    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">{wf.title}</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    {wf.form_factor || (wf.type === 'people' ? 'People workflow' : 'Device workflow')}
-                                    {wf.shipped ? ' · shipped baseline' : ' · yours'}
-                                </p>
-                            </div>
+            {tab === 'run' && wf.wizard && <RunCard workflowId={wfId} />}
+
+            {tab === 'steps' && (
+                <div>
+                    {/* What Info used to hold, as one slim row on the SOP itself. */}
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer"
+                            title="Off = hidden from the Onboarding lists and it can't run. The doc itself stays in Docs either way.">
+                            <input type="checkbox" checked={!!wf.active} onChange={toggleActive}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                            Listed in Onboarding
+                        </label>
+                        <div className="flex items-center gap-2">
+                            {steps !== null && (
+                                <button onClick={() => setPreview(preview ? null : 'load')}
+                                    className="px-3 py-1.5 text-sm rounded-md border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10">
+                                    {preview ? 'Hide task preview' : 'Preview tasks'}
+                                </button>
+                            )}
+                            <button onClick={duplicate}
+                                className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                title="Copy this SOP to make a variant (e.g. Other Device -> Access Point)">Duplicate</button>
                             <a href={`/docs?page=${wf.id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0" title="This workflow IS a Docs page">
                                 Open in Docs
                             </a>
                         </div>
-                        <div className="mt-3 flex items-center gap-4 border-t border-gray-100 dark:border-gray-800 pt-3">
-                            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
-                                <input type="checkbox" checked={!!wf.active} onChange={toggleActive}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                                Active — shows in the list and can run
-                            </label>
-                            <button onClick={duplicate}
-                                className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                title="Copy this SOP to make a variant (e.g. Other Device -> Access Point)">Duplicate</button>
-                        </div>
                     </div>
-
-                    {wf.wizard && <RunCard workflowId={wfId} />}
-
-                    {(steps === null || pasting) ? (
-                        <ImportSources pasting={pasting} shipped={wf.shipped}
-                            text={text} setText={setText}
-                            onParse={() => { const parsed = parseSop(text); if (parsed.length) { save(parsed); setPasting(false); setText(''); setTab('steps'); } }}
-                            onCancel={steps !== null ? () => setPasting(false) : null}
-                            onPickDoc={importDoc} onAdopt={adopt} />
-                    ) : (
-                        <div>
-                            <button onClick={() => setPreview(preview ? null : 'load')}
-                                className="px-3 py-1.5 text-sm rounded-md border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10">
-                                {preview ? 'Hide task preview' : 'Preview tasks'}
-                            </button>
-                            {preview === 'load' && <p className="mt-3 text-sm text-gray-400">Building preview…</p>}
-                            {preview && preview !== 'load' && (
-                                <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-500/5 p-4">
-                                    <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
-                                        The checklist this becomes — {preview.rows.length} tasks. Steps pulled from a referenced runbook
-                                        (like <code>/eprotection</code>) are marked <span className="rounded bg-amber-100 dark:bg-amber-500/15 px-1 text-[10px] text-amber-700 dark:text-amber-400">linked</span> and stay current.
-                                    </p>
-                                    <ol className="space-y-0.5">
-                                        {preview.rows.map((r, i) => (
-                                            <li key={i} className={`flex items-start gap-2 text-sm ${r.depth ? 'pl-6 text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-medium'}`}>
-                                                <span className="text-gray-300 dark:text-gray-600">{r.depth ? '↳' : '•'}</span>
-                                                <span>
-                                                    {r.title}
-                                                    {r.ref && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:text-amber-400">linked</span>}
-                                                    {r.form && <span className="ml-2 rounded bg-blue-100 dark:bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-normal text-blue-700 dark:text-blue-400">form: {r.form}</span>}
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </div>
-                            )}
+                    {preview === 'load' && <p className="mb-3 text-sm text-gray-400">Building preview…</p>}
+                    {preview && preview !== 'load' && (
+                        <div className="mb-3 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-500/5 p-4">
+                            <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                                The checklist this becomes — {preview.rows.length} tasks. Steps pulled from a referenced runbook
+                                (like <code>/eprotection</code>) are marked <span className="rounded bg-amber-100 dark:bg-amber-500/15 px-1 text-[10px] text-amber-700 dark:text-amber-400">linked</span> and stay current.
+                            </p>
+                            <ol className="space-y-0.5">
+                                {preview.rows.map((r, i) => (
+                                    <li key={i} className={`flex items-start gap-2 text-sm ${r.depth ? 'pl-6 text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-medium'}`}>
+                                        <span className="text-gray-300 dark:text-gray-600">{r.depth ? '↳' : '•'}</span>
+                                        <span>
+                                            {r.title}
+                                            {r.ref && <span className="ml-2 rounded bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:text-amber-400">linked</span>}
+                                            {r.form && <span className="ml-2 rounded bg-blue-100 dark:bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-normal text-blue-700 dark:text-blue-400">form: {r.form}</span>}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ol>
                         </div>
                     )}
-                </div>
-            )}
-
-            {tab === 'steps' && (
-                (steps === null && !wf.body) ? (
-                    <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        Nothing here yet. Head to <button onClick={() => setTab('info')} className="text-blue-600 hover:underline">Info</button> to adopt the standard SOP, import from a doc, or paste your own.
-                    </div>
-                ) : (
+                    {(steps === null && !wf.body) ? (
+                        <ImportSources pasting={false} shipped={wf.shipped}
+                            text={text} setText={setText}
+                            onParse={async () => { const parsed = parseSop(text); if (parsed.length) { await save(parsed); setText(''); load(); } }}
+                            onCancel={null}
+                            onPickDoc={importDoc} onAdopt={adopt} />
+                    ) : (
                     <div>
                         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
                             This IS the doc — the same page, same editor as Docs. Type <code className="text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">/</code> for
@@ -221,7 +208,8 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                                 : /ios/i.test(wf.form_factor || '') ? 'iOS'
                                 : /android/i.test(wf.form_factor || '') ? 'Android' : '')} />
                     </div>
-                )
+                    )}
+                </div>
             )}
 
             {tab === 'script' && <ScriptPanel wf={wf} />}
@@ -288,9 +276,6 @@ function ScriptPanel({ wf }) {
     };
     useEffect(() => { if (scriptable) gen(); else setScript(''); }, [wf.id]);
 
-    if (wf.type === 'people') {
-        return <p className="text-sm text-gray-500 dark:text-gray-400">People workflows build a chained <strong>task project</strong>, not a machine script — see <em>Preview tasks</em> under Info.</p>;
-    }
     if (!wf.form_factor) {
         return <p className="text-sm text-gray-500 dark:text-gray-400">This runbook is pulled into others with <code>/{wf.slug || 'ref'}</code> and doesn't produce a standalone machine script.</p>;
     }
