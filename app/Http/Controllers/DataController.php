@@ -181,6 +181,16 @@ class DataController extends Controller
         );
     }
 
+    /** {id, label} device types for the add form's Type picker. */
+    public function deviceTypeOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\DeviceType::query()->where('active', true)->ordered()
+                ->get(['id', 'name'])
+                ->map(fn ($t) => ['id' => $t->id, 'label' => $t->name])
+        );
+    }
+
     public function device(Device $device): JsonResponse
     {
         $device->load(['company:id,name', 'location:id,name', 'room:id,name', 'users:id,name,last,email,title'])

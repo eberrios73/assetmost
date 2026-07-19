@@ -106,6 +106,23 @@ export const ENTITIES = {
         filter: { key: 'type', label: 'types', optionsEndpoint: '/data/device-types' },
         sort: [{ key: 'asset_tag', label: 'Asset tag' }, { key: 'ip_1', label: 'IP' }, { key: 'type', label: 'Type' }],
         render: (d) => <DeviceDetail d={d} />,
+        add: {
+            endpoint: '/data/devices', title: 'Add Device',
+            fields: [
+                // Blank tag = the company's counter issues one (PG-WS-1001).
+                { key: 'asset_tag', label: 'Asset tag (blank = auto-issued)' },
+                { key: 'computer_name', label: 'Computer name' },
+                { key: 'ip_1', label: 'IP address' },
+                { key: 'ip_2', label: 'IP 2 (secondary)' },
+                { key: 'device_type_id', label: 'Type', type: 'select-search', optionsEndpoint: '/data/device-type-options' },
+                { key: 'brand', label: 'Brand' },
+                { key: 'model', label: 'Model' },
+                { key: 'serial_num', label: 'Serial' },
+                // Location decides the company when picked; otherwise the company below.
+                { key: 'location_id', label: 'Location', type: 'select-search', optionsEndpoint: '/data/location-options' },
+                { key: 'company_id', label: 'Company', type: 'select-search', optionsEndpoint: '/data/company-options' },
+            ],
+        },
         edit: { fields: [
             { key: 'asset_tag', label: 'Asset tag' }, { key: 'computer_name', label: 'Computer name' },
             { key: 'ip_1', label: 'IP address' }, { key: 'ip_2', label: 'IP 2 (secondary)' },

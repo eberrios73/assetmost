@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/devices', [$dc, 'devices']);
     Route::post('/data/devices', [$dc, 'storeDevice']);
     Route::get('/data/device-types', [$dc, 'deviceTypes']);
+    Route::get('/data/device-type-options', [$dc, 'deviceTypeOptions']);
     Route::get('/data/devices/{device}', [$dc, 'device']);
     Route::get('/data/people', [$dc, 'people']);
     Route::post('/data/people', [$dc, 'storePerson']);

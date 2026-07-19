@@ -54,7 +54,10 @@ export default function GlobalFormDrawer() {
             endpoint={spec.mode === 'edit' ? entity.detailEndpoint(editRec.id) : entity.add.endpoint}
             method={spec.mode === 'edit' ? 'PATCH' : 'POST'}
             fields={spec.mode === 'edit' ? entity.edit.fields : entity.add.fields}
-            initial={spec.mode === 'edit' ? editRec : (spec.initial || {})}
+            initial={spec.mode === 'edit' ? editRec
+                // Prefill the caller's company so it SHOWS in the form (an empty
+                // company field in `values` would override `extra` on submit).
+                : { ...(spec.companyId ? { company_id: spec.companyId } : {}), ...(spec.initial || {}) }}
             extra={spec.mode === 'new' && spec.companyId ? { company_id: spec.companyId } : {}}
             onClose={close}
             onSaved={(rec) => { close(); spec.onSaved?.(rec); }} />
