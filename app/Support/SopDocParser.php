@@ -343,7 +343,8 @@ class SopDocParser
         };
         // The SOP header: document-level Why/How, Tools, Safety and governance as
         // one table at the top — every row optional; parse() reads them back to meta.
-        // OS, Owner and Version share ONE compact row (three label/value pairs).
+        // OS, Owner and Version share one compact row as the LAST row; when it's
+        // present, single-row values span the width (colspan) so columns stay clean.
         $header = '';
         $trio = '';
         foreach (['os' => 'OS', 'owner' => 'Owner', 'version' => 'Version'] as $k => $label) {
@@ -351,16 +352,17 @@ class SopDocParser
                 $trio .= "<td><p><strong>{$label}:</strong></p></td><td>{$cellLines($meta[$k])}</td>";
             }
         }
-        if ($trio !== '') $header .= "<tr>{$trio}</tr>";
+        $span = $trio !== '' ? ' colspan="5"' : '';
         $headerRows = ['why' => 'Why', 'how' => 'How', 'scope' => 'Scope',
             'tools' => 'Tools and Materials', 'safety' => 'Safety Precautions',
             'effective' => 'Effective', 'review_by' => 'Review by',
             'approver' => 'Approver', 'status' => 'Status'];
         foreach ($headerRows as $k => $label) {
             if (! empty($meta[$k])) {
-                $header .= "<tr><td><p><strong>{$label}:</strong></p></td><td>{$cellLines($meta[$k])}</td></tr>";
+                $header .= "<tr><td><p><strong>{$label}:</strong></p></td><td{$span}>{$cellLines($meta[$k])}</td></tr>";
             }
         }
+        if ($trio !== '') $header .= "<tr>{$trio}</tr>";
         if ($header !== '') $header = "<table><tbody>{$header}</tbody></table>";
         // A step's playbook fields as a neat 2-column table — the same shape /step
         // scaffolds in the editor, and what parse() reads back by its row labels.

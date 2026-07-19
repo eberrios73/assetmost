@@ -282,19 +282,23 @@ const refreshSopHeader = (e, osDefault = '') => {
         if (label === 'OS' && !lines.length && osDefault) lines = [osDefault];
         return lines;
     };
+    // Content rows first (values span the width); the OS · Owner · Version trio
+    // renders LAST. The trio is computed first so its labels are marked used
+    // before the custom-row sweep.
     let trioCells = '';
     for (const label of SOP_TRIO) {
         const lines = lookup(label, label === 'Version' ? ['1.0'] : []);
         trioCells += `<td><p><strong>${esc(label)}:</strong></p></td><td>${cellHtml(lines)}</td>`;
     }
-    let rows = `<tr>${trioCells}</tr>`;
+    let rows = '';
     for (const label of SOP_SINGLE_ROWS) {
         const lines = lookup(label, label === 'Status' ? ['Draft'] : []);
-        rows += `<tr><td><p><strong>${esc(label)}:</strong></p></td><td>${cellHtml(lines)}</td></tr>`;
+        rows += `<tr><td><p><strong>${esc(label)}:</strong></p></td><td colspan="5">${cellHtml(lines)}</td></tr>`;
     }
     for (const [key, ex] of existing) {
-        if (!used.has(key)) rows += `<tr><td><p><strong>${esc(ex.label)}:</strong></p></td><td>${cellHtml(ex.lines)}</td></tr>`;
+        if (!used.has(key)) rows += `<tr><td><p><strong>${esc(ex.label)}:</strong></p></td><td colspan="5">${cellHtml(ex.lines)}</td></tr>`;
     }
+    rows += `<tr>${trioCells}</tr>`;
     const html = `<table><tbody>${rows}</tbody></table>`;
 
     return tableNode
@@ -481,14 +485,14 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '' 
             self: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/vpn ${menu.query} `) });
         items = picks;
     } else if (menu?.mode === 'os') {
-        // Canonical values only — never "Win" or "Windows, 11" or "Ubuntu".
-        items = OS_CHOICES.filter((o) => !menu.query || o.toLowerCase().includes(menu.query) || menu.query === o.toLowerCase())
-            .map((o) => ({ key: `os:${o}`, label: o, hint: "Set this SOP's OS", self: true,
-                run: (e) => e.chain().focus().deleteRange({ from: menu.from, to: menu.to }).insertContentAt(menu.from, `<p>${o}</p>`).run() }));
-        if (!items.length) {
-            items = OS_CHOICES.map((o) => ({ key: `os:${o}`, label: o, hint: "Set this SOP's OS", self: true,
-                run: (e) => e.chain().focus().deleteRange({ from: menu.from, to: menu.to }).insertContentAt(menu.from, `<p>${o}</p>`).run() }));
-        }
+        // ALWAYS all five — never filtered by the current value, so converting a
+        // Mac SOP to Linux is one click. Canonical values only.
+        items = OS_CHOICES.map((o) => ({
+            key: `os:${o}`, label: o,
+            hint: o.toLowerCase() === menu.query ? 'current' : "Set this SOP's OS",
+            self: true,
+            run: (e) => e.chain().focus().deleteRange({ from: menu.from, to: menu.to }).insertContentAt(menu.from, `<p>${o}</p>`).run(),
+        }));
     } else if (menu?.mode === 'mdm') {
         // A fixed list, not the share — /mdm names the MDM the bootstrap script enrolls into.
         const MDM = ['Jamf', 'Intune', 'Kandji', 'Mosyle', 'Addigy', 'Workspace ONE'];

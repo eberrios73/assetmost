@@ -8,13 +8,13 @@
 const SOP = `
 <p>An SOP is a recipe: anyone competent should get the same result by following it. Fill in the header, keep each step a single action, and say how you prove it worked. Delete the grey guidance as you go.</p>
 <table><tbody>
+<tr><td><p><strong>Why:</strong></p></td><td colspan="5"><p></p></td></tr>
+<tr><td><p><strong>How:</strong></p></td><td colspan="5"><p></p></td></tr>
+<tr><td><p><strong>Scope:</strong></p></td><td colspan="5"><p></p></td></tr>
+<tr><td><p><strong>Tools and Materials:</strong></p></td><td colspan="5"><p></p></td></tr>
+<tr><td><p><strong>Safety Precautions:</strong></p></td><td colspan="5"><p></p></td></tr>
+<tr><td><p><strong>Status:</strong></p></td><td colspan="5"><p>Draft</p></td></tr>
 <tr><td><p><strong>OS:</strong></p></td><td><p></p></td><td><p><strong>Owner:</strong></p></td><td><p></p></td><td><p><strong>Version:</strong></p></td><td><p>1.0</p></td></tr>
-<tr><td><p><strong>Why:</strong></p></td><td><p></p></td></tr>
-<tr><td><p><strong>How:</strong></p></td><td><p></p></td></tr>
-<tr><td><p><strong>Scope:</strong></p></td><td><p></p></td></tr>
-<tr><td><p><strong>Tools and Materials:</strong></p></td><td><p></p></td></tr>
-<tr><td><p><strong>Safety Precautions:</strong></p></td><td><p></p></td></tr>
-<tr><td><p><strong>Status:</strong></p></td><td><p>Draft</p></td></tr>
 </tbody></table>
 <p><em>Every header row is optional — delete the ones this procedure doesn't need. Why is the purpose; How is the approach in one line; Tools and Safety are one item per line and become REAL tasks ahead of the procedure when this SOP runs. Owner is the ONE person who keeps this document true; Version bumps on every change and gets a line in Revision history.</em></p>
 <h2>Procedure</h2>
