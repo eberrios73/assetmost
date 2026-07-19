@@ -263,9 +263,11 @@ function ScriptPanel({ wf }) {
     const [script, setScript] = useState('');
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
-    const scriptable = wf.type === 'device' && wf.form_factor;
-    // One SOP, one OS: the header's OS row decides the platform.
+    // One SOP, one OS: the header's OS row decides the platform (form factor
+    // is the fallback). A device workflow with either produces a real script —
+    // only a runbook with neither is a pulled-in-by-/ref fragment.
     const os = wf.sop_meta?.os || '';
+    const scriptable = wf.type === 'device' && (os || wf.form_factor);
 
     const gen = () => {
         setLoading(true);
@@ -276,8 +278,8 @@ function ScriptPanel({ wf }) {
     };
     useEffect(() => { if (scriptable) gen(); else setScript(''); }, [wf.id]);
 
-    if (!wf.form_factor) {
-        return <p className="text-sm text-gray-500 dark:text-gray-400">This runbook is pulled into others with <code>/{wf.slug || 'ref'}</code> and doesn't produce a standalone machine script.</p>;
+    if (!scriptable) {
+        return <p className="text-sm text-gray-500 dark:text-gray-400">No platform yet: set <strong>OS</strong> in the SOP header (type <code>/sop</code> to add it) and the Script tab generates for real. Runbooks that are only pulled into others with <code>/{wf.slug || 'ref'}</code> can stay this way.</p>;
     }
 
     return (
