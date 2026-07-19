@@ -247,7 +247,7 @@ const fieldRows = (labels) => labels.map((l) => `<tr><td><p><strong>${l}:</stron
 const SOP_TRIO = ['OS', 'Owner', 'Version', 'Status'];             // one compact LAST row
 const SOP_SINGLE_ROWS = ['Why', 'How', 'Scope', 'Tools and Materials', 'Safety Precautions'];
 const OS_CHOICES = ['macOS', 'Windows', 'Linux', 'iOS', 'Android'];
-const refreshSopHeader = (e, osDefault = '') => {
+const refreshSopHeader = (e, osDefault = '', ownerDefault = '') => {
     const doc = e.state.doc;
     let tablePos = null;
     let tableNode = null;
@@ -280,6 +280,7 @@ const refreshSopHeader = (e, osDefault = '') => {
         let lines = ex ? ex.lines : [];
         if (!lines.length && !ex) lines = def;
         if (label === 'OS' && !lines.length && osDefault) lines = [osDefault];
+        if (label === 'Owner' && !lines.length && ownerDefault) lines = [ownerDefault];
         return lines;
     };
     // Content rows first (values span the width); the OS · Owner · Version trio
@@ -345,7 +346,7 @@ const SLASH = [
 ];
 
 /** Notion/Docmost-style canvas: rich text + "/" slash menu. Autosaves HTML (debounced). */
-export default function DocEditor({ pageId, initialBody, onSave, osDefault = '' }) {
+export default function DocEditor({ pageId, initialBody, onSave, osDefault = '', ownerDefault = '' }) {
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
     const [refs, setRefs] = useState([]);         // runbook references: [{slug, name}]
     const [installers, setInstallers] = useState([]);   // indexed installers share
@@ -533,7 +534,7 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '' 
             run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/${s.command} `),
         }));
         const all = [...SLASH, ...openers, ...refItems, ...snippetItems]
-            .map((it) => (it.key === 'sop' ? { ...it, run: (e) => refreshSopHeader(e, osDefault) } : it));
+            .map((it) => (it.key === 'sop' ? { ...it, run: (e) => refreshSopHeader(e, osDefault, ownerDefault) } : it));
         items = menu ? all.filter((s) => s.label.toLowerCase().includes(menu.query) || (s.alias || '').includes(menu.query) || (s.slug || '').includes(menu.query)) : [];
     }
 

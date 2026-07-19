@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import AddButton from '@/Components/ui/AddButton';
 import { MultiPicker } from '@/Components/RecordModal';
 import SearchSelect from '@/Components/SearchSelect';
@@ -71,6 +72,8 @@ const api = async (url, method = 'GET', body) => {
  */
 export default function OnboardingSetup({ workflow, onChanged }) {
     const wfId = workflow.id;
+    const { auth } = usePage().props;
+    const me = [auth?.user?.name, auth?.user?.last].filter(Boolean).join(' ');
     const [wf, setWf] = useState(null);              // full detail
     const [steps, setSteps] = useState(null);
     const [bodyRev, setBodyRev] = useState(0);       // re-key the editor when body reloads
@@ -211,7 +214,7 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                             <code className="mx-1 text-xs bg-gray-100 dark:bg-gray-800 rounded px-1">{'{first} {last} {username} {email} {start_date} {local_domain} {domain}'}</code>
                             fill in at run time.
                         </p>
-                        <DocEditor key={`${wf.id}:${bodyRev}`} pageId={wf.id} initialBody={wf.body} onSave={saveBody}
+                        <DocEditor key={`${wf.id}:${bodyRev}`} pageId={wf.id} initialBody={wf.body} onSave={saveBody} ownerDefault={me}
                             osDefault={wf.sop_meta?.os || (/mac/i.test(wf.form_factor || '') ? 'macOS'
                                 : /windows/i.test(wf.form_factor || '') ? 'Windows'
                                 : /linux/i.test(wf.form_factor || '') ? 'Linux'

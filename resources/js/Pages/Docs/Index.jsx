@@ -23,7 +23,8 @@ const api = (url, method = 'GET', body) => fetch(url, {
 }).then((r) => (r.status === 204 ? {} : r.json()));
 
 export default function Index() {
-    const { tenant } = usePage().props;
+    const { tenant, auth } = usePage().props;
+    const me = [auth?.user?.name, auth?.user?.last].filter(Boolean).join(' ');
     const activeId = tenant?.activeId ?? 'all';
     const scope = `sel:docs:${activeId}`;
     const spaceScope = `docs:space:${activeId}`;
@@ -83,7 +84,7 @@ export default function Index() {
     const newPage = async (parentId = null, templateKey = 'freeform') => {
         const { id } = await api('/data/docs', 'POST', {
             parent_id: parentId, space_id: spaceId, title: NEW_TITLES[templateKey] || 'Untitled',
-            body: buildDocBody(templateKey), category: templateCategory(templateKey),
+            body: buildDocBody(templateKey, '', { owner: me }), category: templateCategory(templateKey),
         });
         await loadTree();
         openPage(id);
@@ -272,7 +273,7 @@ export default function Index() {
                 // Info | SOP | Script tabs as the onboarding side. One page, one look.
                 <OnboardingSetup key={page.id} workflow={{ id: page.id }} onChanged={loadTree} />
             ) : (
-                <DocEditor key={page.id} pageId={page.id} initialBody={page.body} onSave={saveBody} />
+                <DocEditor key={page.id} pageId={page.id} initialBody={page.body} onSave={saveBody} ownerDefault={me} />
             )}
             {page.versions?.length > 0 && (
                 <div className="mt-8 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">

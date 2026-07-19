@@ -135,6 +135,10 @@ class DocController extends Controller
         if (empty($meta['os']) && $page->form_factor) {
             $meta['os'] = self::osFromFormFactor($page->form_factor);
         }
+        // A blank version is a fresh creation — its author is the default owner.
+        if ($blank && empty($meta['owner']) && ($u = auth()->user())) {
+            $meta['owner'] = trim("{$u->name} {$u->last}");
+        }
 
         // The copy inherits the identity — including the slug — because it IS the
         // document now; replicate() copies workflow_slug along with everything else.
@@ -191,7 +195,7 @@ class DocController extends Controller
         }
         $rows .= '<tr>'
             . "<td><p><strong>OS:</strong></p></td><td><p>{$esc($meta['os'] ?? '')}</p></td>"
-            . '<td><p><strong>Owner:</strong></p></td><td><p></p></td>'
+            . "<td><p><strong>Owner:</strong></p></td><td><p>{$esc($meta['owner'] ?? '')}</p></td>"
             . "<td><p><strong>Version:</strong></p></td><td><p>{$esc($meta['version'] ?? '1.0')}</p></td>"
             . "<td><p><strong>Status:</strong></p></td><td><p>{$esc($meta['status'] ?? 'Draft')}</p></td>"
             . '</tr>';

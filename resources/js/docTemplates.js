@@ -13,7 +13,7 @@ const SOP = `
 <tr><td><p><strong>Scope:</strong></p></td><td colspan="7"><p></p></td></tr>
 <tr><td><p><strong>Tools and Materials:</strong></p></td><td colspan="7"><p></p></td></tr>
 <tr><td><p><strong>Safety Precautions:</strong></p></td><td colspan="7"><p></p></td></tr>
-<tr><td><p><strong>OS:</strong></p></td><td><p></p></td><td><p><strong>Owner:</strong></p></td><td><p></p></td><td><p><strong>Version:</strong></p></td><td><p>1.0</p></td><td><p><strong>Status:</strong></p></td><td><p>Draft</p></td></tr>
+<tr><td><p><strong>OS:</strong></p></td><td><p></p></td><td><p><strong>Owner:</strong></p></td><td><p>__OWNER__</p></td><td><p><strong>Version:</strong></p></td><td><p>1.0</p></td><td><p><strong>Status:</strong></p></td><td><p>Draft</p></td></tr>
 </tbody></table>
 <p><em>Every header row is optional — delete the ones this procedure doesn't need. Why is the purpose; How is the approach in one line; Tools and Safety are one item per line and become REAL tasks ahead of the procedure when this SOP runs. Owner is the ONE person who keeps this document true; Version bumps on every change and gets a line in Revision history.</em></p>
 <h2>Procedure</h2>
@@ -104,10 +104,11 @@ const toParas = (text) => esc(text).split(/\n{2,}/).map((p) => `<p>${p.replace(/
 const FREEFORM = DOC_TEMPLATES.find((t) => t.key === 'freeform');
 
 /** Build a doc body from a template, optionally seeding a Background section from task notes. */
-export function buildDocBody(templateKey, background = '') {
+export function buildDocBody(templateKey, background = '', vars = {}) {
     const tpl = DOC_TEMPLATES.find((t) => t.key === templateKey) || FREEFORM;
     const bg = background && background.trim() ? `<h2>Background</h2>${toParas(background.trim())}` : '';
-    return (bg + tpl.body) || '<p></p>';
+    const body = (bg + tpl.body).replaceAll('__OWNER__', esc(vars.owner || ''));
+    return body || '<p></p>';
 }
 
 export function templateCategory(templateKey) {
