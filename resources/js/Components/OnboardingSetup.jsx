@@ -259,7 +259,8 @@ function ScriptPanel({ wf }) {
                 </div>
             </div>
             {loading ? <p className="text-sm text-gray-400 py-6">Generating…</p> : (
-                <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={22} spellCheck={false}
+                <textarea value={script} onChange={(e) => setScript(e.target.value)} spellCheck={false}
+                    rows={Math.max(10, script.split('\n').length + 1)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-950 p-4 font-mono text-xs leading-relaxed text-green-300 focus:border-blue-500 focus:ring-blue-500" />
             )}
         </div>

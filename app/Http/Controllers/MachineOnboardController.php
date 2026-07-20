@@ -349,10 +349,15 @@ class MachineOnboardController extends Controller
             ->pluck('workflow_slug')->map(fn ($s) => strtolower($s))->flip()->all();
 
         foreach (array_values($steps) as $i => $step) {
+            // Commands run from step and substep LINES only. Prose fields (Why/
+            // How/Done when/Record) are documentation — a command mentioned
+            // there must never execute, but it warns so the mention is visible.
             $texts = [];
-            $collect = function ($node) use (&$collect, &$texts) {
-                foreach (['title', 'why', 'instructions', 'done_when', 'record'] as $k) {
-                    if (! empty($node[$k])) $texts[] = $node[$k];
+            $prose = [];
+            $collect = function ($node) use (&$collect, &$texts, &$prose) {
+                if (! empty($node['title'])) $texts[] = $node['title'];
+                foreach (['why', 'instructions', 'done_when', 'record'] as $k) {
+                    if (! empty($node[$k])) $prose[] = $node[$k];
                 }
                 foreach ($node['subtasks'] ?? [] as $sub) $collect($sub);
             };
@@ -424,6 +429,14 @@ class MachineOnboardController extends Controller
             foreach (array_keys($unknown) as $tok) {
                 $blocks[] = "# !! /{$tok} is not a recognized command — nothing generated for it.\n"
                     . "# !! Typo? (/domainjoin, /localadmin, …) See Docs > Commands, or type /help in the SOP.";
+            }
+            foreach ($prose as $text) {
+                if (! preg_match_all('~(?<=^|\s)/([a-z][\w-]{2,}+)(?![./])~i', $text, $pm)) continue;
+                foreach (array_unique(array_map('strtolower', $pm[1])) as $tok) {
+                    if (isset($knownCmds[$tok])) {
+                        $blocks[] = "# nb: /{$tok} is mentioned in this step's notes — commands only run from step or substep lines, so it was NOT executed here.";
+                    }
+                }
             }
             if ($blocks) {
                 $n = $i + 1;
