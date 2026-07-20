@@ -13,14 +13,14 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('it_tasks', function (Blueprint $t) {
+        Schema::table('tasks', function (Blueprint $t) {
             $t->foreignId('depends_on_id')->nullable()->after('parent_id')
-                ->constrained('it_tasks')->nullOnDelete();
+                ->constrained('tasks')->nullOnDelete();
         });
     }
 
     public function down(): void
     {
-        Schema::table('it_tasks', fn (Blueprint $t) => $t->dropConstrainedForeignId('depends_on_id'));
+        Schema::table('tasks', fn (Blueprint $t) => $t->dropConstrainedForeignId('depends_on_id'));
     }
 };

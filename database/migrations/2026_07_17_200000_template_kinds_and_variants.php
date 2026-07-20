@@ -16,16 +16,18 @@ return new class extends Migration {
         Schema::table('onboarding_templates', function (Blueprint $t) {
             $t->string('kind', 20)->default('onboarding')->after('company_id');
             $t->string('variant', 100)->default('')->after('kind');
-            $t->dropUnique(['company_id']);
+            // New unique first: its leftmost column keeps the company_id FK indexed,
+            // so MySQL allows dropping the old single-column unique.
             $t->unique(['company_id', 'kind', 'variant'], 'onboarding_templates_scope_unique');
+            $t->dropUnique(['company_id']);
         });
     }
 
     public function down(): void
     {
         Schema::table('onboarding_templates', function (Blueprint $t) {
-            $t->dropUnique('onboarding_templates_scope_unique');
             $t->unique('company_id');
+            $t->dropUnique('onboarding_templates_scope_unique');
             $t->dropColumn(['kind', 'variant']);
         });
     }

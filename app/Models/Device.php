@@ -12,12 +12,7 @@ class Device extends Model
 {
     use BelongsToCompany;
 
-    // River schema: PK deviceID, timestamp column is creation_timestamp.
-    protected $primaryKey = 'deviceID';
-    const CREATED_AT = 'creation_timestamp';
-    protected $guarded = ['deviceID'];
-    protected $appends = ['id'];
-    public function getIdAttribute() { return $this->getKey(); }   // expose River PK as `id`
+    protected $guarded = ['id'];
     protected $casts = [
         'active' => 'boolean', 'restricted' => 'boolean', 'ewaste' => 'boolean',
         'inv_date' => 'date',
@@ -48,15 +43,15 @@ class Device extends Model
 
     public function deviceType(): BelongsTo { return $this->belongsTo(DeviceType::class, 'device_type_id', 'id'); }
 
-    // Placement (location_id/room_id are AssetMost additions to River)
+    // Placement
     public function location(): BelongsTo { return $this->belongsTo(Location::class); }
     public function room(): BelongsTo { return $this->belongsTo(Room::class); }
 
-    // Assignment (users) via River's device_users pivot
-    public function users(): BelongsToMany { return $this->belongsToMany(User::class, 'device_users', 'deviceID', 'user_id'); }
+    // Assignment (users)
+    public function users(): BelongsToMany { return $this->belongsToMany(User::class); }
 
     /** Infrastructure credentials for this asset (ITAdmin @ Mail_Arch_Srv). */
-    public function logins(): HasMany { return $this->hasMany(Login::class, 'device_id', 'deviceID'); }
+    public function logins(): HasMany { return $this->hasMany(Login::class); }
 
     public function scopeInService($q) { return $q->where('active', true); }
 }

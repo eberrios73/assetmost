@@ -39,7 +39,7 @@ return new class extends Migration {
         });
 
         Schema::table('logins', function (Blueprint $t) {
-            $t->foreignId('account_id')->nullable()->after('userID')
+            $t->foreignId('account_id')->nullable()
                 ->constrained()->nullOnDelete();
         });
     }

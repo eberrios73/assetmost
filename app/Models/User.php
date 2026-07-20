@@ -41,7 +41,7 @@ class User extends Authenticatable
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
     public function location(): BelongsTo { return $this->belongsTo(Location::class); }
-    public function devices(): BelongsToMany { return $this->belongsToMany(Device::class, 'device_users', 'user_id', 'deviceID'); }
+    public function devices(): BelongsToMany { return $this->belongsToMany(Device::class); }
 
     /** Credentials this person can use. Many-to-many: a shared mailbox has many holders. */
     public function logins(): BelongsToMany

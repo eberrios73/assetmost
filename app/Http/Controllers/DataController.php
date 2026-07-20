@@ -93,7 +93,7 @@ class DataController extends Controller
             'installers_url' => 'nullable|string|max:500',
             'local_admin_user' => 'nullable|string|max:255',
             'local_admin_pass' => 'nullable|string|max:255',
-            'domain_join_login_id' => 'nullable|integer|exists:logins,loginID',
+            'domain_join_login_id' => 'nullable|integer|exists:logins,id',
             'contact_name' => 'nullable|string|max:255', 'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255', 'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:2',
@@ -251,7 +251,7 @@ class DataController extends Controller
     public function personLogins(User $person): JsonResponse
     {
         return response()->json(
-            $person->logins()->with('vendor:vendorID,name')->orderBy('login_name')->get()
+            $person->logins()->with('vendor:id,name')->orderBy('login_name')->get()
                 ->map(fn ($l) => [
                     'id' => $l->id, 'login_name' => $l->login_name, 'login_id' => $l->login_id,
                     'url' => $l->url, 'type' => $l->type, 'vendor' => $l->vendor?->name,
@@ -265,7 +265,7 @@ class DataController extends Controller
     public function companyDomainJoinLogin(Company $company): JsonResponse
     {
         $l = $company->domain_join_login_id
-            ? \App\Models\Login::withoutGlobalScopes()->with('vendor:vendorID,name')->find($company->domain_join_login_id)
+            ? \App\Models\Login::withoutGlobalScopes()->with('vendor:id,name')->find($company->domain_join_login_id)
             : null;
         return response()->json($l ? [[
             'id' => $l->id, 'login_name' => $l->login_name, 'login_id' => $l->login_id,
@@ -280,13 +280,13 @@ class DataController extends Controller
     {
         abort_if(auth()->user()?->role === 'User', 403);
         if ($request->filled('link_id')) {
-            $data = $request->validate(['link_id' => 'integer|exists:logins,loginID']);
+            $data = $request->validate(['link_id' => 'integer|exists:logins,id']);
             $company->domain_join_login_id = $data['link_id'];
             $company->save();
             return response()->json(['id' => (int) $data['link_id']], 200);
         }
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
             'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
@@ -304,7 +304,7 @@ class DataController extends Controller
                 'is_restricted' => $request->boolean('is_restricted', false),
             ]);
         $login->holders()->sync($v->validated()['holder_ids'] ?? []);
-        $company->domain_join_login_id = $login->loginID;
+        $company->domain_join_login_id = $login->id;
         $company->save();
         return response()->json(['id' => $login->id], 201);
     }
@@ -312,7 +312,7 @@ class DataController extends Controller
     public function personDevices(User $person): JsonResponse
     {
         return response()->json(
-            $person->devices()->get(['devices.deviceID', 'asset_tag', 'computer_name', 'type', 'brand', 'model'])
+            $person->devices()->get(['devices.id', 'asset_tag', 'computer_name', 'type', 'brand', 'model'])
         );
     }
 
@@ -335,7 +335,7 @@ class DataController extends Controller
     {
         return response()->json(
             Device::query()->where('active', true)->orderBy('asset_tag')
-                ->get(['deviceID', 'asset_tag', 'computer_name', 'type'])
+                ->get(['id', 'asset_tag', 'computer_name', 'type'])
                 ->map(fn ($d) => [
                     'id' => $d->id,
                     'label' => trim(($d->asset_tag ?: $d->computer_name ?: "#{$d->id}") . ($d->type ? " · {$d->type}" : '')),
@@ -347,7 +347,7 @@ class DataController extends Controller
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
             'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
@@ -392,7 +392,7 @@ class DataController extends Controller
     public function personLicenses(User $person): JsonResponse
     {
         return response()->json(
-            $person->licenses()->with(['vendor:vendorID,name', 'product:id,name'])->orderBy('renewal_date')->get()
+            $person->licenses()->with(['vendor:id,name', 'product:id,name'])->orderBy('renewal_date')->get()
                 ->map(fn ($l) => [
                     'id' => $l->id, 'name' => $l->name,
                     'vendor' => $l->vendor?->name, 'product' => $l->product?->name,
@@ -530,7 +530,7 @@ class DataController extends Controller
     {
         $v = validator($request->all(), [
             'name' => 'required|string|max:255',
-            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
             'product_id' => 'nullable|integer|exists:products,id',
             'seats_total' => 'nullable|integer|min:0',   // null = not counted yet
             'account_number' => 'nullable|string|max:255',
@@ -540,7 +540,7 @@ class DataController extends Controller
             'renewalfrequency' => 'nullable|string|max:50',
             'is_active' => 'nullable|boolean',
             'notes' => 'nullable|string',
-            'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,loginID',
+            'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
@@ -563,7 +563,7 @@ class DataController extends Controller
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
             'product_id' => 'nullable|integer|exists:products,id',
             'seats_total' => 'nullable|integer|min:0',   // null = not counted yet
             'account_number' => 'nullable|string|max:255',
@@ -573,7 +573,7 @@ class DataController extends Controller
             'renewalfrequency' => 'nullable|string|max:50',
             'is_active' => 'nullable|boolean',
             'notes' => 'nullable|string',
-            'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,loginID',
+            'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
@@ -592,10 +592,9 @@ class DataController extends Controller
 
     public function login(\App\Models\Login $login): JsonResponse
     {
-        // River schema: PK loginID, FK vendorID — map back to the API's id/vendor_id
         $login->loadMissing('holders:id,name,last');
         return response()->json([
-            'id' => $login->loginID, 'vendor_id' => $login->vendorID,
+            'id' => $login->id, 'vendor_id' => $login->vendor_id,
             'login_name' => $login->login_name, 'login_id' => $login->login_id,
             'url' => $login->url, 'type' => $login->type, 'notes' => $login->notes,
             'is_active' => (bool) $login->is_active, 'is_restricted' => (bool) $login->is_restricted,
@@ -631,7 +630,7 @@ class DataController extends Controller
     public function vendorOptions(): JsonResponse
     {
         return response()->json(
-            Vendor::query()->orderBy('name')->get(['vendorID', 'name'])
+            Vendor::query()->orderBy('name')->get(['id', 'name'])
                 ->map(fn ($v) => ['id' => $v->id, 'label' => $v->name])
         );
     }
@@ -641,7 +640,7 @@ class DataController extends Controller
     public function productOptions(): JsonResponse
     {
         return response()->json(
-            \App\Models\Product::query()->with('vendor:vendorID,name')->orderBy('name')->get()
+            \App\Models\Product::query()->with('vendor:id,name')->orderBy('name')->get()
                 ->map(fn ($p) => [
                     'id' => $p->id,
                     'label' => $p->vendor ? "{$p->vendor->name} — {$p->name}" : $p->name,
@@ -654,7 +653,7 @@ class DataController extends Controller
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
+            'vendor_id' => 'nullable|integer|exists:vendors,id',
             'login_name' => 'nullable|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
@@ -990,7 +989,7 @@ class DataController extends Controller
     /** One credential: how it's shared, who holds it, and the services it's used in. */
     public function account(\App\Models\Account $account): JsonResponse
     {
-        $account->loadMissing(['holders:id,name,last,active', 'logins.vendor:vendorID,name', 'logins.device:deviceID,asset_tag,computer_name']);
+        $account->loadMissing(['holders:id,name,last,active', 'logins.vendor:id,name', 'logins.device:id,asset_tag,computer_name']);
         return response()->json([
             'id' => $account->id,
             'identifier' => $account->identifier,

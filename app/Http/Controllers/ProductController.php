@@ -91,7 +91,7 @@ class ProductController extends Controller
     public function options(): JsonResponse
     {
         return response()->json(
-            Product::query()->with('vendor:vendorID,name')->where('active', true)
+            Product::query()->with('vendor:id,name')->where('active', true)
                 ->orderBy('name')->get()
                 ->map(fn ($p) => ['id' => $p->id, 'label' => $p->vendor?->name ? "{$p->vendor->name} — {$p->name}" : $p->name])
         );

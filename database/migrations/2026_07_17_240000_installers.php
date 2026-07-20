@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * The installers repo: the SHARE DIRECTORY is the catalog — whatever's in the
  * folder is what /install offers; nothing is curated in the app. companies.
- * installers_path holds the human-facing share URL (smb:// or UNC); the server
+ * installers_url holds the human-facing share URL (smb:// or UNC); the server
  * indexes a local mount of it (INSTALLERS_MOUNT) into `installers` so
  * autocomplete works and missing installers can be flagged. Layout convention:
  * Mac/ and Windows/ top folders; 32/x86 vs 64/x64 in names carries the arch.
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('companies', fn (Blueprint $t) => $t->string('installers_path', 500)->nullable()->after('local_domain'));
+        Schema::table('companies', fn (Blueprint $t) => $t->string('installers_url', 500)->nullable()->after('local_domain'));
         Schema::create('installers', function (Blueprint $t) {
             $t->id();
             $t->string('name');
@@ -32,6 +32,6 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::dropIfExists('installers');
-        Schema::table('companies', fn (Blueprint $t) => $t->dropColumn('installers_path'));
+        Schema::table('companies', fn (Blueprint $t) => $t->dropColumn('installers_url'));
     }
 };

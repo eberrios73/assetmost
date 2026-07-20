@@ -261,7 +261,7 @@ class WorkflowController extends Controller
             'department' => 'nullable|string|max:255',
             'start_date' => 'required|date',
             'vendor_ids' => 'nullable|array',
-            'vendor_ids.*' => 'integer|exists:vendors,vendorID',
+            'vendor_ids.*' => 'integer|exists:vendors,id',
             'account_ids' => 'nullable|array',          // floating accounts to assign
             'account_ids.*' => 'integer|exists:accounts,id',
         ]);
@@ -289,22 +289,21 @@ class WorkflowController extends Controller
             //    format is deliberate and preserved). Stored ONCE, here, in the registry.
             $base = $this->generatePassword($data['first'], $data['last'], $company?->name);
             $credentials = [];
-            foreach (Vendor::query()->whereIn('vendorID', $data['vendor_ids'] ?? [])->get() as $vendor) {
+            foreach (Vendor::query()->whereIn('id', $data['vendor_ids'] ?? [])->get() as $vendor) {
                 $isDirectory = (bool) preg_match('/active directory|domain/i', $vendor->name);
                 $isBaseHolder = $isDirectory || preg_match('/microsoft/i', $vendor->name);
                 $login = Login::create([
                     'company_id' => $companyId,
-                    'vendorID' => $vendor->vendorID,
+                    'vendor_id' => $vendor->id,
                     'login_name' => $vendor->name,
                     'login_id' => $isDirectory ? ($data['username'] ?: $data['email']) : $data['email'],
                     'login_pass' => $isBaseHolder ? $base : $this->variantPassword($base),
                     'sharing' => 'personal',
                     'notes' => 'Created during onboarding v2',
                     'is_active' => 1,
-                    'userID' => $person->id,               // legacy column; ITer reads it
                 ]);
                 $login->holders()->attach($person->id);
-                $credentials[] = ['vendor' => $vendor->name, 'vendor_id' => $vendor->vendorID, 'login_id' => $login->login_id];
+                $credentials[] = ['vendor' => $vendor->name, 'vendor_id' => $vendor->id, 'login_id' => $login->login_id];
             }
 
             // 3. Floating accounts they'll hold from day one.

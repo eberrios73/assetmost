@@ -682,7 +682,7 @@ class MachineOnboardController extends Controller
             'login_name' => "{$kind} Recovery — {$device->asset_tag}",
             'login_id' => $device->asset_tag,
             'login_pass' => $key,
-            'device_id' => $device->deviceID,
+            'device_id' => $device->id,
             'sharing' => 'service',
             'is_restricted' => 1, 'is_active' => 1,
             'notes' => 'Escrowed automatically by the bootstrap script.',

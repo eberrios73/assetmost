@@ -103,10 +103,10 @@ class TaskController extends Controller
             'pct' => 'sometimes|integer|min:0|max:100',
             'pri' => 'sometimes|integer|min:0|max:3',
             'is_project' => 'sometimes|boolean',
-            // A task may belong to a project (an it_tasks row with is_project=1).
-            'parent_id' => 'sometimes|nullable|integer|exists:it_tasks,id',
+            // A task may belong to a project (a tasks row with is_project=1).
+            'parent_id' => 'sometimes|nullable|integer|exists:tasks,id',
             // One predecessor; chains compose. not_in blocks self-dependency.
-            'depends_on_id' => 'sometimes|nullable|integer|exists:it_tasks,id|not_in:'.($request->route('task')?->id ?? 0),
+            'depends_on_id' => 'sometimes|nullable|integer|exists:tasks,id|not_in:'.($request->route('task')?->id ?? 0),
             // The planned window is draggable; origin (creation) never is.
             'planned_start' => 'sometimes|nullable|date',
             'due_date' => 'sometimes|nullable|date',

@@ -110,7 +110,7 @@ class SettingsController extends Controller
     public function scanInstallers(): \Illuminate\Http\JsonResponse
     {
         abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
-        $path = \App\Models\Company::query()->withoutGlobalScopes()->whereNotNull('installers_path')->value('installers_path');
+        $path = \App\Models\Company::query()->withoutGlobalScopes()->whereNotNull('installers_url')->value('installers_url');
         if (! $path) {
             return response()->json(['ok' => false, 'error' => 'Set an installers path first (host/path).'], 422);
         }

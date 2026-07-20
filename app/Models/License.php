@@ -10,10 +10,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 /**
  * A company's purchase of a product: "25 seats of Creative Cloud, renews January".
  *
- * River keeps the physical table as `subscriptions` because ITer runs on this same
- * database and reads it — the rename lives in the model, not the schema. `name` maps to
- * the legacy `subscription_name` column for the same reason.
- *
  * Seats are consumed by LOGINS (accounts), not people. People reach a seat by holding the
  * account, which is what lets one account carry two licenses and one mailbox serve ten.
  */
@@ -21,9 +17,8 @@ class License extends Model
 {
     use BelongsToCompany;
 
-    protected $table = 'subscriptions';         // ITer reads this table; do not rename it
     protected $guarded = ['id'];
-    protected $appends = ['name', 'seats_used', 'seats_available'];
+    protected $appends = ['seats_used', 'seats_available'];
     protected $casts = [
         'renewal_date' => 'date',
         'is_active' => 'boolean',
@@ -31,17 +26,13 @@ class License extends Model
         'seats_total' => 'integer',
     ];
 
-    // `name` is the app-facing field; the column is the legacy subscription_name.
-    public function getNameAttribute(): ?string { return $this->attributes['subscription_name'] ?? null; }
-    public function setNameAttribute($v): void { $this->attributes['subscription_name'] = $v; }
+    public function product(): BelongsTo { return $this->belongsTo(Product::class); }
+    public function vendor(): BelongsTo { return $this->belongsTo(Vendor::class); }
 
-    public function product(): BelongsTo { return $this->belongsTo(Product::class, 'product_id', 'id'); }
-    public function vendor(): BelongsTo { return $this->belongsTo(Vendor::class, 'vendor_id', 'vendorID'); }
-
-    /** Accounts consuming a seat. Joins license_login.login_id -> logins.loginID. */
+    /** Accounts consuming a seat. */
     public function logins(): BelongsToMany
     {
-        return $this->belongsToMany(Login::class, 'license_login', 'license_id', 'login_id')->withTimestamps();
+        return $this->belongsToMany(Login::class)->withTimestamps();
     }
 
     public function getSeatsUsedAttribute(): int { return $this->logins()->count(); }

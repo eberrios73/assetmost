@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('it_tasks', function (Blueprint $t) {
+        Schema::table('tasks', function (Blueprint $t) {
             $t->date('planned_start')->nullable()->after('depends_on_id');
             $t->date('due_date')->nullable()->after('planned_start');
         });
@@ -21,6 +21,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::table('it_tasks', fn (Blueprint $t) => $t->dropColumn(['planned_start', 'due_date']));
+        Schema::table('tasks', fn (Blueprint $t) => $t->dropColumn(['planned_start', 'due_date']));
     }
 };

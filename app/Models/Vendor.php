@@ -17,16 +17,11 @@ class Vendor extends Model
 {
     use BelongsToCompany;   // one company per vendor — vendors are NOT shared
 
-    // River schema: PK vendorID. vendors.company_id is the authority now;
-    // the legacy vendor_client pivot stays for ITer but the app doesn't read it.
-    protected $primaryKey = 'vendorID';
-    protected $guarded = ['vendorID'];
-    protected $appends = ['id'];
-    public function getIdAttribute() { return $this->getKey(); }   // expose River PK as `id`
+    protected $guarded = ['id'];
     protected $casts = ['active' => 'boolean'];
 
-    public function companies(): BelongsToMany { return $this->belongsToMany(Company::class, 'vendor_client', 'vendorID', 'client_id'); }
-    public function logins(): HasMany { return $this->hasMany(Login::class, 'vendorID', 'vendorID'); }
-    public function products(): HasMany { return $this->hasMany(Product::class, 'vendor_id', 'vendorID'); }
-    public function licenses(): HasMany { return $this->hasMany(License::class, 'vendor_id', 'vendorID'); }
+    public function companies(): BelongsToMany { return $this->belongsToMany(Company::class); }
+    public function logins(): HasMany { return $this->hasMany(Login::class); }
+    public function products(): HasMany { return $this->hasMany(Product::class); }
+    public function licenses(): HasMany { return $this->hasMany(License::class); }
 }

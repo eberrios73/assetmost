@@ -6,18 +6,15 @@ use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Stored credential. River schema: PK loginID, FKs userID/vendorID, plaintext login_pass
- * (matches ITer, which reads this same table).
+ * Stored credential. Secret is encrypted at rest (cast), not plaintext.
  *
  * Held by MANY people via login_access — one-person-per-login can't express a pooled seat
  * handed between designers, a shared mailbox ten people check, or an admin account used
  * across six servers (37% of these rows had no owner because of it).
  *
- * `userID` is KEPT: ITer reads it. login_access is the app's source of truth; userID is
- * legacy and left alone.
+ * login_access is the source of truth for who holds a credential.
  */
 class Login extends Model
 {
@@ -30,49 +27,33 @@ class Login extends Model
     //            always, and revealing one is the audit event that matters most.
     public const SHARING = ['personal', 'pooled', 'shared', 'service', 'breakglass'];
 
-    protected $primaryKey = 'loginID';
-    protected $guarded = ['loginID'];
-    // River's logins table has created_at but NO updated_at — writing it is a
-    // column-not-found error on every insert/update.
-    const UPDATED_AT = null;
-
-    // The app speaks snake_case; River's columns are camelCase. Map on write so
-    // every controller/form can keep saying vendor_id / user_id.
-    public function setVendorIdAttribute($v) { $this->attributes['vendorID'] = $v; }
-    public function setUserIdAttribute($v) { $this->attributes['userID'] = $v; }
-    protected $appends = ['id'];
-    public function getIdAttribute() { return $this->getKey(); }   // expose River PK as `id`
+    protected $guarded = ['id'];
     protected $casts = [
+        'login_pass' => 'encrypted',
         'is_active' => 'boolean',
         'is_restricted' => 'boolean',
     ];
 
     // --- what it's for (at most one) ---
-    public function vendor(): BelongsTo { return $this->belongsTo(Vendor::class, 'vendorID', 'vendorID'); }
-    public function device(): BelongsTo { return $this->belongsTo(Device::class, 'device_id', 'deviceID'); }
-    public function product(): BelongsTo { return $this->belongsTo(Product::class, 'product_id', 'id'); }
-
-    /** Legacy single owner. ITer reads userID; the app uses holders(). */
-    public function user(): BelongsTo { return $this->belongsTo(User::class, 'userID', 'id'); }
+    public function vendor(): BelongsTo { return $this->belongsTo(Vendor::class); }
+    public function device(): BelongsTo { return $this->belongsTo(Device::class); }
+    public function product(): BelongsTo { return $this->belongsTo(Product::class); }
 
     /** The floating account (credential identity) this login is a use of, if any. */
-    public function account(): BelongsTo { return $this->belongsTo(Account::class, 'account_id', 'id'); }
+    public function account(): BelongsTo { return $this->belongsTo(Account::class); }
 
     // --- who holds it ---
     /** Everyone who can use this credential. Empty = nobody (an available pooled seat). */
     public function holders(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'login_access', 'login_id', 'user_id')->withTimestamps();
+        return $this->belongsToMany(User::class, 'login_access')->withTimestamps();
     }
 
     /** Seats this account consumes. One account can carry several licenses. */
     public function licenses(): BelongsToMany
     {
-        return $this->belongsToMany(License::class, 'license_login', 'login_id', 'license_id')->withTimestamps();
+        return $this->belongsToMany(License::class)->withTimestamps();
     }
-
-    /** @deprecated use licenses() — kept so existing river call sites keep working. */
-    public function subscriptions(): HasMany { return $this->hasMany(License::class, 'login_id', 'loginID'); }
 
     // --- seat semantics ---
     public function isPooled(): bool { return $this->sharing === 'pooled'; }
