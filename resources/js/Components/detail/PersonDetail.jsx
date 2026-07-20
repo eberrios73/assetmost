@@ -13,7 +13,7 @@ const send = (url, method, body) => fetch(url, {
     body: body ? JSON.stringify(body) : undefined,
 });
 
-export default function PersonDetail({ u }) {
+export default function PersonDetail({ u, onChanged }) {
     return (
         <div className="h-full flex flex-col min-h-0">
             <div className="mb-4">
@@ -31,7 +31,7 @@ export default function PersonDetail({ u }) {
             <div className="flex-1 min-h-0">
                 <Tabs
                     tabs={[
-                        { key: 'logins', label: 'Logins', count: u.logins_count, render: () => <LoginsTable endpoint={`/data/people/${u.id}/logins`} createEndpoint={`/data/people/${u.id}/logins`} presetHolderIds={[u.id]} /> },
+                        { key: 'logins', label: 'Logins', count: u.logins_count, render: () => <LoginsTable endpoint={`/data/people/${u.id}/logins`} createEndpoint={`/data/people/${u.id}/logins`} presetHolderIds={[u.id]} onChanged={onChanged} /> },
                         // One tab, not two — "Licenses" and "Subscriptions" were the same
                         // endpoint rendered twice under different names.
                         { key: 'licenses', label: 'Licenses', count: u.licenses_count, render: () => <LicensesTable endpoint={`/data/people/${u.id}/licenses`} /> },

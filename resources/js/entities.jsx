@@ -31,7 +31,7 @@ export const ENTITIES = {
         icon: <PersonIcon />, idLabel: 'Person ID',
         filter: { key: 'department', label: 'departments', optionsEndpoint: '/data/departments' },
         sort: [{ key: 'name', label: 'First name' }, { key: 'last', label: 'Last name' }, { key: 'department', label: 'Department' }, { key: 'ext', label: 'Ext' }],
-        render: (u) => <PersonDetail u={u} />,
+        render: (u, refetch) => <PersonDetail u={u} onChanged={refetch} />,
         add: {
             endpoint: '/data/people', title: 'Add Staff',
             fields: [

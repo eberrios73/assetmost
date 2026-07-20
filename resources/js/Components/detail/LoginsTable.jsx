@@ -21,8 +21,9 @@ const LOGIN_FIELDS = [
 
 /** Shared logins table — one DataTable like every other screen. `showUser` for the
  *  vendor view; `createEndpoint` (optional) enables the shared Add button.
- *  `presetHolderIds`: adding from a person's screen pre-assigns to that person. */
-export default function LoginsTable({ endpoint, showUser = false, createEndpoint = null, presetHolderIds = null }) {
+ *  `presetHolderIds`: adding from a person's screen pre-assigns to that person.
+ *  `onChanged`: tell the parent after add/edit/delete (tab counts and the like). */
+export default function LoginsTable({ endpoint, showUser = false, createEndpoint = null, presetHolderIds = null, onChanged = null }) {
     const [reload, setReload] = useState(0);
     const { loading, data } = useJson(`${endpoint}?_=${reload}`);
     const [edit, setEdit] = useState(null);
@@ -62,6 +63,7 @@ export default function LoginsTable({ endpoint, showUser = false, createEndpoint
         const xsrf = decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
         await fetch(`/data/logins/${id}`, { method: 'DELETE', credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf } });
         setReload((r) => r + 1);
+        onChanged?.();
     };
 
     if (loading) return <p className="text-sm text-gray-400 py-6">Loading…</p>;
@@ -107,13 +109,13 @@ export default function LoginsTable({ endpoint, showUser = false, createEndpoint
                 <RecordModal title="Add login" endpoint={createEndpoint} method="POST" fields={LOGIN_FIELDS}
                     initial={{ is_active: true, is_restricted: false, ...(presetHolderIds ? { holder_ids: presetHolderIds } : {}) }}
                     onClose={() => setAdding(false)}
-                    onSaved={() => { setAdding(false); setReload((r) => r + 1); }} />
+                    onSaved={() => { setAdding(false); setReload((r) => r + 1); onChanged?.(); }} />
             )}
             {edit && (
                 <RecordModal title="Edit login" endpoint={`/data/logins/${edit.id}`} method="PATCH"
                     fields={LOGIN_FIELDS} initial={edit.initial}
                     onClose={() => setEdit(null)}
-                    onSaved={() => { setEdit(null); setReload((r) => r + 1); }} />
+                    onSaved={() => { setEdit(null); setReload((r) => r + 1); onChanged?.(); }} />
             )}
         </>
     );
