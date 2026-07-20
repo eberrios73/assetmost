@@ -311,9 +311,17 @@ class MachineOnboardController extends Controller
             $vars['{' . $name . '}'] = "\$SNIP_{$safe}";   // valid in sh, zsh and PowerShell
         }
         foreach ($args as $i => $a) $vars['{' . ($i + 1) . '}'] = $a;
-        foreach ($ctx as $k => $v) $vars['{' . $k . '}'] = $v ?? '';
+        $warnings = '';
+        foreach ($ctx as $k => $v) {
+            $vars['{' . $k . '}'] = $v ?? '';
+            // Missing company config must be as loud as an unknown command —
+            // never emit e.g. dsconfigad -add "" silently.
+            if (($v === null || $v === '') && str_contains($s->{$col}, '{' . $k . '}')) {
+                $warnings .= "# !! {{$k}} is EMPTY — fill it in on the company (Settings > Companies) or this block cannot work.\n";
+            }
+        }
         $ask = $prompts[$platform === 'windows' ? 'windows' : 'sh'];
-        return ($ask !== '' ? $ask : '') . strtr($s->{$col}, $vars);
+        return $warnings . ($ask !== '' ? $ask : '') . strtr($s->{$col}, $vars);
     }
 
     /**
@@ -750,9 +758,9 @@ class MachineOnboardController extends Controller
             return <<<SH
 # Enroll into {$name} - Automated Device Enrollment (the Mac is in Apple Business Manager)
 if profiles renew -type enrollment 2>/dev/null; then
-  report 'MDM enrollment' true 'ADE enrollment renewed ({$name})'
+  report 'mdm' true 'ADE enrollment renewed ({$name})'
 else
-  report 'MDM enrollment' false 'ADE failed - is this Mac in ABM? Retail-bought Macs need /mdm {$mdm} manual'
+  report 'mdm' false 'ADE failed - is this Mac in ABM? Retail-bought Macs need /mdm {$mdm} manual'
 fi
 SH;
         }
@@ -760,7 +768,7 @@ SH;
         if ($mode === 'manual' && $profileUrl === '') {
             return <<<SH
 # Enroll into {$name} MANUALLY - retail-bought Mac, no ABM record
-report 'MDM enrollment' false 'Drop the {$name} enrollment profile on the share (Mac/... .mobileconfig, zipped) or enroll via the {$name} enrollment URL - then approve it in System Settings > Profiles'
+report 'mdm' false 'Drop the {$name} enrollment profile on the share (Mac/... .mobileconfig, zipped) or enroll via the {$name} enrollment URL - then approve it in System Settings > Profiles'
 SH;
         }
 
@@ -770,9 +778,9 @@ SH;
 # Enroll into {$name} - {$why}
 if curl -fsSL "{$profileUrl}" -o "/tmp/{$profileFile}" 2>/dev/null; then
   open "/tmp/{$profileFile}"
-  report 'MDM enrollment' true '{$name} profile staged - approve it in System Settings > Profiles'
+  report 'mdm' true '{$name} profile staged - approve it in System Settings > Profiles'
 else
-  report 'MDM enrollment' false 'Could not fetch the {$name} enrollment profile from the share'
+  report 'mdm' false 'Could not fetch the {$name} enrollment profile from the share'
 fi
 SH;
         }
@@ -780,9 +788,9 @@ SH;
         return <<<SH
 # Enroll into {$name} - ABM/DEP-assigned devices renew here; or drop the enrollment .mobileconfig on the share
 if profiles renew -type enrollment 2>/dev/null; then
-  report 'MDM enrollment' true 'Enrollment renewed ({$name})'
+  report 'mdm' true 'Enrollment renewed ({$name})'
 else
-  report 'MDM enrollment' false 'Auto-enroll failed - add the {$name} enrollment profile to the share'
+  report 'mdm' false 'Auto-enroll failed - add the {$name} enrollment profile to the share'
 fi
 SH;
     }
@@ -798,21 +806,21 @@ SH;
         if ($mode === 'manual') {
             $name = ucwords($mdm);
             return "# Enroll into {$name} MANUALLY - retail/BYO device, no autopilot record\n"
-                . "Report 'MDM enrollment' \$false 'Enroll by hand: {$name} portal/agent (Intune: Company Portal > Settings > Accounts > Access work or school)'";
+                . "Report 'mdm' \$false 'Enroll by hand: {$name} portal/agent (Intune: Company Portal > Settings > Accounts > Access work or school)'";
         }
         if (str_contains($mdm, 'intune')) {
             return <<<'PS'
 # Enroll into Intune - Azure AD auto-enrollment (the device must be Azure AD joined)
 try {
     Start-Process -FilePath "$env:WINDIR\System32\deviceenroller.exe" -ArgumentList '/c','/AutoEnrollMDM' -Wait -NoNewWindow
-    Report 'MDM enrollment' $true 'AutoEnrollMDM triggered (Intune)'
-} catch { Report 'MDM enrollment' $false $_.Exception.Message }
+    Report 'mdm' $true 'AutoEnrollMDM triggered (Intune)'
+} catch { Report 'mdm' $false $_.Exception.Message }
 PS;
         }
         $name = ucwords($mdm);
 
         return "# Enroll into {$name} - install its agent / enrollment profile from your {$name} console (no standard silent command)\n"
-            . "Report 'MDM enrollment' \$false 'Enroll {$name} manually'";
+            . "Report 'mdm' \$false 'Enroll {$name} manually'";
     }
 
     /**
@@ -840,7 +848,7 @@ T="/tmp/{$f}"; ok=0
 if curl -fsSL "{$u}" -o "\$T"; then
   {$body}
 fi
-[ "\$ok" = 1 ] && report 'software' true 'Installed {$f}' || report 'software' false 'Failed {$f}'
+[ "\$ok" = 1 ] && report 'install' true 'Installed {$f}' || report 'install' false 'Failed {$f}'
 rm -f "\$T" 2>/dev/null
 
 SH;
@@ -861,7 +869,7 @@ SH;
 # {$file}
 \$T = "\$env:TEMP\\{$file}"; \$ok = \$false
 try { Invoke-WebRequest "{$url}" -OutFile \$T -UseBasicParsing; {$body} } catch {}
-if (\$ok) { Report 'software' \$true 'Installed {$file}' } else { Report 'software' \$false 'Failed {$file}' }
+if (\$ok) { Report 'install' \$true 'Installed {$file}' } else { Report 'install' \$false 'Failed {$file}' }
 Remove-Item \$T -ErrorAction SilentlyContinue
 
 PS;
