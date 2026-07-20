@@ -25,7 +25,15 @@ class DataController extends Controller
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
-        $model->update($v->validated());
+        $data = $v->validated();
+        // An untouched checkbox arrives null — "leave it alone", never write null.
+        foreach ($rules as $key => $rule) {
+            $ruleStr = is_array($rule) ? implode('|', array_filter($rule, 'is_string')) : (string) $rule;
+            if (str_contains($ruleStr, 'boolean') && array_key_exists($key, $data) && $data[$key] === null) {
+                unset($data[$key]);
+            }
+        }
+        $model->update($data);
         return response()->json($model->fresh());
     }
 
@@ -35,7 +43,7 @@ class DataController extends Controller
             'name' => 'required|string|max:255', 'last' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255', 'title' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255', 'cell' => 'nullable|string|max:30',
-            'ext' => 'nullable|string|max:11', 'active' => 'boolean',
+            'ext' => 'nullable|string|max:11', 'active' => 'nullable|boolean',
         ]);
     }
 
@@ -46,7 +54,7 @@ class DataController extends Controller
             'type' => 'nullable|string|max:255', 'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255', 'serial_num' => 'nullable|string|max:255',
             'ip_1' => 'nullable|string|max:45', 'ip_2' => 'nullable|string|max:45',
-            'active' => 'boolean',
+            'active' => 'nullable|boolean',
         ]);
     }
 
@@ -55,7 +63,7 @@ class DataController extends Controller
         return $this->applyUpdate($vendor, $r, [
             'name' => 'required|string|max:255', 'contact_name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:30', 'email' => 'nullable|email|max:255',
-            'website' => 'nullable|string|max:255', 'active' => 'boolean',
+            'website' => 'nullable|string|max:255', 'active' => 'nullable|boolean',
         ]);
     }
 
@@ -89,7 +97,7 @@ class DataController extends Controller
             'contact_name' => 'nullable|string|max:255', 'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255', 'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:2',
-            'zip' => 'nullable|string|max:10', 'active' => 'boolean',
+            'zip' => 'nullable|string|max:10', 'active' => 'nullable|boolean',
         ]);
         // Set or change the installers URL → re-scan the catalog from it, best-effort.
         $url = $company->fresh()->installers_url;
@@ -530,7 +538,7 @@ class DataController extends Controller
             'amount' => 'nullable|numeric',
             'renewal_date' => 'nullable|date',
             'renewalfrequency' => 'nullable|string|max:50',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'notes' => 'nullable|string',
             'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,loginID',
         ]);
@@ -563,7 +571,7 @@ class DataController extends Controller
             'amount' => 'nullable|numeric',
             'renewal_date' => 'nullable|date',
             'renewalfrequency' => 'nullable|string|max:50',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'notes' => 'nullable|string',
             'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,loginID',
         ]);
@@ -571,6 +579,7 @@ class DataController extends Controller
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = $v->validated();
+        if (array_key_exists('is_active', $data) && $data['is_active'] === null) unset($data['is_active']);
         // The accounts consuming this license's seats live on the pivot, not the row.
         // Absent key = untouched; [] = detach all.
         if (array_key_exists('login_ids', $data)) {
@@ -821,7 +830,7 @@ class DataController extends Controller
             // set one only for someone who actually uses the app.
             'password' => 'nullable|string|min:8',
             'role' => 'nullable|in:'.implode(',', \App\Support\Access::ROLES),
-            'can_login' => 'boolean',
+            'can_login' => 'nullable|boolean',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
@@ -1015,7 +1024,7 @@ class DataController extends Controller
             'identifier' => 'required|string|max:255|unique:accounts,identifier',
             'sharing' => 'required|in:'.implode(',', \App\Models\Account::SHARING),
             'notes' => 'nullable|string',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
             'company_id' => 'nullable|integer|exists:companies,id',
         ]);
@@ -1044,13 +1053,14 @@ class DataController extends Controller
             'identifier' => 'required|string|max:255|unique:accounts,identifier,'.$account->id,
             'sharing' => 'required|in:'.implode(',', \App\Models\Account::SHARING),
             'notes' => 'nullable|string',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = $v->validated();
+        if (array_key_exists('is_active', $data) && $data['is_active'] === null) unset($data['is_active']);
         if (array_key_exists('holder_ids', $data)) {
             $account->holders()->sync($data['holder_ids'] ?? []);
             unset($data['holder_ids']);

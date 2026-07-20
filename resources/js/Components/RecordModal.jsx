@@ -50,7 +50,10 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
     const [values, setValues] = useState(() =>
         Object.fromEntries(fields.map((f) => [
             f.key,
-            initial[f.key] ?? (f.type === 'multi-select-search' ? [] : ''),
+            // Checkboxes are ALWAYS true/false — an empty-string value reaches the
+            // server as null and fails 'boolean' validation.
+            f.type === 'checkbox' ? !!initial[f.key]
+                : initial[f.key] ?? (f.type === 'multi-select-search' ? [] : ''),
         ]))
     );
     const [errors, setErrors] = useState({});

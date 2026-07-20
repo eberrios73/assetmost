@@ -59,8 +59,10 @@ class ProductController extends Controller
             ],
             'sku' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
-            'active' => 'boolean',
+            'active' => 'nullable|boolean',
         ]);
+        // Untouched checkbox arrives null — leave the stored flag alone.
+        if (array_key_exists('active', $data) && $data['active'] === null) unset($data['active']);
         $product->update($data);
 
         return response()->json($this->row($product->fresh()));

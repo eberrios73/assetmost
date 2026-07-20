@@ -157,18 +157,22 @@ class SettingsController extends Controller
                 array_keys(IdentityProvider::PROVIDERS),
                 \App\Models\ProvisionerDefinition::query()->pluck('plugin_key')->all(),
             )),
-            'enabled' => 'boolean',
+            'enabled' => 'nullable|boolean',
             'domain' => 'nullable|string|max:255',
             'tenant_id' => 'nullable|string|max:255',
             'client_id' => 'nullable|string|max:255',
             'client_secret' => 'nullable|string|max:512',
-            'sync_on_login' => 'boolean',
+            'sync_on_login' => 'nullable|boolean',
         ]);
 
         // Blank means "leave the stored secret alone" — the form never receives it back,
         // so an empty field is absence of an edit, not an instruction to erase.
         if (blank($data['client_secret'] ?? null)) {
             unset($data['client_secret']);
+        }
+        // Untouched checkboxes arrive null — leave the stored flags alone.
+        foreach (['enabled', 'sync_on_login'] as $b) {
+            if (array_key_exists($b, $data) && $data[$b] === null) unset($data[$b]);
         }
 
         $provider = IdentityProvider::updateOrCreate(
