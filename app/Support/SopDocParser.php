@@ -50,11 +50,11 @@ class SopDocParser
                 // Why / How / Done when / Record. Rows attach to the current step
                 // (or its last subtask); empty cells — a fresh scaffold — are skipped.
                 if ($lastStep !== null && isset($cells[0])
-                    && preg_match('/^(why|how|done when|done|record)\s*:?\s*$/i', trim($cells[0]), $fm)) {
+                    && preg_match('/^(why|how|notes|done when|done|record)\s*:?\s*$/i', trim($cells[0]), $fm)) {
                     $val = trim($cells[1] ?? '');
                     if ($val !== '') {
                         $key = match (strtolower($fm[1])) {
-                            'why' => 'why', 'how' => 'instructions',
+                            'why' => 'why', 'how', 'notes' => 'instructions',
                             'done when', 'done' => 'done_when', 'record' => 'record',
                         };
                         $target = &$steps[$lastStep];
@@ -145,18 +145,21 @@ class SopDocParser
                 $trim = trim($wm[1]);
                 $depth = max($depth, 1);
             }
-            // Continuation lines (dial codes, paths) attach to the previous step's How.
-            if ($lastStep !== null && preg_match('~^[#*/\\\\]~', $trim)) {
+            // Continuation lines (dial codes, paths) attach to the previous step's
+            // How — but a /command token ("/localadmin", "/mdm Jamf auto") is a
+            // SUBSTEP, never a continuation; swallowing it would eat the command.
+            if ($lastStep !== null && preg_match('~^[#*/\\\\]~', $trim)
+                && ! preg_match('~^/[a-z][\w-]{2,}+(?![./])~i', $trim)) {
                 $steps[$lastStep]['instructions'] = trim(($steps[$lastStep]['instructions'] ?? '') . "\n" . $trim);
                 continue;
             }
 
             // Playbook field lines attach to the current step (or its last subtask).
-            if (preg_match('/^(why|how|done when|done|record)\s*[:—-]\s*(.+)$/i', $trim, $m)) {
+            if (preg_match('/^(why|how|notes|done when|done|record)\s*[:—-]\s*(.+)$/i', $trim, $m)) {
                 if ($lastStep === null) continue;   // stray field line — never a step
                 if (true) {
                     $key = match (strtolower($m[1])) {
-                        'why' => 'why', 'how' => 'instructions',
+                        'why' => 'why', 'how', 'notes' => 'instructions',
                         'done when', 'done' => 'done_when', 'record' => 'record',
                     };
                     $target = &$steps[$lastStep];
@@ -381,7 +384,7 @@ class SopDocParser
         // not survive the li parsing, and bullets read better lean.
         $fieldParas = function (array $s) use ($esc) {
             $out = '';
-            foreach (['why' => 'Why', 'instructions' => 'How', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
+            foreach (['why' => 'Why', 'instructions' => 'Notes', 'done_when' => 'Done when', 'record' => 'Record'] as $k => $label) {
                 if (! empty($s[$k])) {
                     foreach (preg_split('/\n+/', $s[$k]) as $i => $line) {
                         $lbl = $i === 0 ? "<strong>{$label}:</strong> " : '';
