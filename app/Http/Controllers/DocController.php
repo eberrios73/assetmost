@@ -16,15 +16,23 @@ class DocController extends Controller
     /** Spaces for the current company, with page counts. */
     public function spaces(): JsonResponse
     {
+        // Counts come from the VISIBLE pages (own + shared into this company).
         $counts = DocPage::query()->selectRaw('space_id, COUNT(*) c')->groupBy('space_id')
             ->pluck('c', 'space_id');
 
+        $own = Space::query()->orderBy('position')->orderBy('name')->get();
+        // Spaces from other companies that hold docs shared into this one —
+        // the shared playbook needs a visible home in the switcher.
+        $foreign = Space::withoutGlobalScopes()
+            ->whereIn('id', collect($counts->keys())->filter()->diff($own->pluck('id')))
+            ->orderBy('name')->get();
+
         return response()->json(
-            Space::query()->orderBy('position')->orderBy('name')->get()
+            $own->concat($foreign)
                 ->map(fn ($s) => [
                     'id' => $s->id, 'name' => $s->name, 'icon' => $s->icon,
                     'color' => $s->color, 'pages' => (int) ($counts[$s->id] ?? 0),
-                ])
+                ])->values()
         );
     }
 
@@ -67,7 +75,10 @@ class DocController extends Controller
             ->orderBy('position')->orderBy('title')
             ->get(['id', 'parent_id', 'title', 'icon', 'category', 'updated_at']);
 
-        $byParent = $pages->groupBy(fn ($p) => $p->parent_id ?? 0);
+        // A shared doc's parent may not be visible here — attach it at the root
+        // instead of losing it.
+        $visible = $pages->pluck('id')->flip();
+        $byParent = $pages->groupBy(fn ($p) => ($p->parent_id && isset($visible[$p->parent_id])) ? $p->parent_id : 0);
         $build = function ($parentId) use (&$build, $byParent) {
             return ($byParent[$parentId ?? 0] ?? collect())->map(fn ($p) => [
                 'id' => $p->id, 'title' => $p->title, 'icon' => $p->icon, 'category' => $p->category,
@@ -108,6 +119,7 @@ class DocController extends Controller
             // A workflow page renders with its Info | SOP | Script tabs in Docs too.
             'workflow_type' => $page->workflow_type,
             'company_id' => $page->company_id,
+            'shared_company_ids' => $page->sharedCompanies()->pluck('companies.id')->values(),
             'updated_at' => $page->updated_at,
             'rev' => $page->updated_at?->getTimestamp() ?? 0,
             'editor' => $page->editor ? trim("{$page->editor->name} {$page->editor->last}") : null,
@@ -158,6 +170,9 @@ class DocController extends Controller
             $copy->body = '<p></p>';
         }
         $copy->save();
+        // Sharing travels with the document identity — the new version stays
+        // visible in the same companies.
+        $copy->sharedCompanies()->sync($page->sharedCompanies()->pluck('companies.id')->all());
 
         // The old version steps aside: out of every list, findable from the new one.
         $page->forceFill([
@@ -304,7 +319,16 @@ class DocController extends Controller
             'parent_id' => 'sometimes|nullable|integer|exists:doc_pages,id',
             'space_id' => 'sometimes|nullable|integer|exists:spaces,id',
             'rev' => 'sometimes|nullable|integer',
+            'shared_company_ids' => 'sometimes|array',
+            'shared_company_ids.*' => 'integer|exists:companies,id',
         ]);
+        // Sharing: visible in these companies IN ADDITION to the owner.
+        if (array_key_exists('shared_company_ids', $data)) {
+            $page->sharedCompanies()->sync(
+                collect($data['shared_company_ids'])->reject(fn ($id) => (int) $id === (int) $page->company_id)->values()->all()
+            );
+            unset($data['shared_company_ids']);
+        }
         // Optimistic lock: a stale buffer (another tab, the Onboarding SOP view,
         // a server-side edit) must never silently clobber newer content — that's
         // how deleted steps resurrect. The client sends the rev it loaded;

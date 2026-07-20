@@ -344,8 +344,8 @@ class MachineOnboardController extends Controller
         // Deliberate refs use the workflow slug (/eprotection). Loose title
         // matching is NOT honored here — that's exactly how typos would hide
         // (/domain "resolving" against a doc titled "Domains & SambaBox").
-        $refSlugs = \App\Models\DocPage::withoutGlobalScopes()
-            ->where('company_id', $companyId)->whereNotNull('workflow_slug')
+        $refSlugs = \App\Models\DocPage::withoutGlobalScopes()->visibleToCompany($companyId)
+            ->whereNotNull('workflow_slug')
             ->pluck('workflow_slug')->map(fn ($s) => strtolower($s))->flip()->all();
 
         foreach (array_values($steps) as $i => $step) {

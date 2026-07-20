@@ -31,7 +31,7 @@ class RunbookRefs
 
             // 1. Workflow docs: workflow_slug is the canonical slug; title matches loosely
             //    too (covers renamed duplicates like "Access Point").
-            $wf = DocPage::withoutGlobalScopes()->where('company_id', $companyId)
+            $wf = DocPage::withoutGlobalScopes()->visibleToCompany($companyId)
                 ->whereNotNull('workflow_type')->where('workflow_active', true)
                 ->get(['id', 'title', 'workflow_slug', 'workflow_steps'])
                 ->first(fn ($p) => $p->workflow_slug === $slug
@@ -44,7 +44,7 @@ class RunbookRefs
             }
 
             // 2. Plain Docs by title (normalized contains).
-            $page = DocPage::withoutGlobalScopes()->where('company_id', $companyId)
+            $page = DocPage::withoutGlobalScopes()->visibleToCompany($companyId)
                 ->get(['id', 'title'])
                 ->first(fn ($p) => str_contains(strtolower(str_replace([' ', '-'], '', $p->title)), $slug));
             if ($page) {

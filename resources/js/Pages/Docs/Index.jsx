@@ -326,6 +326,7 @@ export default function Index() {
                         <button onClick={newVersion} title="Duplicate as the next version (original stands)"
                             className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">New version</button>
                     )}
+                    <ShareMenu page={page} onChanged={(ids) => setPage((p) => ({ ...p, shared_company_ids: ids }))} />
                     <button onClick={del} className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-red-600">Delete</button>
                 </div>
             </div>
@@ -451,6 +452,42 @@ function SpaceSwitcher({ spaces, space, onPick, onNew }) {
     );
 }
 function flatten(nodes, depth = 0) { return (nodes || []).flatMap((n) => [{ id: n.id, title: n.title, icon: n.icon, category: n.category, depth }, ...flatten(n.children, depth + 1)]); }
+
+/** Show this doc in other companies too — one playbook for parent + child
+ *  companies instead of two copies. Owner company stays the owner. */
+function ShareMenu({ page, onChanged }) {
+    const [open, setOpen] = useState(false);
+    const [opts, setOpts] = useState(null);
+    useEffect(() => { if (open && opts === null) api('/data/company-options').then(setOpts); }, [open]);
+    const ids = page.shared_company_ids || [];
+    const toggle = async (cid) => {
+        const next = ids.includes(cid) ? ids.filter((x) => x !== cid) : [...ids, cid];
+        onChanged(next);
+        await api(`/data/docs/${page.id}`, 'PATCH', { shared_company_ids: next });
+    };
+    const others = (opts || []).filter((o) => o.id !== page.company_id);
+    return (
+        <div className="relative">
+            <button onClick={() => setOpen((v) => !v)} title="Show this doc in other companies too (one playbook, no copies)"
+                className="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                Shared{ids.length ? `: +${ids.length}` : ''}
+            </button>
+            {open && (
+                <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 shadow-lg">
+                    <p className="px-1 pb-1 text-xs text-gray-400">Also show in…</p>
+                    {others.length === 0 && <p className="px-1 py-1 text-sm text-gray-400">{opts === null ? 'Loading…' : 'No other companies.'}</p>}
+                    {others.map((o) => (
+                        <label key={o.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <input type="checkbox" checked={ids.includes(o.id)} onChange={() => toggle(o.id)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                            <span className="text-gray-700 dark:text-gray-300">{o.label}</span>
+                        </label>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 function CategoryBadge({ category }) {
     if (!category) return null;
