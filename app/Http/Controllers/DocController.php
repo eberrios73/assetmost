@@ -65,12 +65,13 @@ class DocController extends Controller
             ->whereNull('superseded_by_id')   // the tree shows CURRENT versions only
             ->when($request->filled('space'), fn ($q) => $q->where('space_id', (int) $request->query('space')))
             ->orderBy('position')->orderBy('title')
-            ->get(['id', 'parent_id', 'title', 'icon', 'category']);
+            ->get(['id', 'parent_id', 'title', 'icon', 'category', 'updated_at']);
 
         $byParent = $pages->groupBy(fn ($p) => $p->parent_id ?? 0);
         $build = function ($parentId) use (&$build, $byParent) {
             return ($byParent[$parentId ?? 0] ?? collect())->map(fn ($p) => [
                 'id' => $p->id, 'title' => $p->title, 'icon' => $p->icon, 'category' => $p->category,
+                'updated_at' => $p->updated_at?->toDateString(),
                 'children' => $build($p->id),
             ])->values();
         };

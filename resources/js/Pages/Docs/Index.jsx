@@ -193,13 +193,21 @@ export default function Index() {
     const selSnip = snips.find((s) => s.id === selSnipId) || null;
 
 
+    // Incidents are chronological records, not procedure pages: they get their
+    // own tab (newest first) and stay OUT of the Docs tree.
+    const flatten = (nodes) => nodes.flatMap((n) => [n, ...flatten(n.children || [])]);
+    const incidents = flatten(tree).filter((n) => n.category === 'Incident')
+        .sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+    const pruneIncidents = (nodes) => nodes.filter((n) => n.category !== 'Incident')
+        .map((n) => ({ ...n, children: pruneIncidents(n.children || []) }));
+
     const nav = (
         <div className="flex flex-col h-full">
             <div className="p-2 border-b border-gray-100 dark:border-gray-800">
                 <SpaceSwitcher spaces={spaces} space={space} onPick={chooseSpace} onNew={newSpace} />
             </div>
             <div className="flex border-b border-gray-200 dark:border-gray-800 px-2 pt-1">
-                {[['docs', 'Docs'], ['templates', 'Templates'], ['commands', 'Commands']].map(([k, label]) => (
+                {[['docs', 'Docs'], ['incidents', 'Incidents'], ['templates', 'Templates'], ['commands', 'Commands']].map(([k, label]) => (
                     <button key={k} onClick={() => setNavTab(k)}
                         className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${navTab === k ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
                         {label}
@@ -218,6 +226,19 @@ export default function Index() {
                     ))}
                     <button onClick={newSnippet}
                         className="w-full rounded-md px-3 py-2 text-left text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800">+ New command</button>
+                </div>
+            ) : navTab === 'incidents' ? (
+                <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                    <button onClick={() => newPage(null, 'incident')}
+                        className="w-full rounded-md px-3 py-2 text-left text-sm text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800">+ New incident report</button>
+                    {incidents.length === 0 && <p className="p-2 text-xs text-gray-400">No incident reports in {space?.name || 'this space'} yet.</p>}
+                    {incidents.map((n) => (
+                        <button key={n.id} onClick={() => openPage(n.id)}
+                            className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm ${selectedId === n.id ? 'bg-blue-50 dark:bg-blue-500/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                            <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{n.title}</span>
+                            <span className="shrink-0 text-xs text-gray-400">{n.updated_at || ''}</span>
+                        </button>
+                    ))}
                 </div>
             ) : navTab === 'templates' ? (
                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -262,7 +283,7 @@ export default function Index() {
                                 </button>
                             )) : <div className="p-4 text-sm text-gray-400">Nothing matches "{searchQ}".</div>
                         ) : (
-                            tree.length ? <Tree nodes={tree} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} collapsed={collapsed} onToggle={toggleCollapse} onMove={moveDoc} />
+                            tree.length ? <Tree nodes={pruneIncidents(tree)} depth={0} selectedId={selectedId} onSelect={openPage} onAddChild={newPage} collapsed={collapsed} onToggle={toggleCollapse} onMove={moveDoc} />
                                 : <div className="p-4 text-sm text-gray-400">No pages yet. Create one.</div>
                         )}
                     </div>
