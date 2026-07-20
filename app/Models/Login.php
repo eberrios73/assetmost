@@ -32,6 +32,9 @@ class Login extends Model
 
     protected $primaryKey = 'loginID';
     protected $guarded = ['loginID'];
+    // River's logins table has created_at but NO updated_at — writing it is a
+    // column-not-found error on every insert/update.
+    const UPDATED_AT = null;
     protected $appends = ['id'];
     public function getIdAttribute() { return $this->getKey(); }   // expose River PK as `id`
     protected $casts = [
