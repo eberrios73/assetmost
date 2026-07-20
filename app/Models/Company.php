@@ -16,19 +16,19 @@ class Company extends Model
     public function users(): HasMany { return $this->hasMany(User::class); }
     public function devices(): HasMany { return $this->hasMany(Device::class); }
     public function logins(): HasMany { return $this->hasMany(Login::class); }
-    public function licenses(): HasMany { return $this->hasMany(License::class); }
-    public function vendors(): BelongsToMany { return $this->belongsToMany(Vendor::class); }
+    public function licenses(): HasMany { return $this->hasMany(License::class, 'company_id', 'id'); }
+    public function vendors(): BelongsToMany { return $this->belongsToMany(Vendor::class, 'vendor_client', 'client_id', 'vendorID'); }
 
     /**
      * Issue the next asset tag: PG-WS-1001.
      *
-     * One number line per company, shared across types — a reclassified box keeps its
-     * number and only needs a new type code.
+     * One number line per company, shared across types — matching how the legacy numbers
+     * actually ran (642=Laptop, 643=Laptop, 644=Workstation), so a reclassified box keeps
+     * its number and only needs a new type code.
      *
-     * Locks the counter row so two concurrent intakes can't take the same number, and
-     * only ever increments: gaps are meaningless, but a reused number collides with a
-     * sticker that's still on hardware. (This is why it isn't MAX(n)+1 — retire the
-     * highest device and MAX+1 hands its number to the next machine.)
+     * Locks the counter row so two concurrent intakes can't take the same number, and only
+     * ever increments. Not MAX(n)+1: retire the highest device and MAX+1 re-issues its
+     * number onto a sticker that still exists.
      */
     public function nextAssetTag(string $typeCode): string
     {

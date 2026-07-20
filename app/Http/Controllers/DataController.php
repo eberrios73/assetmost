@@ -25,7 +25,15 @@ class DataController extends Controller
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
-        $model->update($v->validated());
+        $data = $v->validated();
+        // An untouched checkbox arrives null — "leave it alone", never write null.
+        foreach ($rules as $key => $rule) {
+            $ruleStr = is_array($rule) ? implode('|', array_filter($rule, 'is_string')) : (string) $rule;
+            if (str_contains($ruleStr, 'boolean') && array_key_exists($key, $data) && $data[$key] === null) {
+                unset($data[$key]);
+            }
+        }
+        $model->update($data);
         return response()->json($model->fresh());
     }
 
@@ -35,7 +43,7 @@ class DataController extends Controller
             'name' => 'required|string|max:255', 'last' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255', 'title' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255', 'cell' => 'nullable|string|max:30',
-            'ext' => 'nullable|string|max:11', 'active' => 'boolean',
+            'ext' => 'nullable|string|max:11', 'active' => 'nullable|boolean',
         ]);
     }
 
@@ -45,7 +53,8 @@ class DataController extends Controller
             'asset_tag' => 'nullable|string|max:25', 'computer_name' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255', 'serial_num' => 'nullable|string|max:255',
-            'active' => 'boolean',
+            'ip_1' => 'nullable|string|max:45', 'ip_2' => 'nullable|string|max:45',
+            'active' => 'nullable|boolean',
         ]);
     }
 
@@ -54,7 +63,7 @@ class DataController extends Controller
         return $this->applyUpdate($vendor, $r, [
             'name' => 'required|string|max:255', 'contact_name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:30', 'email' => 'nullable|email|max:255',
-            'website' => 'nullable|string|max:255', 'active' => 'boolean',
+            'website' => 'nullable|string|max:255', 'active' => 'nullable|boolean',
         ]);
     }
 
@@ -77,13 +86,27 @@ class DataController extends Controller
 
     public function updateCompany(Request $r, \App\Models\Company $company): JsonResponse
     {
-        return $this->applyUpdate($company, $r, [
+        $before = $company->installers_url;
+        $res = $this->applyUpdate($company, $r, [
             'name' => 'required|string|max:255', 'domain' => 'nullable|string|max:255',
+            'local_domain' => 'nullable|string|max:255',
+            'installers_url' => 'nullable|string|max:500',
+            'local_admin_user' => 'nullable|string|max:255',
+            'local_admin_pass' => 'nullable|string|max:255',
+            'domain_join_login_id' => 'nullable|integer|exists:logins,loginID',
             'contact_name' => 'nullable|string|max:255', 'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255', 'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:2',
-            'zip' => 'nullable|string|max:10', 'active' => 'boolean',
+            'zip' => 'nullable|string|max:10', 'active' => 'nullable|boolean',
         ]);
+        // Set or change the installers URL → re-scan the catalog from it, best-effort.
+        $url = $company->fresh()->installers_url;
+        if ($url && $url !== $before) {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('installers:index', ['--url' => $url]);
+            } catch (\Throwable) { /* the Assets screens surface scan errors; don't block the save */ }
+        }
+        return $res;
     }
 
     /** Apply a whitelisted sort; falls back to $default. */
@@ -99,14 +122,19 @@ class DataController extends Controller
     public function devices(Request $request): JsonResponse
     {
         $q = Device::query()->with(['location:id,name', 'room:id,name', 'deviceType:id,name,code']);
-        $this->sort($q, $request, ['asset_tag', 'computer_name', 'type'], 'asset_tag');
+        // IPs sort numerically (INET_ATON), everything else alphabetically.
+        if ($request->string('sort')->toString() === 'ip_1') {
+            $q->orderByRaw('ip_1 IS NULL, INET_ATON(ip_1) ' . ($request->string('dir')->toString() === 'desc' ? 'DESC' : 'ASC'));
+        } else {
+            $this->sort($q, $request, ['asset_tag', 'computer_name', 'type'], 'asset_tag');
+        }
 
         if ($s = $request->string('search')->toString()) {
             $q->where(fn ($w) => $w->where('asset_tag', 'like', "%{$s}%")
                 ->orWhere('computer_name', 'like', "%{$s}%")
                 ->orWhere('serial_num', 'like', "%{$s}%"));
         }
-        // Filter on the controlled type (by code), not on the legacy free-text column.
+        // Filter on the controlled type (by code), not the legacy free-text column.
         if ($code = $request->string('type')->toString()) {
             $q->whereHas('deviceType', fn ($t) => $t->where('code', $code));
         }
@@ -118,7 +146,7 @@ class DataController extends Controller
             'id' => $d->id,
             'primary' => $d->asset_tag ?: ($d->computer_name ?: "#{$d->id}"),
             'secondary' => trim((($d->deviceType?->name ?: $d->type) ? ($d->deviceType?->name ?: $d->type) . ' · ' : '') . trim("{$d->brand} {$d->model}")),
-            'badge' => $d->computer_name,
+            'badge' => $d->ip_1,
         ]);
     }
 
@@ -133,8 +161,12 @@ class DataController extends Controller
             'device_type_id' => 'nullable|integer|exists:device_types,id',
             'brand' => 'nullable|string|max:255',
             'model' => 'nullable|string|max:255', 'serial_num' => 'nullable|string|max:255',
+            'ip_1' => 'nullable|string|max:45', 'ip_2' => 'nullable|string|max:45',
             'location_id' => 'nullable|integer|exists:locations,id',
             'room_id' => 'nullable|integer|exists:rooms,id',
+            // Explicit company (a /form task creates records in ITS workflow's company,
+            // not whatever the header switcher is on). Location still wins when picked.
+            'company_id' => 'nullable|integer|exists:companies,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
@@ -155,6 +187,16 @@ class DataController extends Controller
         return response()->json(
             \App\Models\DeviceType::query()->where('active', true)->ordered()
                 ->get(['id', 'code', 'name'])
+        );
+    }
+
+    /** {id, label} device types for the add form's Type picker. */
+    public function deviceTypeOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\DeviceType::query()->where('active', true)->ordered()
+                ->get(['id', 'name'])
+                ->map(fn ($t) => ['id' => $t->id, 'label' => $t->name])
         );
     }
 
@@ -209,7 +251,7 @@ class DataController extends Controller
     public function personLogins(User $person): JsonResponse
     {
         return response()->json(
-            $person->logins()->with('vendor:id,name')->orderBy('login_name')->get()
+            $person->logins()->with('vendor:vendorID,name')->orderBy('login_name')->get()
                 ->map(fn ($l) => [
                     'id' => $l->id, 'login_name' => $l->login_name, 'login_id' => $l->login_id,
                     'url' => $l->url, 'type' => $l->type, 'vendor' => $l->vendor?->name,
@@ -218,10 +260,59 @@ class DataController extends Controller
         );
     }
 
+    /** The company's related domain-admin account — the LOGIN /domainjoin
+     *  resolves at generation. One row (or none), shaped like every logins table. */
+    public function companyDomainJoinLogin(Company $company): JsonResponse
+    {
+        $l = $company->domain_join_login_id
+            ? \App\Models\Login::withoutGlobalScopes()->with('vendor:vendorID,name')->find($company->domain_join_login_id)
+            : null;
+        return response()->json($l ? [[
+            'id' => $l->id, 'login_name' => $l->login_name, 'login_id' => $l->login_id,
+            'url' => $l->url, 'type' => $l->type, 'vendor' => $l->vendor?->name,
+            'is_restricted' => $l->is_restricted,
+        ]] : []);
+    }
+
+    /** Add the domain-admin account: link_id designates an existing registry
+     *  login; otherwise create one (service — held by nobody) and designate it. */
+    public function storeCompanyDomainJoinLogin(Request $request, Company $company): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        if ($request->filled('link_id')) {
+            $data = $request->validate(['link_id' => 'integer|exists:logins,loginID']);
+            $company->domain_join_login_id = $data['link_id'];
+            $company->save();
+            return response()->json(['id' => (int) $data['link_id']], 200);
+        }
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
+            'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
+            'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
+            'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
+            'is_active' => 'nullable|boolean', 'is_restricted' => 'nullable|boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $login = \App\Models\Login::create(
+            collect($v->validated())->except('holder_ids')->filter(fn ($x) => $x !== null)->all() + [
+                'company_id' => $company->id,
+                'sharing' => 'service',
+                'is_active' => $request->boolean('is_active', true),
+                'is_restricted' => $request->boolean('is_restricted', false),
+            ]);
+        $login->holders()->sync($v->validated()['holder_ids'] ?? []);
+        $company->domain_join_login_id = $login->loginID;
+        $company->save();
+        return response()->json(['id' => $login->id], 201);
+    }
+
     public function personDevices(User $person): JsonResponse
     {
         return response()->json(
-            $person->devices()->get(['devices.id', 'asset_tag', 'computer_name', 'type', 'brand', 'model'])
+            $person->devices()->get(['devices.deviceID', 'asset_tag', 'computer_name', 'type', 'brand', 'model'])
         );
     }
 
@@ -244,7 +335,7 @@ class DataController extends Controller
     {
         return response()->json(
             Device::query()->where('active', true)->orderBy('asset_tag')
-                ->get(['id', 'asset_tag', 'computer_name', 'type'])
+                ->get(['deviceID', 'asset_tag', 'computer_name', 'type'])
                 ->map(fn ($d) => [
                     'id' => $d->id,
                     'label' => trim(($d->asset_tag ?: $d->computer_name ?: "#{$d->id}") . ($d->type ? " · {$d->type}" : '')),
@@ -256,20 +347,30 @@ class DataController extends Controller
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
             'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
-            'is_active' => 'boolean', 'is_restricted' => 'boolean',
+            'is_active' => 'nullable|boolean', 'is_restricted' => 'nullable|boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
+            // Messages and keys only — never the submitted values (credentials).
+            \Illuminate\Support\Facades\Log::info('login.add.rejected', [
+                'person' => $person->id, 'errors' => $v->errors()->toArray(), 'keys' => array_keys($request->all()),
+            ]);
             return response()->json(['errors' => $v->errors()], 422);
         }
-        $login = \App\Models\Login::create($v->validated() + [
+        $data = collect($v->validated())->except('holder_ids')->filter(fn ($x) => $x !== null)->all();
+        $login = \App\Models\Login::create($data + [
             'user_id' => $person->id,
             'company_id' => $person->company_id,
             'is_active' => $request->boolean('is_active', true),
+            'is_restricted' => $request->boolean('is_restricted', false),
         ]);
+        // Adding FROM a person's screen assigns it to that person unless the
+        // form says otherwise — login_access is the source of truth.
+        $login->holders()->sync($v->validated()['holder_ids'] ?? [$person->id]);
         return response()->json(['id' => $login->id], 201);
     }
 
@@ -291,7 +392,7 @@ class DataController extends Controller
     public function personLicenses(User $person): JsonResponse
     {
         return response()->json(
-            $person->licenses()->with(['vendor:id,name', 'product:id,name'])->orderBy('renewal_date')->get()
+            $person->licenses()->with(['vendor:vendorID,name', 'product:id,name'])->orderBy('renewal_date')->get()
                 ->map(fn ($l) => [
                     'id' => $l->id, 'name' => $l->name,
                     'vendor' => $l->vendor?->name, 'product' => $l->product?->name,
@@ -341,17 +442,26 @@ class DataController extends Controller
 
     public function vendor(Vendor $vendor): JsonResponse
     {
-        $vendor->load(['companies:id,name'])->loadCount(['logins', 'licenses']);
+        $vendor->load(['companies:id,name'])->loadCount(['logins', 'licenses', 'products']);
         return response()->json($vendor);
     }
 
     public function vendorLogins(Vendor $vendor): JsonResponse
     {
+        // "User" is whoever holds it via login_access; legacy userID is the fallback for
+        // rows never re-assigned in this app (ITer still writes it).
         return response()->json(
-            $vendor->logins()->with('user:id,name,last')->orderBy('login_name')->get()
-                ->map(fn ($l) => ['id' => $l->id, 'login_name' => $l->login_name,
-                    'login_id' => $l->login_id, 'url' => $l->url, 'type' => $l->type, 'is_restricted' => $l->is_restricted,
-                    'user' => $l->user ? trim("{$l->user->name} {$l->user->last}") : null])
+            $vendor->logins()->with(['user:id,name,last', 'holders:id,name,last'])->orderBy('login_name')->get()
+                ->map(function ($l) {
+                    $names = $l->holders->map(fn ($u) => trim("{$u->name} {$u->last}"));
+                    if ($names->isEmpty() && $l->user) {
+                        $names = collect([trim("{$l->user->name} {$l->user->last}")]);
+                    }
+                    return ['id' => $l->id, 'login_name' => $l->login_name,
+                        'login_id' => $l->login_id, 'url' => $l->url, 'type' => $l->type,
+                        'is_restricted' => $l->is_restricted,
+                        'user' => $names->join(', ') ?: null];
+                })
         );
     }
 
@@ -362,8 +472,8 @@ class DataController extends Controller
                 ->with(['product:id,name', 'logins.holders:id,name,last,email'])
                 ->orderBy('renewal_date')->get()
                 ->map(function ($l) {
-                    // Holders come through the accounts consuming the seats — a license
-                    // can legitimately have several (or none, if seats sit unprovisioned).
+                    // Holders come through the accounts consuming the seats — a license can
+                    // legitimately have several, or none if seats sit unprovisioned.
                     $holders = $l->logins->flatMap->holders->unique('id')->values();
                     return ['id' => $l->id, 'name' => $l->name, 'product' => $l->product?->name,
                         'holders' => $holders->map(fn ($u) => trim("{$u->name} {$u->last}"))->all(),
@@ -380,9 +490,9 @@ class DataController extends Controller
     /** Full license detail for the edit drawer. */
     public function license(\App\Models\License $license): JsonResponse
     {
-        // Holders come via the accounts consuming the seats. Inactive people are kept
-        // (and flagged) so an offboarded person still holding a seat shows up instead of
-        // looking unassigned — that's the whole point of tracking.
+        // Holders come via the accounts consuming the seats. Inactive people are kept and
+        // flagged so an offboarded person still holding a seat shows up rather than looking
+        // unassigned — that's the whole point of tracking.
         $license->loadMissing(['logins.holders:id,name,last,active', 'product:id,name']);
         $holders = $license->logins->flatMap->holders->unique('id')->values();
 
@@ -394,6 +504,11 @@ class DataController extends Controller
             'holders' => $holders->map(fn ($u) => [
                 'id' => $u->id,
                 'label' => trim("{$u->name} {$u->last}").($u->active ? '' : ' (inactive)'),
+            ])->all(),
+            // The accounts consuming the seats — editable in the drawer.
+            'login_ids' => $license->logins->map->id->all(),
+            'login_options' => $license->logins->map(fn ($l) => [
+                'id' => $l->id, 'label' => $l->login_name.($l->login_id ? " ({$l->login_id})" : ''),
             ])->all(),
             'seats_total' => $license->seats_total,
             'seats_used' => $license->seats_used,
@@ -415,7 +530,7 @@ class DataController extends Controller
     {
         $v = validator($request->all(), [
             'name' => 'required|string|max:255',
-            'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
             'product_id' => 'nullable|integer|exists:products,id',
             'seats_total' => 'nullable|integer|min:0',   // null = not counted yet
             'account_number' => 'nullable|string|max:255',
@@ -423,25 +538,32 @@ class DataController extends Controller
             'amount' => 'nullable|numeric',
             'renewal_date' => 'nullable|date',
             'renewalfrequency' => 'nullable|string|max:50',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'notes' => 'nullable|string',
+            'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,loginID',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = $v->validated();
         $data['is_active'] = (bool) ($data['is_active'] ?? true);
+        $loginIds = $data['login_ids'] ?? [];
+        unset($data['login_ids']);
 
         $license = \App\Models\License::create($data);
+        if ($loginIds) {
+            $license->logins()->sync($loginIds);
+        }
 
         return response()->json($license->fresh(), 201);
     }
 
     public function updateLicense(Request $request, \App\Models\License $license): JsonResponse
     {
-        return $this->applyUpdate($license, $request, [
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
             'product_id' => 'nullable|integer|exists:products,id',
             'seats_total' => 'nullable|integer|min:0',   // null = not counted yet
             'account_number' => 'nullable|string|max:255',
@@ -449,22 +571,67 @@ class DataController extends Controller
             'amount' => 'nullable|numeric',
             'renewal_date' => 'nullable|date',
             'renewalfrequency' => 'nullable|string|max:50',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'notes' => 'nullable|string',
+            'login_ids' => 'nullable|array', 'login_ids.*' => 'integer|exists:logins,loginID',
         ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $data = $v->validated();
+        if (array_key_exists('is_active', $data) && $data['is_active'] === null) unset($data['is_active']);
+        // The accounts consuming this license's seats live on the pivot, not the row.
+        // Absent key = untouched; [] = detach all.
+        if (array_key_exists('login_ids', $data)) {
+            $license->logins()->sync($data['login_ids'] ?? []);
+            unset($data['login_ids']);
+        }
+        $license->update($data);
+        return response()->json($license->fresh());
     }
 
     public function login(\App\Models\Login $login): JsonResponse
     {
-        // never return the decrypted password
-        return response()->json($login->only(['id', 'vendor_id', 'login_name', 'login_id', 'url', 'type', 'notes', 'is_active', 'is_restricted']));
+        // River schema: PK loginID, FK vendorID — map back to the API's id/vendor_id
+        $login->loadMissing('holders:id,name,last');
+        return response()->json([
+            'id' => $login->loginID, 'vendor_id' => $login->vendorID,
+            'login_name' => $login->login_name, 'login_id' => $login->login_id,
+            'url' => $login->url, 'type' => $login->type, 'notes' => $login->notes,
+            'is_active' => (bool) $login->is_active, 'is_restricted' => (bool) $login->is_restricted,
+            // Who holds this credential, editable in the drawer.
+            'holder_ids' => $login->holders->pluck('id')->all(),
+            'holder_options' => $login->holders->map(fn ($u) => [
+                'id' => $u->id, 'label' => trim("{$u->name} {$u->last}"),
+            ])->all(),
+        ]); // password intentionally omitted (revealed only via the gated /secret endpoint)
+    }
+
+    /** People as {id,label} for pickers (assign a login holder, etc.). Tenant-scoped. */
+    public function personOptions(): JsonResponse
+    {
+        return response()->json(
+            User::query()->where('active', true)->orderBy('name')->orderBy('last')
+                ->get(['id', 'name', 'last'])
+                ->map(fn ($u) => ['id' => $u->id, 'label' => trim("{$u->name} {$u->last}")])
+        );
+    }
+
+    /** Logins as {id,label} for pickers (attach accounts to a license). Tenant-scoped. */
+    public function loginOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Login::query()->where('is_active', true)->orderBy('login_name')
+                ->get()
+                ->map(fn ($l) => ['id' => $l->id, 'label' => $l->login_name.($l->login_id ? " ({$l->login_id})" : '')])
+        );
     }
 
     /** All vendors as {id,label} for the searchable vendor picker. */
     public function vendorOptions(): JsonResponse
     {
         return response()->json(
-            Vendor::query()->orderBy('name')->get(['id', 'name'])
+            Vendor::query()->orderBy('name')->get(['vendorID', 'name'])
                 ->map(fn ($v) => ['id' => $v->id, 'label' => $v->name])
         );
     }
@@ -474,7 +641,7 @@ class DataController extends Controller
     public function productOptions(): JsonResponse
     {
         return response()->json(
-            \App\Models\Product::query()->with('vendor:id,name')->orderBy('name')->get()
+            \App\Models\Product::query()->with('vendor:vendorID,name')->orderBy('name')->get()
                 ->map(fn ($p) => [
                     'id' => $p->id,
                     'label' => $p->vendor ? "{$p->vendor->name} — {$p->name}" : $p->name,
@@ -487,20 +654,35 @@ class DataController extends Controller
     {
         abort_if(auth()->user()?->role === 'User', 403);
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'vendor_id' => 'nullable|integer|exists:vendors,id',
+            'vendor_id' => 'nullable|integer|exists:vendors,vendorID',
             'login_name' => 'nullable|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
-            'is_active' => 'boolean', 'is_restricted' => 'boolean',
+            'sharing' => 'nullable|in:'.implode(',', \App\Models\Login::SHARING),
+            'is_active' => 'nullable|boolean', 'is_restricted' => 'nullable|boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = $v->validated();
+        // An untouched checkbox arrives null — that means "leave it alone".
+        foreach (['is_active', 'is_restricted'] as $b) {
+            if (array_key_exists($b, $data) && $data[$b] === null) unset($data[$b]);
+        }
         if (empty($data['login_pass'])) {
             unset($data['login_pass']); // blank = keep existing secret
         }
-        $login->update($data); // login_pass re-encrypts via cast
+        // Break glass is restricted by definition — not overridable from the form.
+        if (($data['sharing'] ?? null) === 'breakglass') {
+            $data['is_restricted'] = true;
+        }
+        // Holders live on the pivot, not the row. Absent key = untouched; [] = unassign all.
+        if (array_key_exists('holder_ids', $data)) {
+            $login->holders()->sync($data['holder_ids'] ?? []);
+            unset($data['holder_ids']);
+        }
+        $login->update($data);
         return response()->json(['ok' => true]);
     }
 
@@ -527,7 +709,7 @@ class DataController extends Controller
         $sole = $login->holders->count() === 1 ? $login->holders->first() : null;
 
         return response()->json([
-            'password' => $login->login_pass, // decrypted via cast
+            'password' => $login->login_pass, // plaintext on River (matches ITer)
             'cell' => $sole?->cell,
             'name' => $sole ? trim("{$sole->name} {$sole->last}") : null,
         ]);
@@ -584,7 +766,7 @@ class DataController extends Controller
 
     public function location(\App\Models\Location $location): JsonResponse
     {
-        $location->load(['rooms:id,location_id,name,room_type'])->loadCount('devices');
+        $location->load(['rooms:id,location_id,name,room_type,room_number,capacity'])->loadCount('devices');
         return response()->json($location);
     }
 
@@ -648,7 +830,7 @@ class DataController extends Controller
             // set one only for someone who actually uses the app.
             'password' => 'nullable|string|min:8',
             'role' => 'nullable|in:'.implode(',', \App\Support\Access::ROLES),
-            'can_login' => 'boolean',
+            'can_login' => 'nullable|boolean',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
@@ -746,6 +928,8 @@ class DataController extends Controller
             // out when someone onboards its first device.
             'tag_prefix' => 'required|string|max:4|alpha_num|unique:companies,tag_prefix',
             'domain' => 'nullable|string|max:255',
+            'local_domain' => 'nullable|string|max:255',
+            'installers_url' => 'nullable|string|max:500',
             'email' => 'nullable|email|max:255',
             'city' => 'nullable|string|max:255',
             'state' => 'nullable|string|max:2',
@@ -767,6 +951,255 @@ class DataController extends Controller
     }
 
     /** Shared offset pager -> { items, total, has_more }. */
+    // ---- Accounts (credential-centric view of logins) ----
+
+    /**
+     * The People > Accounts list: every credential account — the logins that aren't
+     * someone's directory email, pooled seats, shared mailboxes. Person-centric access
+     * lives on the staff screen; this is the same data seen from the account side.
+     */
+    /**
+     * Floating accounts — one row per credential IDENTITY, not per service login.
+     * itmgr@plutonicgames.com is one account used in 29 services; it lists once.
+     */
+    public function accounts(Request $request): JsonResponse
+    {
+        $q = \App\Models\Account::query()->withCount('logins')->with('holders:id,name,last');
+        $this->sort($q, $request, ['identifier', 'sharing'], 'identifier');
+
+        if ($s = $request->string('search')->toString()) {
+            $q->where(fn ($w) => $w->where('identifier', 'like', "%{$s}%")
+                ->orWhere('notes', 'like', "%{$s}%")
+                ->orWhereHas('logins', fn ($l) => $l->where('login_name', 'like', "%{$s}%")));
+        }
+        if ($sharing = $request->string('sharing')->toString()) {
+            $q->where('sharing', $sharing);
+        }
+        if ($request->boolean('active_only', true)) {
+            $q->where('is_active', true);
+        }
+
+        return $this->page($q, $request, fn ($a) => [
+            'id' => $a->id,
+            'primary' => $a->identifier,
+            'secondary' => $a->logins_count === 1 ? '1 service' : "{$a->logins_count} services",
+            'badge' => $a->sharing,
+        ]);
+    }
+
+    /** One credential: how it's shared, who holds it, and the services it's used in. */
+    public function account(\App\Models\Account $account): JsonResponse
+    {
+        $account->loadMissing(['holders:id,name,last,active', 'logins.vendor:vendorID,name', 'logins.device:deviceID,asset_tag,computer_name']);
+        return response()->json([
+            'id' => $account->id,
+            'identifier' => $account->identifier,
+            'sharing' => $account->sharing,
+            'notes' => $account->notes,
+            'is_active' => $account->is_active,
+            'holder_ids' => $account->holders->pluck('id')->all(),
+            'holder_options' => $account->holders->map(fn ($u) => [
+                'id' => $u->id, 'label' => trim("{$u->name} {$u->last}").($u->active ? '' : ' (inactive)'),
+            ])->all(),
+            'holders' => $account->holders->map(fn ($u) => trim("{$u->name} {$u->last}"))->all(),
+            // A use of the credential is a service OR a device — ITAdmin's uses are
+            // mostly servers. `target` fuses them for display; both raw fields ride along.
+            'services' => $account->logins->map(fn ($l) => [
+                'id' => $l->id,
+                'target' => ($l->device?->asset_tag ?: $l->device?->computer_name) ?: $l->login_name,
+                'is_device' => $l->device !== null,
+                'name' => $l->login_name, 'vendor' => $l->vendor?->name,
+                'type' => $l->type, 'url' => $l->url,
+                'is_active' => (bool) $l->is_active, 'is_restricted' => (bool) $l->is_restricted,
+            ])->values()->all(),
+            'created_at' => $account->created_at, 'updated_at' => $account->updated_at,
+        ]);
+    }
+
+    /** Create a floating account (the identity only; service logins link to it). */
+    public function storeAccount(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'identifier' => 'required|string|max:255|unique:accounts,identifier',
+            'sharing' => 'required|in:'.implode(',', \App\Models\Account::SHARING),
+            'notes' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
+            'company_id' => 'nullable|integer|exists:companies,id',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $data = $v->validated();
+        $holderIds = $data['holder_ids'] ?? [];
+        unset($data['holder_ids']);
+        $data['identifier'] = trim($data['identifier']);
+        $data['is_active'] = (bool) ($data['is_active'] ?? true);
+        $data['company_id'] ??= app(\App\Support\Contracts\TenantResolver::class)->id();
+
+        $account = \App\Models\Account::create($data);
+        if ($holderIds) {
+            $account->holders()->sync($holderIds);
+        }
+
+        return response()->json($account->fresh(), 201);
+    }
+
+    public function updateAccount(Request $request, \App\Models\Account $account): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'identifier' => 'required|string|max:255|unique:accounts,identifier,'.$account->id,
+            'sharing' => 'required|in:'.implode(',', \App\Models\Account::SHARING),
+            'notes' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        $data = $v->validated();
+        if (array_key_exists('is_active', $data) && $data['is_active'] === null) unset($data['is_active']);
+        if (array_key_exists('holder_ids', $data)) {
+            $account->holders()->sync($data['holder_ids'] ?? []);
+            unset($data['holder_ids']);
+        }
+        $data['identifier'] = trim($data['identifier']);
+        $account->update($data);
+
+        return response()->json($account->fresh());
+    }
+
+    /** Floating-account identifiers for pickers. Identifier + id ONLY — the gated
+     *  registry endpoints hold everything else. */
+    public function accountOptions(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Account::query()->where('is_active', true)->orderBy('identifier')
+                ->get(['id', 'identifier'])
+                ->map(fn ($a) => ['id' => $a->id, 'label' => $a->identifier])
+        );
+    }
+
+    /**
+     * Command-palette resolver: find a device or person by tag, number, name, or email —
+     * "501" lands on PG-WS501 without you having to say it's a workstation. Scoped to the
+     * companies the user can see, so admins can reach a machine wherever it lives.
+     */
+    public function resolve(Request $request): JsonResponse
+    {
+        $term = trim($request->string('q')->toString());
+        if ($term === '') return response()->json([]);
+        $scope = app(\App\Support\Contracts\TenantResolver::class)->scopeIds();
+        $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $term) . '%';
+
+        $devices = Device::query()
+            ->when($scope !== null, fn ($x) => $x->whereIn('company_id', $scope))
+            ->where(fn ($w) => $w->where('asset_tag', 'like', $like)
+                ->orWhere('computer_name', 'like', $like)
+                ->orWhere('serial_num', 'like', $like))
+            ->orderBy('asset_tag')->limit(6)
+            ->get(['id', 'asset_tag', 'computer_name', 'brand', 'model']);
+
+        $people = User::query()
+            ->when($scope !== null, fn ($x) => $x->whereIn('company_id', $scope))
+            ->where(fn ($w) => $w->where('name', 'like', $like)
+                ->orWhere('last', 'like', $like)
+                ->orWhere('email', 'like', $like))
+            ->orderBy('name')->limit(6)
+            ->get(['id', 'name', 'last', 'email']);
+
+        $out = [];
+        foreach ($devices as $d) {
+            $out[] = ['type' => 'device', 'group' => 'assets', 'tab' => 'devices', 'id' => $d->id,
+                'label' => $d->asset_tag ?: ($d->computer_name ?: "Device {$d->id}"),
+                'sub' => trim(($d->brand ?? '') . ' ' . ($d->model ?? '')) ?: 'Device'];
+        }
+        foreach ($people as $p) {
+            $out[] = ['type' => 'person', 'group' => 'people', 'tab' => 'staff', 'id' => $p->id,
+                'label' => trim(($p->name ?? '') . ' ' . ($p->last ?? '')) ?: ($p->email ?? "Person {$p->id}"),
+                'sub' => $p->email ?? ''];
+        }
+        return response()->json($out);
+    }
+
+    /**
+     * Record options for a /form edit picker on a task — {id,label}, explicitly
+     * scoped to the WORKFLOW'S company (the marker carries it), not the header
+     * switcher. The company must be one the user can see.
+     */
+    public function formOptions(Request $request): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $kind = $request->string('kind')->toString();
+        $companyId = (int) $request->query('company');
+        $scope = app(\App\Support\Contracts\TenantResolver::class)->scopeIds();
+        abort_if($scope !== null && ! in_array($companyId, $scope, true), 403);
+
+        $rows = match ($kind) {
+            'device' => Device::withoutGlobalScopes()->where('company_id', $companyId)
+                ->orderBy('asset_tag')->limit(300)->get(['id', 'asset_tag', 'computer_name'])
+                ->map(fn ($d) => ['id' => $d->id, 'label' => $d->asset_tag ?: ($d->computer_name ?: "Device {$d->id}")]),
+            'person' => User::withoutGlobalScopes()->where('company_id', $companyId)->where('active', true)
+                ->orderBy('name')->limit(300)->get(['id', 'name', 'last', 'email'])
+                ->map(fn ($p) => ['id' => $p->id, 'label' => trim("{$p->name} {$p->last}") . ($p->email ? " · {$p->email}" : '')]),
+            'account' => \App\Models\Account::withoutGlobalScopes()->where('company_id', $companyId)
+                ->orderBy('identifier')->limit(300)->get(['id', 'identifier'])
+                ->map(fn ($a) => ['id' => $a->id, 'label' => $a->identifier]),
+            // Shared locations (company_id NULL) belong to every company's list.
+            'location' => \App\Models\Location::withoutGlobalScopes()
+                ->where(fn ($w) => $w->where('company_id', $companyId)->orWhereNull('company_id'))
+                ->orderBy('name')->limit(300)->get(['id', 'name'])
+                ->map(fn ($l) => ['id' => $l->id, 'label' => $l->name]),
+            default => collect(),
+        };
+        return response()->json($rows->values());
+    }
+
+    /** The /install list: whatever the indexed installers share contains. */
+    public function installers(Request $request): JsonResponse
+    {
+        $q = \Illuminate\Support\Facades\DB::table('installers')->orderBy('name');
+        if ($platform = $request->string('platform')->toString()) {
+            $q->where('platform', $platform);
+        }
+        if ($term = $request->string('q')->toString()) {
+            $q->where('name', 'like', "%{$term}%");
+        }
+        if ($arch = $request->string('arch')->toString()) {
+            $q->where(fn ($w) => $w->where('arch', $arch)->orWhereNull('arch'));
+        }
+        return response()->json($q->limit(50)->get());
+    }
+
+    /** Unlock the Accounts registry by re-entering your own password. Throttled. */
+    public function unlockAccounts(Request $request): JsonResponse
+    {
+        $request->validate(['password' => 'required|string']);
+
+        if (! \Illuminate\Support\Facades\Hash::check($request->string('password'), auth()->user()->password)) {
+            \Illuminate\Support\Facades\Log::warning('accounts.unlock.failed', ['by' => auth()->id()]);
+            return response()->json(['errors' => ['password' => ['That password is not correct.']]], 422);
+        }
+
+        $request->session()->put('accounts_confirmed_at', time());
+        \Illuminate\Support\Facades\Log::info('accounts.unlocked', ['by' => auth()->id()]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** The ways a FLOATING account can be held (personal belongs to logins, not here). */
+    public function sharingOptions(): JsonResponse
+    {
+        return response()->json([
+            ['value' => 'pooled', 'label' => 'Pooled — one at a time'],
+            ['value' => 'shared', 'label' => 'Shared — many at once'],
+            ['value' => 'service', 'label' => 'Service — runs the system, no human holder'],
+            ['value' => 'breakglass', 'label' => 'Break glass — sealed emergency access'],
+        ]);
+    }
+
     private function page($query, Request $request, callable $map): JsonResponse
     {
         $offset = max(0, (int) $request->integer('offset'));

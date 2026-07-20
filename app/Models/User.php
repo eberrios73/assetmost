@@ -41,18 +41,18 @@ class User extends Authenticatable
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
     public function location(): BelongsTo { return $this->belongsTo(Location::class); }
-    public function devices(): BelongsToMany { return $this->belongsToMany(Device::class); }
+    public function devices(): BelongsToMany { return $this->belongsToMany(Device::class, 'device_users', 'user_id', 'deviceID'); }
 
     /** Credentials this person can use. Many-to-many: a shared mailbox has many holders. */
     public function logins(): BelongsToMany
     {
-        return $this->belongsToMany(Login::class, 'login_access')->withTimestamps();
+        return $this->belongsToMany(Login::class, 'login_access', 'user_id', 'login_id')->withTimestamps();
     }
 
     /**
      * Licenses this person effectively holds — derived through the accounts they hold,
-     * because seats are consumed by accounts, not people. Returns a query, not a
-     * relation: there's no single pivot to hang one off.
+     * because seats are consumed by accounts, not people. Returns a query, not a relation:
+     * there's no single pivot to hang one off.
      */
     public function licenses()
     {

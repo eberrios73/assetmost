@@ -2,6 +2,7 @@ import Tabs from '@/Components/Tabs';
 import Field from '@/Components/detail/Field';
 import LoginsTable from '@/Components/detail/LoginsTable';
 import LicensesTable from '@/Components/detail/LicensesTable';
+import VendorProducts from '@/Components/detail/VendorProducts';
 
 export default function VendorDetail({ v }) {
     return (
@@ -21,6 +22,7 @@ export default function VendorDetail({ v }) {
                             <Field label="Active" value={v.active ? 'Yes' : 'No'} />
                         </dl>
                     ) },
+                    { key: 'products', label: 'Products', count: v.products_count, render: () => <VendorProducts vendorId={v.id} /> },
                     { key: 'logins', label: 'Logins', count: v.logins_count, render: () => <LoginsTable endpoint={`/data/vendors/${v.id}/logins`} showUser /> },
                     { key: 'licenses', label: 'Licenses', count: v.licenses_count, render: () => <LicensesTable endpoint={`/data/vendors/${v.id}/licenses`} showHolders defaults={{ vendor_id: v.id }} /> },
                 ]} />

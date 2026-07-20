@@ -1,12 +1,13 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import RecordModal from '@/Components/RecordModal';
+import DataTable from '@/Components/ui/DataTable';
 import { ENTITIES } from '@/entities';
 
 const SECTIONS = [
     { key: 'companies', label: 'Companies' },
-    { key: 'identity', label: 'Identity providers' },
+    { key: 'identity', label: 'Identity & integrations' },
     { key: 'email', label: 'Email & signatures' },
     { key: 'backups', label: 'Backups' },
     { key: 'roles', label: 'Roles & access' },
@@ -53,38 +54,21 @@ function Companies() {
     const [adding, setAdding] = useState(false);
     const [editing, setEditing] = useState(null);
 
+    const columns = [
+        { key: 'name', label: 'Name', width: '28%', className: 'text-gray-800 dark:text-gray-100' },
+        { key: 'tag_prefix', label: 'Tag prefix', width: '15%',
+          render: (c) => c.tag_prefix ? <span className="font-mono text-xs">{c.tag_prefix}</span> : <span className="text-gray-300">—</span> },
+        { key: 'domain', label: 'Domain', width: '22%' },
+        { key: 'location', label: 'Location', width: '20%', sortValue: (c) => [c.city, c.state].filter(Boolean).join(', '),
+          render: (c) => [c.city, c.state].filter(Boolean).join(', ') || <span className="text-gray-300">—</span> },
+        { key: 'active', label: 'Status', width: '15%', sortValue: (c) => (c.active ? 1 : 0),
+          render: (c) => <span className={c.active ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}>{c.active ? 'Active' : 'Inactive'}</span> },
+    ];
+
     return (
         <Section title="Companies" desc="Every company in this install. Assets, people and licences all hang off one of these. Click a row to edit.">
-            <div className="mb-4 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-900 text-xs uppercase tracking-wide text-gray-400">
-                        <tr>
-                            <Th>Name</Th><Th>Tag prefix</Th><Th>Domain</Th><Th>Location</Th><Th>Status</Th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {companies.map((c) => (
-                            <tr key={c.id} onClick={() => setEditing(c)}
-                                className="border-t border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-blue-50/40 dark:hover:bg-gray-800/50">
-                                <td className="px-3 py-2 text-gray-800 dark:text-gray-100">{c.name}</td>
-                                <td className="px-3 py-2 font-mono text-xs text-gray-600 dark:text-gray-300">{c.tag_prefix || '—'}</td>
-                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{c.domain || '—'}</td>
-                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{[c.city, c.state].filter(Boolean).join(', ') || '—'}</td>
-                                <td className="px-3 py-2">
-                                    <span className={c.active ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}>
-                                        {c.active ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                        {!companies.length && (
-                            <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">No companies yet.</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-            <button onClick={() => setAdding(true)}
-                className="px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">+ Add a company</button>
+            <DataTable columns={columns} rows={companies} onRowClick={setEditing}
+                addLabel="Add company" onAdd={() => setAdding(true)} emptyText="No companies yet." />
 
             {adding && (
                 <RecordModal title="Add Company" endpoint="/data/companies" method="POST"
@@ -142,11 +126,65 @@ function Identity() {
             </div>
 
             <p className="mt-5 text-xs text-gray-400">
-                Signing in through a provider isn't wired up yet — these save the configuration only.
-                A person arriving from a sync is a directory record: whether they can sign in stays a
-                local decision on the Roles &amp; access screen.
+                Identity sync isn't wired up yet; provisioning plugins (Zoom and any pasted below) fire
+                during onboarding when enabled here. A person arriving from a sync is a directory record:
+                whether they can sign in stays a local decision on Roles &amp; access.
             </p>
+
+            <PluginDefs />
         </Section>
+    );
+}
+
+/**
+ * Declarative provisioning plugins: paste a JSON field map, it becomes an
+ * integration card above. One request per plugin — that's the security model;
+ * community plugins are readable at a glance and can't reach anything else.
+ */
+function PluginDefs() {
+    const { pluginDefs = [] } = usePage().props;
+    const [text, setText] = useState('');
+    const [error, setError] = useState(null);
+    const [busy, setBusy] = useState(false);
+
+    const add = async () => {
+        setError(null);
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { setError('Not valid JSON.'); return; }
+        setBusy(true);
+        const r = await post('/settings/provisioner-defs', { definition: parsed });
+        setBusy(false);
+        if (!r) { setError('Rejected — needs plugin_key, name, and request.'); return; }
+        setText('');
+        router.reload();
+    };
+
+    return (
+        <div className="mt-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">Provisioning plugins (JSON)</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                A plugin is a field map: auth recipe + one request. Paste one (yours or the community's) and its
+                integration card appears above. It can only ever make the single request it declares.
+            </p>
+            {pluginDefs.length > 0 && (
+                <ul className="mb-3 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                    {pluginDefs.map((d) => (
+                        <li key={d.id} className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${d.enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                            {d.name} <code className="text-xs text-gray-400">{d.plugin_key}</code>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)}
+                placeholder={'{ "plugin_key": "slack", "name": "Slack", "matches": "slack",\n  "auth": { "type": "bearer" },\n  "request": { "method": "POST", "url": "https://slack.com/api/admin.users.invite", "body": { "email": "{email}" } },\n  "success": [200] }'}
+                className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs font-mono focus:border-blue-500 focus:ring-blue-500" />
+            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            <button onClick={add} disabled={busy || !text.trim()}
+                className="mt-2 px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white disabled:opacity-50">
+                {busy ? 'Saving…' : 'Add plugin'}
+            </button>
+        </div>
     );
 }
 
@@ -189,8 +227,8 @@ function ProviderCard({ providerKey, label, companyId, existing }) {
                     <Field label={providerKey === 'okta' ? 'Org URL' : 'Domain'} value={form.domain}
                         onChange={(v) => setForm((f) => ({ ...f, domain: v }))}
                         placeholder={providerKey === 'okta' ? 'acme.okta.com' : 'acme.com'} />
-                    {providerKey === 'microsoft' && (
-                        <Field label="Directory (tenant) ID" value={form.tenant_id}
+                    {(providerKey === 'microsoft' || providerKey === 'zoom') && (
+                        <Field label={providerKey === 'zoom' ? 'Zoom Account ID' : 'Directory (tenant) ID'} value={form.tenant_id}
                             onChange={(v) => setForm((f) => ({ ...f, tenant_id: v }))} />
                     )}
                     <Field label="Client ID" value={form.client_id} onChange={(v) => setForm((f) => ({ ...f, client_id: v }))} />
@@ -383,10 +421,6 @@ function Grid({ rows }) {
             ))}
         </dl>
     );
-}
-
-function Th({ children }) {
-    return <th className="px-3 py-2 text-left font-medium">{children}</th>;
 }
 
 function Empty({ children }) {

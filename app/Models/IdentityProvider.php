@@ -14,6 +14,7 @@ class IdentityProvider extends Model
         'google' => 'Google Workspace',
         'okta' => 'Okta',
         'microsoft' => 'Microsoft Entra ID',
+        'zoom' => 'Zoom (account provisioning)',
     ];
 
     protected $guarded = ['id'];

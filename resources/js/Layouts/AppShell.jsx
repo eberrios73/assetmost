@@ -3,6 +3,7 @@ import { useState } from 'react';
 import BrandMark from '@/Components/BrandMark';
 import ThemeToggle from '@/Components/ThemeToggle';
 import RecordModal from '@/Components/RecordModal';
+import GlobalFormDrawer from '@/Components/GlobalFormDrawer';
 
 /** Fields for the inline "Add company" in the switcher. */
 const COMPANY_FIELDS = [
@@ -10,7 +11,8 @@ const COMPANY_FIELDS = [
     // Drives asset tags (HC -> PG-WS-1001). Required, because a company without one
     // can't issue a tag and you'd only discover that at first device intake.
     { key: 'tag_prefix', label: 'Tag prefix (e.g. PG)', required: true, maxLength: 4 },
-    { key: 'domain', label: 'Domain' },
+    { key: 'domain', label: 'Email domain' },
+    { key: 'local_domain', label: 'Local domain (AD/LAN, e.g. acme.local)' },
     { key: 'email', label: 'Email', type: 'email' },
     { key: 'city', label: 'City' },
     { key: 'state', label: 'State', maxLength: 2 },
@@ -26,6 +28,7 @@ export default function AppShell({ nav = null, detail = null, active = null, foo
 
     return (
         <div className="h-screen overflow-hidden bg-gray-100 dark:bg-gray-950 flex flex-col">
+            <GlobalFormDrawer />
             {/* Row 1 — global header */}
             <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shadow-sm">
                 <div className="flex items-center gap-6">

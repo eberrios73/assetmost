@@ -14,6 +14,8 @@ export default function DeviceDetail({ d }) {
                         <dl className="grid grid-cols-2 gap-x-8 max-w-2xl">
                             <Field label="Location" value={d.location?.name} />
                             <Field label="Room" value={d.room?.name} />
+                            <Field label="IP" value={d.ip_1} />
+                            <Field label="IP 2" value={d.ip_2} />
                             <Field label="Serial" value={d.serial_num} />
                             <Field label="Service tag" value={d.service_tag} />
                             <Field label="OS" value={d.op_sys} />

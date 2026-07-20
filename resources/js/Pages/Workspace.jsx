@@ -1,10 +1,11 @@
-import { PlusIcon } from "@/Components/Icons";
 import { Head, usePage } from '@inertiajs/react';
+import AddButton from '@/Components/ui/AddButton';
 import { useEffect, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import EntityList from '@/Components/EntityList';
 import RecordModal from '@/Components/RecordModal';
-import AssetOnboard from '@/Components/AssetOnboard';
+import PasswordGate from '@/Components/ui/PasswordGate';
+import OnboardingSetup from '@/Components/OnboardingSetup';
 import { ENTITIES, GROUPS } from '@/entities';
 import { getLast, setLast } from '@/lib/lastView';
 
@@ -25,6 +26,21 @@ export default function Workspace({ group }) {
     const [editing, setEditing] = useState(false);
     const [listVersion, setListVersion] = useState(0);
     const [step, setStep] = useState(0);
+    // Guarded tabs (Accounts) re-prompt on EVERY entry — switching away re-locks.
+    const [unlocked, setUnlocked] = useState(false);
+    // Onboarding tabs are filtered views over the workflow docs: fetch the group's
+    // slice (people|device) and let the left-column list drive the editor on the right.
+    const [workflows, setWorkflows] = useState([]);
+    const [wfId, setWfId] = useState(null);
+    const [wfVersion, setWfVersion] = useState(0);
+    useEffect(() => { setUnlocked(false); setWfId(null); }, [tabKey]);
+    useEffect(() => {
+        if (tab.view !== 'onboarding') return;
+        fetch(`/data/workflows?type=${tab.wtype}`, { headers: { Accept: 'application/json' } })
+            .then((r) => (r.ok ? r.json() : []))
+            .then((d) => setWorkflows(Array.isArray(d) ? d : []))
+            .catch(() => setWorkflows([]));
+    }, [tabKey, group, tenant?.activeId, wfVersion]);
 
     const refetchDetail = () => {
         if (entity && selectedId) fetch(entity.detailEndpoint(selectedId), { headers: { Accept: 'application/json' } }).then((r) => r.json()).then(setDetail);
@@ -72,13 +88,19 @@ export default function Workspace({ group }) {
     );
 
     let listContent, detailContent, footerLeft, footerRight;
-    if (entity) {
+    if (entity?.guard && !unlocked) {
+        listContent = <PasswordGate reason={entity.guard.reason} onUnlocked={() => setUnlocked(true)} />;
+        detailContent = <Center>Unlock to view {tab.label.toLowerCase()}</Center>;
+        footerLeft = `${tab.label} — locked`;
+    } else if (entity) {
         listContent = (
             <EntityList endpoint={entity.listEndpoint} icon={entity.icon}
                 filter={entity.filter ? { key: entity.filter.key, label: entity.filter.label, options: filterOptions } : null}
                 sortOptions={entity.sort || []} selectedId={selectedId} onSelect={chooseId} onStats={setStats} reloadKey={reloadKey} />
         );
-        detailContent = detail ? entity.render(detail) : <Center>Select {entity.noun} on the left</Center>;
+        // render(record, refetch) — refetch lets a detail screen that edits its own
+        // children (rooms inside a location) refresh itself without a page reload.
+        detailContent = detail ? entity.render(detail, refetchDetail) : <Center>Select {entity.noun} on the left</Center>;
         footerLeft = `Records Displayed: ${stats.shown} of ${stats.total}`;
         footerRight = (
             <span className="flex gap-4 text-gray-400">
@@ -88,23 +110,54 @@ export default function Workspace({ group }) {
             </span>
         );
     } else if (tab.view === 'onboarding') {
-        listContent = (
-            <ol className="p-3">
-                {ONB_STEPS.map((s, i) => (
-                    <li key={s}>
-                        <button onClick={() => setStep(i)} className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-md ${i === step ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>
-                            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${i === step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>{i + 1}</span>{s}
-                        </button>
-                    </li>
-                ))}
-            </ol>
+        // Only ACTIVE workflows show; device baselines (form-factor ones) nest under
+        // "Device Setup", the rest (Endpoint protection, the people workflows) sit flat.
+        // In All-companies mode every company keeps its own set — group by company so
+        // the pairs read as what they are, not duplicates.
+        const activeWf = workflows.filter((w) => w.active);
+        const sel = activeWf.find((w) => w.id === wfId)
+            || activeWf.find((w) => w.form_factor) || activeWf[0] || null;
+        const wfBtn = (w) => (
+            <button key={w.id} onClick={() => setWfId(w.id)}
+                className={`w-full rounded-md px-3 py-2 text-left text-sm ${sel?.id === w.id ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                {w.title}
+            </button>
         );
-        detailContent = <OnboardingStep step={step} setStep={setStep} />;
-        footerLeft = `Onboarding — step ${step + 1} of ${ONB_STEPS.length}`;
-    } else if (tab.view === 'asset-onboard') {
-        listContent = <div className="p-4 text-sm text-gray-500">Onboard a new asset into inventory — identify it, place it at a location, and add it.</div>;
-        detailContent = <AssetOnboard onDone={() => { setListVersion((v) => v + 1); setTabKey('devices'); }} />;
-        footerLeft = 'Onboard a new asset';
+        const companyIds = [...new Set(activeWf.map((w) => w.company_id))];
+        const section = (list) => {
+            const baselines = tab.wtype === 'device' ? list.filter((w) => w.form_factor) : [];
+            const flat = tab.wtype === 'device' ? list.filter((w) => !w.form_factor) : list;
+            return (
+                <>
+                    {baselines.length > 0 && (
+                        <>
+                            <p className="px-3 pt-1 pb-0.5 text-xs uppercase tracking-wide text-gray-400">Device Setup</p>
+                            <div className="ml-3 space-y-1">{baselines.map(wfBtn)}</div>
+                        </>
+                    )}
+                    {flat.map(wfBtn)}
+                </>
+            );
+        };
+        listContent = (
+            <div className="p-3 space-y-1">
+                {companyIds.length > 1
+                    ? companyIds.map((cid) => {
+                        const list = activeWf.filter((w) => w.company_id === cid);
+                        return (
+                            <div key={cid} className="space-y-1">
+                                <p className="px-3 pt-2 pb-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{list[0]?.company || `Company ${cid}`}</p>
+                                {section(list)}
+                            </div>
+                        );
+                    })
+                    : section(activeWf)}
+            </div>
+        );
+        detailContent = sel
+            ? <OnboardingSetup key={sel.id} workflow={sel} onChanged={() => setWfVersion((v) => v + 1)} />
+            : <Center>No active workflows here yet.</Center>;
+        footerLeft = sel ? `${sel.title} — workflow` : 'Workflows';
     } else {
         listContent = <div className="p-4 text-sm text-gray-400">{g.title}</div>;
         detailContent = <ComingSoon group={group} />;
@@ -121,9 +174,7 @@ export default function Workspace({ group }) {
                     {entity?.edit && detail && (
                         <button onClick={() => setEditing(true)} className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Edit</button>
                     )}
-                    {entity?.add && (
-                        <button onClick={() => setAdding(true)} className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"><PlusIcon /> {entity.add.title}</button>
-                    )}
+                    {entity?.add && <AddButton label={entity.add.title} onClick={() => setAdding(true)} />}
                 </div>
             </div>
             <div className="flex-1 min-h-0">{detailContent}</div>

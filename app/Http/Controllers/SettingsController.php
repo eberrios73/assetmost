@@ -26,9 +26,11 @@ class SettingsController extends Controller
             ],
             'companies' => Company::query()->withoutGlobalScopes()
                 ->orderBy('name')
-                ->get(['id', 'name', 'tag_prefix', 'domain', 'city', 'state', 'active']),
+                ->get(['id', 'name', 'tag_prefix', 'domain', 'local_domain', 'installers_url', 'city', 'state', 'active']),
             'providers' => IdentityProvider::query()->get(),
-            'providerTypes' => IdentityProvider::PROVIDERS,
+            'providerTypes' => IdentityProvider::PROVIDERS
+                + \App\Models\ProvisionerDefinition::query()->where('enabled', true)->pluck('name', 'plugin_key')->all(),
+            'pluginDefs' => \App\Models\ProvisionerDefinition::query()->get(['id', 'plugin_key', 'name', 'enabled']),
         ]);
     }
 
@@ -84,6 +86,66 @@ class SettingsController extends Controller
         return response()->json(['matrix' => Access::matrix()]);
     }
 
+    /** Current installers config — fetched on mount so the saved path always shows. */
+    public function installersConfig(): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
+        return response()->json([
+            'count' => \Illuminate\Support\Facades\DB::table('installers')->count(),
+            'last_scan' => \Illuminate\Support\Facades\DB::table('installers')->max('indexed_at'),
+            'companies' => \App\Models\Company::query()->withoutGlobalScopes()->orderBy('name')->get(['id','name','installers_url']),
+        ]);
+    }
+
+    /** Set a company's installers share path (host/path, listed over SSH). */
+    public function saveInstallersPath(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
+        $data = $request->validate(['company_id' => 'required|exists:companies,id', 'path' => 'nullable|string|max:500']);
+        Company::query()->withoutGlobalScopes()->whereKey($data['company_id'])->update(['installers_url' => $data['path'] ?: null]);
+        return response()->json(['ok' => true]);
+    }
+
+    /** Scan the mounted installers share into the index. The directory IS the catalog. */
+    public function scanInstallers(): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
+        $path = \App\Models\Company::query()->withoutGlobalScopes()->whereNotNull('installers_path')->value('installers_path');
+        if (! $path) {
+            return response()->json(['ok' => false, 'error' => 'Set an installers path first (host/path).'], 422);
+        }
+        [$rows, $err] = \App\Console\Commands\IndexInstallers::scan($path);
+        if ($err) {
+            return response()->json(['ok' => false, 'error' => $err], 422);
+        }
+        \Illuminate\Support\Facades\Artisan::call('installers:index', ['--path' => $path]);
+        return response()->json([
+            'ok' => true,
+            'count' => \Illuminate\Support\Facades\DB::table('installers')->count(),
+            'last_scan' => \Illuminate\Support\Facades\DB::table('installers')->max('indexed_at'),
+        ]);
+    }
+
+    /** Add or replace a declarative provisioning plugin (paste-in JSON). */
+    public function savePluginDef(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(\App\Support\Access::allows(auth()->user()?->role, 'settings.manage'), 403);
+        $data = $request->validate(['definition' => 'required|array']);
+        $d = $data['definition'];
+        foreach (['plugin_key', 'name', 'request'] as $need) {
+            abort_unless(isset($d[$need]), 422, "Plugin JSON needs '{$need}'.");
+        }
+        abort_unless(preg_match('/^[a-z0-9_-]{2,40}$/', $d['plugin_key']), 422, 'plugin_key: lowercase letters, digits, dashes.');
+
+        $def = \App\Models\ProvisionerDefinition::updateOrCreate(
+            ['plugin_key' => $d['plugin_key']],
+            ['name' => $d['name'], 'definition' => json_encode($d), 'enabled' => true],
+        );
+        \Illuminate\Support\Facades\Log::info('provisioner.plugin.saved', ['key' => $d['plugin_key'], 'by' => auth()->id()]);
+
+        return response()->json(['ok' => true, 'id' => $def->id]);
+    }
+
     /** Create or update a company's identity provider. */
     public function saveProvider(Request $request): JsonResponse
     {
@@ -91,19 +153,26 @@ class SettingsController extends Controller
 
         $data = $request->validate([
             'company_id' => 'required|exists:companies,id',
-            'provider' => 'required|in:'.implode(',', array_keys(IdentityProvider::PROVIDERS)),
-            'enabled' => 'boolean',
+            'provider' => 'required|in:'.implode(',', array_merge(
+                array_keys(IdentityProvider::PROVIDERS),
+                \App\Models\ProvisionerDefinition::query()->pluck('plugin_key')->all(),
+            )),
+            'enabled' => 'nullable|boolean',
             'domain' => 'nullable|string|max:255',
             'tenant_id' => 'nullable|string|max:255',
             'client_id' => 'nullable|string|max:255',
             'client_secret' => 'nullable|string|max:512',
-            'sync_on_login' => 'boolean',
+            'sync_on_login' => 'nullable|boolean',
         ]);
 
         // Blank means "leave the stored secret alone" — the form never receives it back,
         // so an empty field is absence of an edit, not an instruction to erase.
         if (blank($data['client_secret'] ?? null)) {
             unset($data['client_secret']);
+        }
+        // Untouched checkboxes arrive null — leave the stored flags alone.
+        foreach (['enabled', 'sync_on_login'] as $b) {
+            if (array_key_exists($b, $data) && $data[$b] === null) unset($data[$b]);
         }
 
         $provider = IdentityProvider::updateOrCreate(

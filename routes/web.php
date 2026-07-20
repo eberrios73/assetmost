@@ -17,6 +17,14 @@ Route::get('/', function () {
 Route::get('/dashboard', fn () => redirect()->route('people.index'))
     ->middleware(['auth'])->name('dashboard');
 
+// Bootstrap-script report endpoints: token-authenticated (device-scoped, expiring),
+// deliberately outside the session gate — the machine reporting in has no session.
+Route::middleware('throttle:30,1')->group(function () {
+    $mo = \App\Http\Controllers\MachineOnboardController::class;
+    Route::post('/onboard/report', [$mo, 'report']);
+    Route::post('/onboard/key', [$mo, 'storeKey']);
+});
+
 Route::middleware('auth')->group(function () {
     Route::post('/switch-company', function (\Illuminate\Http\Request $r) {
         $id = $r->input('company_id');
@@ -38,10 +46,28 @@ Route::middleware('auth')->group(function () {
     Route::patch('/data/spaces/{space}', [$doc, 'updateSpace']);
     Route::delete('/data/spaces/{space}', [$doc, 'destroySpace']);
     Route::get('/data/docs', [$doc, 'tree']);
+    Route::get('/data/docs-search', [$doc, 'search']);
+    // The commands registry (Docs > Commands): /slash commands with per-platform scripts.
+    $sn = \App\Http\Controllers\ScriptSnippetController::class;
+    Route::get('/data/snippets', [$sn, 'index']);
+    Route::post('/data/snippets', [$sn, 'store']);
+    Route::patch('/data/snippets/{snippet}', [$sn, 'update']);
+    Route::delete('/data/snippets/{snippet}', [$sn, 'destroy']);
+    Route::post('/data/docs/{page}/new-version', [$doc, 'newVersion']);
+    Route::post('/data/docs/{page}/promote', [$doc, 'promote']);
     Route::post('/data/docs', [$doc, 'store']);
     Route::get('/data/docs/{page}', [$doc, 'show']);
+    Route::post('/data/docs/{page}/editing', [$doc, 'editing']);
     Route::patch('/data/docs/{page}', [$doc, 'update']);
     Route::delete('/data/docs/{page}', [$doc, 'destroy']);
+
+    // Products are a vendor's catalog. What you own is a licence, filtered by product.
+    $prod = \App\Http\Controllers\ProductController::class;
+    Route::get('/data/vendors/{vendor}/products', [$prod, 'forVendor']);
+    Route::post('/data/vendors/{vendor}/products', [$prod, 'store']);
+    Route::patch('/data/products/{product}', [$prod, 'update']);
+    Route::delete('/data/products/{product}', [$prod, 'destroy']);
+    Route::get('/data/product-options', [$prod, 'options']);
 
     // Tasks
     $task = \App\Http\Controllers\TaskController::class;
@@ -67,6 +93,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/settings/roles', [$sc, 'updateRoles']);
     Route::post('/settings/roles/reset', [$sc, 'resetRoles']);
     Route::post('/settings/identity-providers', [$sc, 'saveProvider']);
+    Route::post('/settings/provisioner-defs', [$sc, 'savePluginDef']);
+    Route::get('/settings/installers-config', [$sc, 'installersConfig']);
+    Route::post('/settings/installers-path', [$sc, 'saveInstallersPath']);
+    Route::post('/settings/installers-scan', [$sc, 'scanInstallers']);
     // /m365 was its own screen; Microsoft is now one identity provider among three.
     Route::get('/m365', fn () => redirect()->route('settings.index'))->name('m365.index');
 
@@ -75,6 +105,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/devices', [$dc, 'devices']);
     Route::post('/data/devices', [$dc, 'storeDevice']);
     Route::get('/data/device-types', [$dc, 'deviceTypes']);
+    Route::get('/data/device-type-options', [$dc, 'deviceTypeOptions']);
     Route::get('/data/devices/{device}', [$dc, 'device']);
     Route::get('/data/people', [$dc, 'people']);
     Route::post('/data/people', [$dc, 'storePerson']);
@@ -98,6 +129,46 @@ Route::middleware('auth')->group(function () {
     Route::patch('/data/companies/{company}', [$dc, 'updateCompany']);
 
     Route::get('/data/vendor-options', [$dc, 'vendorOptions']);
+    Route::get('/data/person-options', [$dc, 'personOptions']);
+    Route::get('/data/login-options', [$dc, 'loginOptions']);
+    Route::get('/data/installers', [$dc, 'installers']);
+    Route::get('/data/form-options', [$dc, 'formOptions']);
+    // Accounts = floating credential identities (People > Accounts). One row per
+    // credential; service logins point at it. The registry is a map of the realm's
+    // admin credentials, so the whole group sits behind a re-entered password.
+    Route::post('/data/accounts-unlock', [$dc, 'unlockAccounts'])->middleware('throttle:6,1');
+    Route::middleware(\App\Http\Middleware\ConfirmAccountsAccess::class)->group(function () use ($dc) {
+        Route::get('/data/accounts', [$dc, 'accounts']);
+        Route::post('/data/accounts', [$dc, 'storeAccount']);
+        Route::get('/data/accounts/{account}', [$dc, 'account']);
+        Route::patch('/data/accounts/{account}', [$dc, 'updateAccount']);
+    });
+    Route::get('/data/sharing-options', [$dc, 'sharingOptions']);
+
+    // Machine bootstrap: open /onboard ON the new machine; login page is the gate.
+    $mo = \App\Http\Controllers\MachineOnboardController::class;
+    Route::get('/onboard', [$mo, 'page'])->name('machine.onboard');
+    Route::post('/onboard/generate', [$mo, 'generate']);
+    // Preview the bootstrap script a device workflow would produce.
+    Route::get('/data/onboarding-script', [$mo, 'previewScript']);
+
+    // The workflow engine — Docs pages with workflow_* columns. The People/Assets
+    // onboarding tabs are filtered views over these; steps are the source of truth.
+    $wf = \App\Http\Controllers\WorkflowController::class;
+    Route::get('/data/workflows', [$wf, 'index']);
+    Route::get('/data/workflows/{page}', [$wf, 'show']);
+    Route::put('/data/workflows/{page}/steps', [$wf, 'saveSteps']);
+    Route::patch('/data/workflows/{page}', [$wf, 'update']);
+    Route::post('/data/workflows/{page}/duplicate', [$wf, 'duplicate']);
+    Route::post('/data/workflows/{page}/adopt', [$wf, 'adopt']);
+    Route::post('/data/workflows/{page}/parse-doc', [$wf, 'parseDoc']);
+    Route::get('/data/workflows/{page}/preview', [$wf, 'preview']);
+    Route::post('/data/workflows/{page}/run', [$wf, 'run']);
+    Route::get('/data/doc-options', [$wf, 'docOptions']);
+    Route::get('/data/runbook-refs', [$wf, 'refOptions']);
+    // Identifier-only account options for pickers — deliberately outside the accounts
+    // gate: names only, no holders, no services, no secrets.
+    Route::get('/data/account-options', [$dc, 'accountOptions']);
     Route::get('/data/logins/{login}', [$dc, 'login']);
     Route::patch('/data/logins/{login}', [$dc, 'updateLogin']);
     Route::delete('/data/logins/{login}', [$dc, 'destroyLogin']);
@@ -122,6 +193,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/data/companies', [$dc, 'storeCompany']);
     Route::get('/data/companies/{company}', [$dc, 'company']);
     Route::get('/data/companies/{company}/clients', [$dc, 'companyClients']);
+    Route::get('/data/companies/{company}/domain-join-login', [$dc, 'companyDomainJoinLogin']);
+    Route::post('/data/companies/{company}/domain-join-login', [$dc, 'storeCompanyDomainJoinLogin']);
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

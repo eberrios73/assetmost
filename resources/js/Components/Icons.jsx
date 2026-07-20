@@ -46,6 +46,11 @@ export function EditIcon() {
 export function PlusIcon({ className = sm }) {
     return (<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>);
 }
+// Disclosure chevron: points right when closed, rotates down when open.
+export function Chevron({ open = false, className = 'h-4 w-4' }) {
+    return (<svg className={`${className} transition-transform ${open ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.4">
+        <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+}
 export function EyeIcon() {
     return (<svg className={sm} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
         <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z" /><circle cx="12" cy="12" r="2.8" /></svg>);

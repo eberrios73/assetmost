@@ -1,10 +1,20 @@
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
-import { TrashIcon } from '@/Components/Icons';
+import { TrashIcon, Chevron } from '@/Components/Icons';
 import { buildDocBody, templateCategory } from '@/docTemplates';
 import TemplateMenu from '@/Components/TemplateMenu';
 import SearchSelect from '@/Components/SearchSelect';
+import AddButton from '@/Components/ui/AddButton';
+import { openRecordForm } from '@/lib/formBus';
+
+// A task stamped "Form: new|edit <kind> · co:<id>" (a /form token in its workflow
+// step) carries the record form — the button summons the app-wide drawer with
+// the workflow's company as context; the result is noted on the task.
+const taskForm = (notes) => {
+    const m = /(?:^|\n)Form: (?:(new|edit) )?(device|person|account|location) · co:(\d+)/.exec(notes || '');
+    return m ? { mode: m[1] || 'new', kind: m[2], companyId: Number(m[3]) } : null;
+};
 
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 const api = (url, method = 'GET', body) => fetch(url, {
@@ -21,6 +31,25 @@ const PRI_PILL = [
     'text-red-700 bg-red-100 dark:bg-red-500/20 dark:text-red-300',
 ];
 const PRI_BAR = ['', 'before:bg-blue-500', 'before:bg-amber-500', 'before:bg-red-500'];
+
+/**
+ * Age = how long a task has been open, counted from `origin` (the first week it
+ * appeared — carry-overs keep aging, that's the point). Done tasks freeze at
+ * their completion date. Color steps up as it gets old: quiet < 1w, amber < 2w,
+ * red after — the sheet should make neglect visible without anyone asking.
+ */
+function Age({ t }) {
+    const start = t.origin || t.week;
+    if (!start) return <span className="text-gray-300">—</span>;
+    const end = t.done && t.completed_at ? new Date(t.completed_at) : new Date();
+    const days = Math.max(0, Math.round((end - new Date(start)) / 86400000));
+    const label = days < 14 ? `${days}d` : days < 60 ? `${Math.round(days / 7)}w` : `${Math.round(days / 30)}mo`;
+    const tone = t.done ? 'text-gray-300 dark:text-gray-600'
+        : days >= 14 ? 'text-red-600 font-semibold'
+        : days >= 7 ? 'text-amber-600 font-medium'
+        : 'text-gray-400';
+    return <span className={tone} title={`Started ${start}`}>{label}</span>;
+}
 const STATUS_STYLE = {
     Proposed: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
     Approved: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
@@ -94,29 +123,49 @@ export default function Index() {
 
     // ---- weekly grid data ----
     const nonProjects = useMemo(() => tasks.filter((t) => !t.is_project), [tasks]);
-    const weekTasks = useMemo(() => nonProjects.filter((t) => t.week === view), [nonProjects, view]);
+    const projects = useMemo(() => tasks.filter((t) => t.is_project).sort((a, b) => a.ord - b.ord), [tasks]);
+
+    // Subtasks: parent_id pointing at a TASK (not a project). They render nested
+    // under their parent everywhere, never as top-level rows.
+    const projectIds = useMemo(() => new Set(projects.map((pj) => pj.id)), [projects]);
+    const subsByParent = useMemo(() => {
+        const m = {};
+        for (const t of nonProjects) if (t.parent_id && !projectIds.has(t.parent_id)) (m[t.parent_id] ??= []).push(t);
+        return m;
+    }, [nonProjects, projectIds]);
+    const topLevel = useMemo(() => nonProjects.filter((t) => !(t.parent_id && !projectIds.has(t.parent_id))), [nonProjects, projectIds]);
+    const addSub = async (parentId, title, week) => { await api('/data/tasks', 'POST', { title, week, parent_id: parentId }); load(); };
+
+    const weekTasks = useMemo(() => topLevel.filter((t) => t.week === view), [topLevel, view]);
     const open = useMemo(() => weekTasks.filter((t) => !t.done).sort((a, b) => (b.pri - a.pri) || (a.ord - b.ord)), [weekTasks]);
     const completedGroups = useMemo(() => {
         const out = [];
         for (let i = 0; i < 4; i++) {
             const wk = ymd(addDays(parseYmd(view), -7 * i));
-            const items = nonProjects.filter((t) => t.week === wk && t.done).sort((a, b) => a.ord - b.ord);
+            const items = topLevel.filter((t) => t.week === wk && t.done).sort((a, b) => a.ord - b.ord);
             if (items.length) out.push({ wk, items });
         }
         return out;
-    }, [nonProjects, view]);
+    }, [topLevel, view]);
     const avg = weekTasks.length ? Math.round(weekTasks.reduce((s, t) => s + (t.pct || 0), 0) / weekTasks.length) : 0;
-
-    const projects = useMemo(() => tasks.filter((t) => t.is_project).sort((a, b) => a.ord - b.ord), [tasks]);
 
     const viewDate = parseYmd(view);
     const doneThisWeek = weekTasks.filter((t) => t.done).length;
+
+    // Viewing a FUTURE week: unfinished tasks only roll forward when a week becomes
+    // current (Monday), so preview what will land — otherwise next week looks
+    // deceptively empty while this week is still in progress.
+    const viewIsFuture = view > currentWeek;
+    const rollingIn = useMemo(
+        () => (viewIsFuture ? topLevel.filter((t) => !t.done && t.week < view).sort((a, b) => (b.pri - a.pri) || (a.ord - b.ord)) : []),
+        [viewIsFuture, topLevel, view]
+    );
 
     const content = (
         <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 mb-5">
                 <div className="flex">
-                    {['tasks', 'projects'].map((m) => (
+                    {['tasks', 'projects', 'timeline'].map((m) => (
                         <button key={m} onClick={() => setMode(m)}
                             className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px capitalize ${mode === m ? 'text-blue-600 border-blue-600' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}>
                             {m}{m === 'projects' && projects.length ? ` (${projects.length})` : ''}
@@ -147,25 +196,45 @@ export default function Index() {
                         <thead>
                             <tr className="bg-gray-100 dark:bg-gray-800/70 text-xs uppercase tracking-wide text-gray-400">
                                 <Th className="w-9" /><Th>Task</Th><Th className="w-44">Assignee</Th>
-                                <Th className="w-16 text-center">Pri</Th><Th className="w-40">%</Th>
+                                <Th className="w-16 text-center">Pri</Th><Th className="w-16 text-center">Age</Th><Th className="w-40">%</Th>
                                 <Th className="w-32">Completed</Th><Th className="w-8" /><Th className="w-10" />
                             </tr>
                         </thead>
                         <tbody>
                             <SectionRow label="Current" right={weekTasks.length ? `${avg}% complete` : ''} />
-                            {open.length === 0 && <EmptyRow>{weekTasks.length ? 'All clear for this week.' : 'No tasks yet — add one above.'}</EmptyRow>}
+                            {open.length === 0 && !rollingIn.length && <EmptyRow>{weekTasks.length ? 'All clear for this week.' : 'No tasks yet — add one above.'}</EmptyRow>}
                             {open.map((t) => (
-                                <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses}
-                                    expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
+                                <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects} allTasks={nonProjects}
+                                    expandedId={expandedId} onToggleAny={(id) => setExpandedId(expandedId === id ? null : id)}
+                                    subs={subsByParent} onAddSub={addSub}
                                     onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                             ))}
+                            {rollingIn.length > 0 && (
+                                <FragmentRows>
+                                    <SubRow label={`Will roll in Monday — still open on earlier weeks`} right={`${rollingIn.length} task${rollingIn.length === 1 ? '' : 's'}`} />
+                                    {rollingIn.map((t) => (
+                                        <tr key={`preview-${t.id}`} className="border-b border-gray-100 dark:border-gray-800 opacity-50">
+                                            <td className={`px-3 py-1.5 relative before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] ${PRI_BAR[t.pri] || ''}`} />
+                                            <td className="px-3 py-1.5 text-gray-600 dark:text-gray-300">{t.title} <span className="text-blue-500">↻</span></td>
+                                            <td className="px-3 py-1.5 text-gray-400">{people.find((p) => p.id === t.assigned_to)?.label || 'Unassigned'}</td>
+                                            <td className="px-3 py-1.5 text-center">
+                                                <span className={`inline-block min-w-[42px] px-2 py-0.5 rounded-full text-[11px] font-semibold ${PRI_PILL[t.pri] || PRI_PILL[0]}`}>{PRI[t.pri]}</span>
+                                            </td>
+                                            <td className="px-3 py-1.5 text-center text-xs"><Age t={t} /></td>
+                                            <td className="px-3 py-1.5 text-xs text-gray-400">{t.pct || 0}%</td>
+                                            <td colSpan={3} />
+                                        </tr>
+                                    ))}
+                                </FragmentRows>
+                            )}
                             {completedGroups.length > 0 && <SectionRow label="Completed" />}
                             {completedGroups.map((g) => (
                                 <FragmentRows key={g.wk}>
                                     <SubRow label={weekLabel(g.wk, currentWeek)} right={`${g.items.length} done`} />
                                     {g.items.map((t) => (
-                                        <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses}
-                                            expanded={expandedId === t.id} onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
+                                        <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects} allTasks={nonProjects}
+                                            expandedId={expandedId} onToggleAny={(id) => setExpandedId(expandedId === id ? null : id)}
+                                            subs={subsByParent} onAddSub={addSub}
                                             onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
                                     ))}
                                 </FragmentRows>
@@ -175,6 +244,8 @@ export default function Index() {
                     </div>
                     <p className="mt-3 text-xs text-gray-400">↻ carried over from an earlier week — unfinished tasks roll into the current week automatically.</p>
                 </>
+            ) : mode === 'timeline' ? (
+                <Gantt projects={projects} tasks={nonProjects} currentWeek={currentWeek} patch={patch} onOpenProject={(id) => { setMode('projects'); setOpenProj(id); }} />
             ) : (
                 <>
                     <AddBar placeholder="Add a project and press Enter…" onAdd={(v) => addTask(v, true)} />
@@ -246,7 +317,7 @@ function AddBar({ placeholder, onAdd }) {
 function SectionRow({ label, right }) {
     return (
         <tr className="bg-gray-100 dark:bg-gray-800/70 border-y border-gray-200 dark:border-gray-800">
-            <td colSpan={8} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <td colSpan={9} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {label}{right && <span className="float-right text-blue-600 dark:text-blue-400 normal-case tracking-normal">{right}</span>}
             </td>
         </tr>
@@ -255,16 +326,26 @@ function SectionRow({ label, right }) {
 function SubRow({ label, right }) {
     return (
         <tr className="bg-gray-50 dark:bg-gray-900/60">
-            <td colSpan={8} className="px-3 py-1 pl-6 text-xs text-gray-400 border-b border-gray-100 dark:border-gray-800">
+            <td colSpan={9} className="px-3 py-1 pl-6 text-xs text-gray-400 border-b border-gray-100 dark:border-gray-800">
                 <span className="uppercase tracking-wide">{label}</span>{right && <span className="float-right">{right}</span>}
             </td>
         </tr>
     );
 }
-function EmptyRow({ children }) { return <tr><td colSpan={8} className="px-3 py-3 text-gray-400">{children}</td></tr>; }
+function EmptyRow({ children }) { return <tr><td colSpan={9} className="px-3 py-3 text-gray-400">{children}</td></tr>; }
 
-function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, onDelete }) {
+function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, onAddSub, depth = 0, expandedId, onToggleAny, onProject, onMakeDoc, onDelete }) {
+    const expanded = expandedId === t.id;
+    const onToggle = () => onToggleAny(t.id);
     const carried = t.origin && t.origin < t.week && !t.done;
+    const form = taskForm(t.notes);
+    const openForm = () => openRecordForm({
+        mode: form.mode, kind: form.kind, companyId: form.companyId,
+        onSaved: (rec) => {
+            const label = rec?.asset_tag || rec?.identifier || rec?.name || '';
+            patch(t.id, { notes: `${t.notes}\n✓ ${form.kind} ${form.mode === 'edit' ? 'updated' : 'recorded'}${label ? `: ${label}` : ''}` });
+        },
+    });
     return (
         <>
             {/* Priority bar lives on the first cell, NOT the <tr>: a pseudo-element
@@ -276,7 +357,8 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                 </td>
                 <td className="px-3 py-1.5">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" style={depth ? { marginLeft: depth * 20 } : undefined}>
+                        {depth > 0 && <span className="text-gray-300 dark:text-gray-600">↳</span>}
                         <InlineText value={t.title} done={t.done} onCommit={(v) => patch(t.id, { title: v }, { debounce: true })} />
                         {t.notes ? <span className="text-gray-300 dark:text-gray-600 shrink-0" title="has notes"><NoteGlyph /></span> : null}
                         {carried && <span className="text-blue-500 shrink-0" title="carried over from an earlier week">↻</span>}
@@ -287,6 +369,7 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
                     <button onClick={() => patch(t.id, { pri: ((t.pri || 0) + 1) % 4 })} title="click to cycle priority"
                         className={`inline-block min-w-[42px] px-2 py-0.5 rounded-full text-[11px] font-semibold ${PRI_PILL[t.pri] || PRI_PILL[0]}`}>{PRI[t.pri]}</button>
                 </td>
+                <td className="px-3 py-1.5 text-center text-xs"><Age t={t} /></td>
                 <td className="px-3 py-1.5"><PctCell t={t} onCommit={(v) => patch(t.id, { pct: v }, { reload: true })} /></td>
                 <td className="px-3 py-1.5">
                     {t.done && (
@@ -296,7 +379,7 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
                 </td>
                 <td className="px-1 py-1.5 text-center">
                     <button onClick={onToggle} title="details & notes"
-                        className={`px-1 ${expanded ? 'text-blue-600' : 'text-gray-300 dark:text-gray-600 hover:text-gray-500'}`}>{expanded ? '▾' : '▸'}</button>
+                        className={`px-1 ${expanded ? 'text-blue-600' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><Chevron open={expanded} className="h-3.5 w-3.5" /></button>
                 </td>
                 <td className="px-3 py-1.5 text-center">
                     <button onClick={() => onDelete(t.id, t.title)} title="delete"
@@ -305,16 +388,48 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
             </tr>
             {expanded && (
                 <tr>
-                    <td colSpan={8} className="p-0 border-b border-gray-200 dark:border-gray-800">
+                    <td colSpan={9} className="p-0 border-b border-gray-200 dark:border-gray-800">
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4">
+                            {form && (
+                                <div className="mb-3 flex items-center gap-2">
+                                    <AddButton label={`${form.mode === 'edit' ? 'Edit' : 'Add'} ${form.kind}`} onClick={openForm} />
+                                    <span className="text-xs text-gray-400">This step {form.mode === 'edit' ? 'updates' : 'records'} a {form.kind} — in the workflow's company.</span>
+                                </div>
+                            )}
                             <div className="flex items-start gap-3">
                                 <div className="flex-1">
                                     <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>
                                     <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
                                 </div>
                                 <div className="flex flex-col gap-2 pt-5 w-40 shrink-0">
+                                    <label className="block">
+                                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Project</span>
+                                        <select value={t.parent_id ?? ''} onChange={(e) => patch(t.id, { parent_id: e.target.value ? Number(e.target.value) : null })}
+                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                                            <option value="">— none —</option>
+                                            {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                        </select>
+                                    </label>
+                                    <label className="block">
+                                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Planned / due</span>
+                                        <input type="date" value={t.planned_start || ''} onChange={(e) => patch(t.id, { planned_start: e.target.value || null })}
+                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1 mb-1 focus:border-blue-500 focus:ring-blue-500" />
+                                        <input type="date" value={t.due_date || ''} onChange={(e) => patch(t.id, { due_date: e.target.value || null })}
+                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1 focus:border-blue-500 focus:ring-blue-500" />
+                                    </label>
+                                    <label className="block">
+                                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">After</span>
+                                        <select value={t.depends_on_id ?? ''} onChange={(e) => patch(t.id, { depends_on_id: e.target.value ? Number(e.target.value) : null })}
+                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                                            <option value="">— none —</option>
+                                            {allTasks.filter((o) => o.id !== t.id).map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
+                                        </select>
+                                    </label>
                                     <button onClick={() => onProject(t.id, true)}
                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400 hover:text-indigo-600"><Wrench /> Make project</button>
+                                    <input placeholder="Add subtask ⏎"
+                                        onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { onAddSub?.(t.id, e.target.value.trim(), t.week); e.target.value = ''; } }}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
                                     <TemplateMenu label="Make doc" glyph={<DocGlyph />} onPick={(k) => onMakeDoc(t, k)}
                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm w-full rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600" />
                                 </div>
@@ -323,6 +438,11 @@ function TaskRows({ t, people, patch, expanded, onToggle, onProject, onMakeDoc, 
                     </td>
                 </tr>
             )}
+            {(subs[t.id] || []).map((st) => (
+                <TaskRows key={st.id} t={st} people={people} patch={patch} projects={projects} allTasks={allTasks}
+                    subs={subs} onAddSub={onAddSub} depth={depth + 1} expandedId={expandedId} onToggleAny={onToggleAny}
+                    onProject={onProject} onMakeDoc={onMakeDoc} onDelete={onDelete} />
+            ))}
         </>
     );
 }
@@ -343,7 +463,7 @@ function ProjectRow({ p, open, patch, onToggle }) {
                     <span className="text-xs text-gray-400 w-8 text-right">{p.pct || 0}%</span>
                 </div>
             </td>
-            <td className="px-3 py-2 text-center text-gray-400">{open ? '▾' : '▸'}</td>
+            <td className="px-3 py-2 text-gray-400"><span className="flex justify-center"><Chevron open={open} className="h-3.5 w-3.5" /></span></td>
         </tr>
     );
 }
@@ -457,4 +577,265 @@ function DocGlyph() {
 }
 function NoteGlyph() {
     return (<svg className="h-3.5 w-3.5 inline-block align-middle" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h10" /></svg>);
+}
+
+/* ---------------- Timeline (Gantt) ---------------- */
+
+const GANTT_STATUS_BAR = {
+    Done: 'bg-gray-300 dark:bg-gray-600',
+    Blocked: 'bg-red-500',
+    'On hold': 'bg-amber-500',
+    'In progress': 'bg-teal-500',
+    Approved: 'bg-green-500',
+    Proposed: 'bg-indigo-400',
+};
+const GANTT_PRI_BAR = ['bg-blue-400', 'bg-blue-500', 'bg-amber-500', 'bg-red-500'];
+const ROW_H = { project: 34, task: 26, sect: 26 };
+
+/**
+ * Timeline. Bars show the PLANNED window (planned_start → due/completion);
+ * `origin` — when the task was born — is the fixed ◆ tick and never moves.
+ * Interactive: drag a bar horizontally to replan it (creation date stays put),
+ * drag it vertically onto a project to refile, drag the ○ handle to chain,
+ * click an arrowhead to unlink. Overdue open bars get a red ring.
+ */
+function Gantt({ projects, tasks, currentWeek, patch, onOpenProject }) {
+    const canvasRef = useRef(null);
+    const listRef = useRef([]);
+    const [drag, setDrag] = useState(null);
+
+    const today = new Date();
+    const start = (t) => parseYmd(t.planned_start || t.origin || t.week);
+    const end = (t) => (t.done && t.completed_at ? parseYmd(t.completed_at) : (t.due_date ? parseYmd(t.due_date) : today));
+    const overdue = (t) => !t.done && t.due_date && parseYmd(t.due_date) < today;
+
+    const projectIds = new Set(projects.map((p) => p.id));
+    const subsOf = (id) => tasks.filter((t) => t.parent_id === id);
+
+    const list = [];
+    const pushTask = (t, level) => {
+        list.push({ kind: 'task', item: t, level });
+        subsOf(t.id).forEach((st) => pushTask(st, level + 1));
+    };
+    for (const p of projects) {
+        const children = subsOf(p.id);
+        const flat = [];
+        const collect = (t) => { flat.push(t); subsOf(t.id).forEach(collect); };
+        children.forEach(collect);
+        const starts = [start(p), ...flat.map(start)];
+        const ends = [end(p), ...flat.map(end)];
+        list.push({ kind: 'project', item: p, s: new Date(Math.min(...starts)), e: new Date(Math.max(...ends)) });
+        children.forEach((t) => pushTask(t, 0));
+    }
+    const orphans = tasks.filter((t) => !t.parent_id && !t.done);
+    if (orphans.length) {
+        list.push({ kind: 'sect', label: 'No project — open tasks' });
+        orphans.forEach((t) => pushTask(t, 0));
+    }
+
+    let y = 0;
+    const yMid = {};
+    for (const r of list) { r.y = y; if (r.item) yMid[r.item.id] = y + ROW_H[r.kind] / 2; y += ROW_H[r.kind]; }
+    const bodyH = y;
+    listRef.current = list;
+
+    const items = list.filter((r) => r.item);
+    const lo = mondayOf(new Date(Math.min(...items.map((r) => r.s || start(r.item)), today)));
+    const hi = addDays(mondayOf(new Date(Math.max(...items.map((r) => r.e || end(r.item)), today))), 13);
+    const total = (hi - lo) / 86400000;
+    const X = (d) => ((d - lo) / 86400000 / total) * 100;
+    const weeks = [];
+    for (let d = new Date(lo); d < hi; d = addDays(d, 7)) weeks.push(new Date(d));
+
+    const byId = (id) => tasks.find((o) => o.id === id) || projects.find((o) => o.id === id);
+    const wouldCycle = (pred, succ) => {
+        let cur = pred;
+        for (let i = 0; cur && i < 100; i++) {
+            if (cur.depends_on_id === succ.id) return true;
+            cur = cur.depends_on_id ? byId(cur.depends_on_id) : null;
+        }
+        return false;
+    };
+
+    const chains = [];
+    for (const r of list) {
+        const t = r.kind === 'task' ? r.item : null;
+        if (!t?.depends_on_id || !(t.depends_on_id in yMid)) continue;
+        const pred = byId(t.depends_on_id);
+        if (!pred) continue;
+        chains.push({ succ: t, pred, x1: X(end(pred)), y1: yMid[pred.id], x2: X(start(t)), y2: yMid[t.id] });
+    }
+
+    const pt = (e) => {
+        const r = canvasRef.current.getBoundingClientRect();
+        return { xPct: ((e.clientX - r.left) / r.width) * 100, yPx: e.clientY - r.top };
+    };
+    const rowAt = (yPx) => listRef.current.find((r) => yPx >= r.y && yPx < r.y + ROW_H[r.kind]);
+
+    useEffect(() => {
+        if (!drag) return;
+        const mv = (e) => {
+            const cur = pt(e);
+            setDrag((d) => {
+                if (!d) return d;
+                // Axis lock: horizontal = replan dates, vertical = refile/chain target.
+                let axis = d.axis;
+                if (!axis && d.type === 'bar') {
+                    const dx = Math.abs(cur.xPct - d.x0), dy = Math.abs(cur.yPx - d.y0);
+                    if (dx * 8 > 1 || dy > 6) axis = (dx / 100 * (canvasRef.current?.clientWidth || 1000)) > dy ? 'time' : 'row';
+                }
+                return { ...d, ...cur, axis };
+            });
+        };
+        const up = (e) => {
+            const { xPct, yPx } = pt(e);
+            const d = drag;
+            setDrag(null);
+            if (!d) return;
+            if (d.type === 'link') {
+                const target = rowAt(yPx);
+                if (target?.kind === 'task' && target.item.id !== d.source.id && !wouldCycle(d.source, target.item)) {
+                    patch(target.item.id, { depends_on_id: d.source.id });
+                }
+                return;
+            }
+            // bar drag: settle by locked axis
+            if (d.axis === 'time' && !d.source.done) {
+                const deltaDays = Math.round((xPct - d.x0) / 100 * total);
+                if (deltaDays !== 0) {
+                    const s0 = start(d.source), e0 = end(d.source);
+                    patch(d.source.id, {
+                        planned_start: ymd(addDays(s0, deltaDays)),
+                        due_date: ymd(addDays(e0, deltaDays)),
+                    });
+                }
+            } else if (d.axis === 'row') {
+                const target = rowAt(yPx);
+                if (!target) return;
+                if (target.kind === 'project' && target.item.id !== d.source.parent_id) {
+                    patch(d.source.id, { parent_id: target.item.id });
+                } else if (target.kind === 'task' && target.item.parent_id && projectIds.has(target.item.parent_id) && target.item.parent_id !== d.source.parent_id) {
+                    patch(d.source.id, { parent_id: target.item.parent_id });
+                } else if ((target.kind === 'sect' || (target.kind === 'task' && !target.item.parent_id)) && d.source.parent_id) {
+                    patch(d.source.id, { parent_id: null });
+                }
+            }
+        };
+        window.addEventListener('pointermove', mv);
+        window.addEventListener('pointerup', up, { once: true });
+        return () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [drag?.type, drag?.source?.id]);
+
+    if (!list.length) {
+        return <p className="py-8 text-sm text-gray-400 text-center">Nothing to chart yet — add a project or some tasks.</p>;
+    }
+
+    const hoverRow = drag && (drag.type === 'link' || drag.axis === 'row') ? rowAt(drag.yPx ?? -1) : null;
+    const hoverValid = hoverRow && (
+        drag?.type === 'link'
+            ? (hoverRow.kind === 'task' && hoverRow.item.id !== drag.source.id && !wouldCycle(drag.source, hoverRow.item))
+            : true
+    );
+    const timeDelta = drag?.axis === 'time' ? Math.round(((drag.xPct ?? drag.x0) - drag.x0) / 100 * total) : 0;
+
+    return (
+        <div className="overflow-x-auto">
+            <div className={`min-w-[860px] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden ${drag ? 'select-none' : ''}`}>
+                <div className="flex items-stretch bg-gray-100 dark:bg-gray-800/70 text-[11px] uppercase tracking-wide text-gray-400">
+                    <div className="w-56 shrink-0 px-3 py-2">Project / Task</div>
+                    <div className="relative flex-1 py-2">
+                        {weeks.map((w, i) => (
+                            <span key={i} className="absolute pl-1 whitespace-nowrap" style={{ left: `${X(w)}%` }}>{fmt(w)}</span>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex">
+                    <div className="w-56 shrink-0">
+                        {list.map((r, i) => (
+                            <div key={i} style={{ height: ROW_H[r.kind], paddingLeft: r.kind === 'task' ? 12 + 16 * (r.level + 1) : 12 }}
+                                onClick={r.kind === 'project' ? () => onOpenProject?.(r.item.id) : undefined}
+                                title={r.kind === 'project' ? 'Open project details' : undefined}
+                                className={`pr-3 flex items-center text-sm truncate border-b border-gray-50 dark:border-gray-800/70 ${
+                                    r.kind === 'project' ? 'font-medium text-gray-800 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400'
+                                    : r.kind === 'sect' ? 'bg-gray-50 dark:bg-gray-900/60 text-[11px] uppercase tracking-wide text-gray-400'
+                                    : 'text-gray-500 dark:text-gray-400'}`}>
+                                {r.kind === 'sect' ? r.label : <>{r.kind === 'task' && r.level > 0 && <span className="mr-1 text-gray-300 dark:text-gray-600">↳</span>}{r.item.title}</>}
+                            </div>
+                        ))}
+                    </div>
+                    <div ref={canvasRef} className="relative flex-1" style={{ height: bodyH }}>
+                        {weeks.map((w, i) => (
+                            <div key={i} className="absolute inset-y-0 border-l border-gray-100 dark:border-gray-800/60" style={{ left: `${X(w)}%` }} />
+                        ))}
+                        <div className="absolute inset-y-0 border-l-2 border-red-400/70" style={{ left: `${X(today)}%` }} title="today" />
+
+                        {hoverRow && (
+                            <div className={`absolute inset-x-0 ${hoverValid ? 'bg-blue-100/60 dark:bg-blue-500/15' : 'bg-red-100/40 dark:bg-red-500/10'}`}
+                                style={{ top: hoverRow.y, height: ROW_H[hoverRow.kind] }} />
+                        )}
+
+                        {list.map((r, i) => {
+                            if (r.kind === 'sect') return <div key={i} className="absolute inset-x-0 bg-gray-50 dark:bg-gray-900/60" style={{ top: r.y, height: ROW_H.sect }} />;
+                            const t = r.item;
+                            const isProject = r.kind === 'project';
+                            const dragging = drag?.type === 'bar' && drag.axis === 'time' && drag.source.id === t.id && !t.done;
+                            const shift = dragging ? timeDelta : 0;
+                            const s = addDays(isProject ? r.s : start(t), shift);
+                            const e = addDays(isProject ? r.e : end(t), shift);
+                            const cls = isProject
+                                ? `${GANTT_STATUS_BAR[t.status || (t.pct >= 100 ? 'Done' : t.pct > 0 ? 'In progress' : 'Proposed')] || GANTT_STATUS_BAR.Proposed} opacity-90`
+                                : `${t.done ? 'bg-gray-300 dark:bg-gray-600' : GANTT_PRI_BAR[t.pri] || GANTT_PRI_BAR[0]} opacity-80`;
+                            return (
+                                <div key={i} className="absolute inset-x-0 group/lane" style={{ top: r.y, height: ROW_H[r.kind] }}>
+                                    {/* origin tick: where the task was born — never moves */}
+                                    {!isProject && t.origin && (
+                                        <span className="absolute h-2 w-2 rotate-45 bg-gray-400 dark:bg-gray-500" title={`Origin ${t.origin} (fixed)`}
+                                            style={{ left: `calc(${X(parseYmd(t.origin))}% - 4px)`, top: '50%', transform: 'translateY(-50%) rotate(45deg)' }} />
+                                    )}
+                                    <div className={`absolute rounded ${cls} ${isProject ? 'h-5' : 'h-3 cursor-grab active:cursor-grabbing'} ${overdue(t) ? 'ring-2 ring-red-500' : ''} ${dragging ? 'opacity-60' : ''}`}
+                                        style={{ left: `${X(s)}%`, width: `${Math.max(((e - s) / 86400000 + 1) / total * 100, 1.2)}%`, top: '50%', transform: 'translateY(-50%)' }}
+                                        title={`${t.title} · ${t.pct || 0}%${isProject ? '' : t.done ? '' : ' — drag ↔ to replan, ↕ onto a project to refile, ○ to chain'}`}
+                                        onPointerDown={isProject ? undefined : (ev) => { ev.preventDefault(); const c = pt(ev); setDrag({ type: 'bar', source: t, x0: c.xPct, y0: c.yPx, ...c }); }}>
+                                        {(t.pct || 0) > 0 && <div className="absolute inset-y-0 left-0 rounded bg-black/20" style={{ width: `${Math.min(t.pct, 100)}%` }} />}
+                                        <span onPointerDown={(ev) => { ev.stopPropagation(); ev.preventDefault(); const c = pt(ev); setDrag({ type: 'link', source: t, x1: X(e), y1: yMid[t.id], ...c }); }}
+                                            title="drag to another bar: it will run AFTER this"
+                                            className="absolute -right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-gray-400 bg-white dark:bg-gray-900 opacity-0 group-hover/lane:opacity-100 cursor-crosshair" />
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {chains.map((c) => (
+                            <FragmentRows key={`${c.pred.id}-${c.succ.id}`}>
+                                <div className="absolute border-t-2 border-dotted border-gray-400/80 pointer-events-none" style={{ top: c.y1, left: `${Math.min(c.x1, c.x2)}%`, width: `${Math.max(Math.abs(c.x2 - c.x1), 0.4)}%` }} />
+                                <div className="absolute border-l-2 border-dotted border-gray-400/80 pointer-events-none" style={{ left: `${c.x2}%`, top: Math.min(c.y1, c.y2), height: Math.abs(c.y2 - c.y1) - 6 }} />
+                                <button onClick={() => { if (confirm(`Unlink "${c.succ.title}" from "${c.pred.title}"?`)) patch(c.succ.id, { depends_on_id: null }); }}
+                                    title="click to unlink"
+                                    className="absolute h-0 w-0 border-x-4 border-x-transparent border-t-[6px] border-t-gray-400 hover:border-t-red-500 cursor-pointer"
+                                    style={{ left: `calc(${c.x2}% - 3.5px)`, top: c.y2 - 8 }} />
+                            </FragmentRows>
+                        ))}
+
+                        {drag?.type === 'link' && drag.xPct != null && (
+                            <>
+                                <div className="absolute border-t-2 border-dotted border-blue-500 pointer-events-none" style={{ top: drag.y1, left: `${Math.min(drag.x1, drag.xPct)}%`, width: `${Math.abs(drag.xPct - drag.x1)}%` }} />
+                                <div className="absolute border-l-2 border-dotted border-blue-500 pointer-events-none" style={{ left: `${drag.xPct}%`, top: Math.min(drag.y1, drag.yPx), height: Math.abs(drag.yPx - drag.y1) }} />
+                            </>
+                        )}
+                        {drag?.axis === 'time' && timeDelta !== 0 && (
+                            <div className="absolute rounded bg-gray-800 text-white text-[11px] px-1.5 py-0.5 pointer-events-none" style={{ left: `${drag.xPct}%`, top: Math.max(drag.yPx - 26, 0) }}>
+                                {timeDelta > 0 ? '+' : ''}{timeDelta}d
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <p className="mt-3 text-xs text-gray-400">
+                Drag a bar ↔ to replan (◆ = origin, fixed — you can move the plan, not the past) or ↕ onto a project to refile.
+                Drag the ○ to chain ("runs after"); click an arrowhead to unlink. Red ring = overdue. Darker fill = % complete. Red line = today.
+            </p>
+        </div>
+    );
 }

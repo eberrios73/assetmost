@@ -103,6 +103,13 @@ class TaskController extends Controller
             'pct' => 'sometimes|integer|min:0|max:100',
             'pri' => 'sometimes|integer|min:0|max:3',
             'is_project' => 'sometimes|boolean',
+            // A task may belong to a project (an it_tasks row with is_project=1).
+            'parent_id' => 'sometimes|nullable|integer|exists:it_tasks,id',
+            // One predecessor; chains compose. not_in blocks self-dependency.
+            'depends_on_id' => 'sometimes|nullable|integer|exists:it_tasks,id|not_in:'.($request->route('task')?->id ?? 0),
+            // The planned window is draggable; origin (creation) never is.
+            'planned_start' => 'sometimes|nullable|date',
+            'due_date' => 'sometimes|nullable|date',
             'ord' => 'sometimes|integer',
             'completed_at' => 'sometimes|nullable|date',
             'status' => 'sometimes|nullable|string|max:40',
@@ -124,6 +131,8 @@ class TaskController extends Controller
             'id' => $t->id, 'title' => $t->title,
             'week' => $t->week?->toDateString(), 'origin' => $t->origin?->toDateString(),
             'done' => $t->done, 'pct' => $t->pct, 'pri' => $t->pri, 'is_project' => $t->is_project,
+            'parent_id' => $t->parent_id, 'depends_on_id' => $t->depends_on_id,
+            'planned_start' => $t->planned_start?->toDateString(), 'due_date' => $t->due_date?->toDateString(),
             'status' => $t->status, 'ord' => $t->ord,
             'completed_at' => $t->completed_at?->toDateString(),
             'assigned_to' => $t->assigned_to,

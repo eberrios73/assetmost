@@ -1,10 +1,27 @@
-import { DeviceIcon, PersonIcon, VendorIcon, RoomIcon, ClientIcon } from '@/Components/Icons';
+import { DeviceIcon, PersonIcon, VendorIcon, RoomIcon, ClientIcon, KeyIcon } from '@/Components/Icons';
 import DeviceDetail from '@/Components/detail/DeviceDetail';
 import PersonDetail from '@/Components/detail/PersonDetail';
 import VendorDetail from '@/Components/detail/VendorDetail';
 import RoomDetail from '@/Components/detail/RoomDetail';
 import LocationDetail from '@/Components/detail/LocationDetail';
 import CompanyDetail from '@/Components/detail/CompanyDetail';
+import AccountDetail from '@/Components/detail/AccountDetail';
+
+// A floating account is the credential IDENTITY only — the passwords live on
+// the service logins that use it. Floating means no 'personal' option here.
+const ACCOUNT_FIELDS = [
+    { key: 'identifier', label: 'Email / username', required: true },
+    { key: 'sharing', label: 'Sharing', type: 'select', required: true, options: [
+        { value: 'pooled', label: 'Pooled — one at a time' },
+        { value: 'shared', label: 'Shared — many at once' },
+        { value: 'service', label: 'Service — runs the system, no human holder' },
+        { value: 'breakglass', label: 'Break glass — sealed emergency access' },
+    ] },
+    { key: 'holder_ids', label: 'Assigned to', type: 'multi-select-search',
+      optionsEndpoint: '/data/person-options', pickPlaceholder: 'Search people to add…' },
+    { key: 'notes', label: 'Notes', type: 'textarea' },
+    { key: 'is_active', label: 'Active', type: 'checkbox' },
+];
 
 /** One config per entity; screens/groups compose these. */
 export const ENTITIES = {
@@ -14,7 +31,7 @@ export const ENTITIES = {
         icon: <PersonIcon />, idLabel: 'Person ID',
         filter: { key: 'department', label: 'departments', optionsEndpoint: '/data/departments' },
         sort: [{ key: 'name', label: 'First name' }, { key: 'last', label: 'Last name' }, { key: 'department', label: 'Department' }, { key: 'ext', label: 'Ext' }],
-        render: (u) => <PersonDetail u={u} />,
+        render: (u, refetch) => <PersonDetail u={u} onChanged={refetch} />,
         add: {
             endpoint: '/data/people', title: 'Add Staff',
             fields: [
@@ -46,6 +63,20 @@ export const ENTITIES = {
             { key: 'ext', label: 'Ext' }, { key: 'active', label: 'Active', type: 'checkbox' },
         ] },
     },
+    accounts: {
+        noun: 'an account',
+        listEndpoint: '/data/accounts', detailEndpoint: (id) => `/data/accounts/${id}`,
+        icon: <KeyIcon />, idLabel: 'Account ID',
+        // A map of the realm's admin credentials — the list itself is the sensitive
+        // thing. Re-enter your password on every visit; the server enforces its own
+        // window on top (423 without a fresh unlock).
+        guard: { reason: 'The account registry maps privileged credentials across your realm. Re-enter your password to open it.' },
+        filter: { key: 'sharing', label: 'sharing', optionsEndpoint: '/data/sharing-options' },
+        sort: [{ key: 'identifier', label: 'Email / username' }, { key: 'sharing', label: 'Sharing' }],
+        render: (a) => <AccountDetail a={a} />,
+        add: { endpoint: '/data/accounts', title: 'Add Account', fields: ACCOUNT_FIELDS },
+        edit: { fields: ACCOUNT_FIELDS },
+    },
     vendors: {
         noun: 'a vendor',
         listEndpoint: '/data/vendors', detailEndpoint: (id) => `/data/vendors/${id}`,
@@ -73,10 +104,28 @@ export const ENTITIES = {
         listEndpoint: '/data/devices', detailEndpoint: (id) => `/data/devices/${id}`,
         icon: <DeviceIcon />, idLabel: 'Device ID',
         filter: { key: 'type', label: 'types', optionsEndpoint: '/data/device-types' },
-        sort: [{ key: 'asset_tag', label: 'Asset tag' }, { key: 'computer_name', label: 'Computer' }, { key: 'type', label: 'Type' }],
+        sort: [{ key: 'asset_tag', label: 'Asset tag' }, { key: 'ip_1', label: 'IP' }, { key: 'type', label: 'Type' }],
         render: (d) => <DeviceDetail d={d} />,
+        add: {
+            endpoint: '/data/devices', title: 'Add Device',
+            fields: [
+                // Blank tag = the company's counter issues one (PG-WS-1001).
+                { key: 'asset_tag', label: 'Asset tag (blank = auto-issued)' },
+                { key: 'computer_name', label: 'Computer name' },
+                { key: 'ip_1', label: 'IP address' },
+                { key: 'ip_2', label: 'IP 2 (secondary)' },
+                { key: 'device_type_id', label: 'Type', type: 'select-search', optionsEndpoint: '/data/device-type-options' },
+                { key: 'brand', label: 'Brand' },
+                { key: 'model', label: 'Model' },
+                { key: 'serial_num', label: 'Serial' },
+                // Location decides the company when picked; otherwise the company below.
+                { key: 'location_id', label: 'Location', type: 'select-search', optionsEndpoint: '/data/location-options' },
+                { key: 'company_id', label: 'Company', type: 'select-search', optionsEndpoint: '/data/company-options' },
+            ],
+        },
         edit: { fields: [
             { key: 'asset_tag', label: 'Asset tag' }, { key: 'computer_name', label: 'Computer name' },
+            { key: 'ip_1', label: 'IP address' }, { key: 'ip_2', label: 'IP 2 (secondary)' },
             { key: 'type', label: 'Type' }, { key: 'brand', label: 'Brand' }, { key: 'model', label: 'Model' },
             { key: 'serial_num', label: 'Serial' }, { key: 'active', label: 'Active', type: 'checkbox' },
         ] },
@@ -86,7 +135,7 @@ export const ENTITIES = {
         listEndpoint: '/data/locations', detailEndpoint: (id) => `/data/locations/${id}`,
         icon: <RoomIcon />, idLabel: 'Location ID',
         sort: [{ key: 'name', label: 'Name' }, { key: 'city', label: 'City' }, { key: 'type', label: 'Type' }],
-        render: (l) => <LocationDetail l={l} />,
+        render: (l, refetch) => <LocationDetail l={l} onChanged={refetch} />,
         add: {
             endpoint: '/data/locations', title: 'Add Location',
             fields: [
@@ -138,14 +187,20 @@ export const ENTITIES = {
             fields: [
                 { key: 'name', label: 'Name', required: true },
                 { key: 'tag_prefix', label: 'Tag prefix (e.g. PG)', required: true, maxLength: 4 },
-                { key: 'domain', label: 'Domain' },
+                { key: 'domain', label: 'Email domain' },
+                { key: 'local_domain', label: 'Local domain (AD/LAN, e.g. acme.local)' },
+                { key: 'installers_url', label: 'Installers URL (e.g. http://files.example.com:8080)' },
                 { key: 'email', label: 'Email', type: 'email' },
                 { key: 'city', label: 'City' },
                 { key: 'state', label: 'State', maxLength: 2 },
             ],
         },
         edit: { fields: [
-            { key: 'name', label: 'Name', required: true }, { key: 'domain', label: 'Domain' },
+            { key: 'name', label: 'Name', required: true }, { key: 'domain', label: 'Email domain' },
+            { key: 'local_domain', label: 'Local domain (AD/LAN)' },
+            { key: 'installers_url', label: 'Installers URL' },
+            { key: 'local_admin_user', label: 'Local admin user (/localadmin)' },
+            { key: 'local_admin_pass', label: 'Local admin password', type: 'password' },
             { key: 'contact_name', label: 'Contact' }, { key: 'email', label: 'Email', type: 'email' },
             { key: 'phone', label: 'Phone' }, { key: 'address', label: 'Address' },
             { key: 'city', label: 'City' }, { key: 'state', label: 'State', maxLength: 2 },
@@ -158,14 +213,20 @@ export const ENTITIES = {
 export const GROUPS = {
     people: { title: 'People', tabs: [
         { key: 'staff', label: 'Staff', entity: 'people' },
+        // Accounts = credentials that aren't someone's directory email: service accounts,
+        // pooled seats, shared mailboxes — plus who holds each.
+        { key: 'accounts', label: 'Accounts', entity: 'accounts' },
         { key: 'vendors', label: 'Vendors', entity: 'vendors' },
-        { key: 'onboarding', label: 'Onboarding', view: 'onboarding' },
+        // Onboarding tabs are filtered views over the workflow docs — one engine (Docs),
+        // two lenses: people workflows here, device workflows under Assets.
+        { key: 'onboarding', label: 'Onboarding', view: 'onboarding', wtype: 'people' },
     ] },
     assets: { title: 'Assets', tabs: [
         { key: 'devices', label: 'Devices', entity: 'devices' },
+        // Rooms have no tab: a room only means something inside its location, so they're
+        // managed on the location's screen. (A Vehicles tab may take this slot later.)
         { key: 'locations', label: 'Locations', entity: 'locations' },
-        { key: 'rooms', label: 'Rooms', entity: 'rooms' },
-        { key: 'onboard', label: 'Onboard', view: 'asset-onboard' },
+        { key: 'onboarding', label: 'Onboarding', view: 'onboarding', wtype: 'device' },
     ] },
     tasks: { title: 'Tasks', tabs: [{ key: 'tasks', label: 'Tasks', view: 'tasks' }] },
     docs: { title: 'Docs', tabs: [{ key: 'docs', label: 'Docs', view: 'docs' }] },

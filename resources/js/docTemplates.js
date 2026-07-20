@@ -1,22 +1,21 @@
 // Doc templates — shared by the Docs "New" menu and the "Make doc" action on a task.
 // Bodies are TipTap-compatible HTML.
 
+// The header rows and the step cards are ENGINE-NATIVE: header rows compile to the
+// workflow's meta (Tools/Safety become real tasks ahead of the procedure), step cards
+// compile to chained checklist tasks. Guidance paragraphs are deliberately over 20
+// words — the parser treats long prose as context, never as a step.
 const SOP = `
 <table><tbody>
-<tr><th>Owner</th><td></td><th>Version</th><td>1.0</td></tr>
-<tr><th>Effective</th><td></td><th>Review by</th><td></td></tr>
-<tr><th>Approver</th><td></td><th>Status</th><td>Draft</td></tr>
+<tr><td><p><strong>Why:</strong></p></td><td colspan="7"><p></p></td></tr>
+<tr><td><p><strong>How:</strong></p></td><td colspan="7"><p></p></td></tr>
+<tr><td><p><strong>Scope:</strong></p></td><td colspan="7"><p></p></td></tr>
+<tr><td><p><strong>Tools and Materials:</strong></p></td><td colspan="7"><p></p></td></tr>
+<tr><td><p><strong>Safety Precautions:</strong></p></td><td colspan="7"><p></p></td></tr>
+<tr><td><p><strong>OS:</strong></p></td><td><p></p></td><td><p><strong>Owner:</strong></p></td><td><p>__OWNER__</p></td><td><p><strong>Version:</strong></p></td><td><p>1.0</p></td><td><p><strong>Status:</strong></p></td><td><p>Draft</p></td></tr>
 </tbody></table>
-<h2>Purpose</h2><p></p>
-<h2>Scope</h2><p></p>
-<h2>Prerequisites</h2><ul><li></li></ul>
 <h2>Procedure</h2>
-<table><tbody>
-<tr><th>#</th><th>Action</th><th>Responsible</th><th>Notes</th></tr>
-<tr><td>1</td><td></td><td></td><td></td></tr>
-<tr><td>2</td><td></td><td></td><td></td></tr>
-<tr><td>3</td><td></td><td></td><td></td></tr>
-</tbody></table>
+<section data-sop-step><p><strong>New step</strong></p><p></p></section>
 <h2>Verification</h2><p></p>
 <h2>Rollback / recovery</h2><p></p>
 <h2>Revision history</h2>
@@ -39,28 +38,42 @@ const TROUBLESHOOTING = `
 <h2>Escalation</h2><p></p>
 `.trim();
 
+// Same 2-column label/value ease as the SOP: fill the cells, add or remove rows.
 const INCIDENT = `
+<h2>Incident summary</h2>
 <table><tbody>
-<tr><th>Severity</th><td>Sev3</td><th>Status</th><td>Investigating</td></tr>
-<tr><th>Detected</th><td></td><th>Resolved</th><td></td></tr>
-<tr><th>Owner</th><td></td><th>Reported by</th><td></td></tr>
+<tr><td><p><strong>Severity:</strong></p></td><td><p>Sev3</p></td></tr>
+<tr><td><p><strong>Status:</strong></p></td><td><p>Investigating</p></td></tr>
+<tr><td><p><strong>Incident start date:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Incident end date:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Executive summary / Description:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Symptoms, if any:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Source of detection:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Owner:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Reported by:</strong></p></td><td><p></p></td></tr>
 </tbody></table>
-<h2>Summary</h2><p></p>
-<h2>Impact</h2><p></p>
-<h2>Affected systems / users</h2><ul><li></li></ul>
-<h2>Timeline</h2>
+<h2>Impact assessment</h2>
 <table><tbody>
-<tr><th>Time</th><th>Event / action</th><th>By</th></tr>
+<tr><td><p><strong>Affected users:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Affected services:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Affected devices / assets:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Other impact details:</strong></p></td><td><p></p></td></tr>
+</tbody></table>
+<h2>Timeline of events</h2>
+<table><tbody>
+<tr><th>Date</th><th>Event</th><th>By</th></tr>
 <tr><td></td><td></td><td></td></tr>
 <tr><td></td><td></td><td></td></tr>
 </tbody></table>
-<h2>Root cause</h2><p></p>
-<h2>Resolution</h2><p></p>
+<h2>Analysis</h2>
+<table><tbody>
+<tr><td><p><strong>Root cause of the incident:</strong></p></td><td><p></p></td></tr>
+<tr><td><p><strong>Similar incidents:</strong></p></td><td><p></p></td></tr>
+</tbody></table>
+<h2>Remediation actions</h2>
+<ol><li><p></p></li></ol>
 <h2>Follow-up actions</h2>
-<table><tbody>
-<tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr>
-<tr><td></td><td></td><td></td><td></td></tr>
-</tbody></table>
+<ol><li><p></p></li></ol>
 `.trim();
 
 export const DOC_TEMPLATES = [
@@ -88,10 +101,11 @@ const toParas = (text) => esc(text).split(/\n{2,}/).map((p) => `<p>${p.replace(/
 const FREEFORM = DOC_TEMPLATES.find((t) => t.key === 'freeform');
 
 /** Build a doc body from a template, optionally seeding a Background section from task notes. */
-export function buildDocBody(templateKey, background = '') {
+export function buildDocBody(templateKey, background = '', vars = {}) {
     const tpl = DOC_TEMPLATES.find((t) => t.key === templateKey) || FREEFORM;
     const bg = background && background.trim() ? `<h2>Background</h2>${toParas(background.trim())}` : '';
-    return (bg + tpl.body) || '<p></p>';
+    const body = (bg + tpl.body).replaceAll('__OWNER__', esc(vars.owner || ''));
+    return body || '<p></p>';
 }
 
 export function templateCategory(templateKey) {

@@ -43,11 +43,17 @@ export default function SearchSelect({ value, onChange, endpoint, options: provi
 
     const selected = options.find((o) => String(o.id) === String(value));
     const displayLabel = selected?.label ?? (value ? fallbackLabel : '');
-    const filtered = options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
+    const matches = options.filter((o) => (o.label ?? '').toLowerCase().includes(query.toLowerCase()));
+    const filtered = matches.slice(0, 50);
 
     const items = (
         <>
             {filtered.length === 0 && <div className="px-3 py-1.5 text-xs text-gray-400">No matches</div>}
+            {matches.length > filtered.length && (
+                <div className="px-3 py-1 text-[11px] text-gray-400">
+                    Showing {filtered.length} of {matches.length} — type to narrow
+                </div>
+            )}
             {filtered.map((o) => (
                 <button key={o.id} type="button" onMouseDown={(e) => { e.preventDefault(); onChange(o.id); setOpen(false); }}
                     className={`w-full text-left px-3 py-1.5 text-sm ${String(o.id) === String(value) ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
