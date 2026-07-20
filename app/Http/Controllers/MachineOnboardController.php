@@ -386,7 +386,11 @@ class MachineOnboardController extends Controller
                         $b = self::renderSnippet($h['snippet'], $h['args'], $ctx, $platform);
                         if ($b !== null) $blocks[] = rtrim($b);
                     } elseif ($h['kind'] === 'fetch') {
-                        foreach (self::recipe([['title' => $h['text']]], $companyId) as $r) {
+                        $resolved = self::recipe([['title' => $h['text']]], $companyId);
+                        if (! $resolved) {
+                            $blocks[] = "# !! {$h['text']}: nothing in the installers catalog matches — put the file on the share or check the spelling.";
+                        }
+                        foreach ($resolved as $r) {
                             $rel = ltrim($r['relative_path'], '/');
                             if (! $repo || $rel === '') {
                                 $blocks[] = "# {$h['text']}: set the company's Installers URL first";
