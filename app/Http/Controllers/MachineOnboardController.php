@@ -328,6 +328,18 @@ class MachineOnboardController extends Controller
         $repo = rtrim($ctx['REPO'] ?? '', '/');
         $sections = [];
 
+        // A /token the generator doesn't recognize must never vanish silently —
+        // a typo like /domain (for /domainjoin) would quietly skip the join.
+        // Known = registry commands + built-ins + anything RunbookRefs resolves.
+        $knownCmds = collect($snippets)->map(fn ($s) => strtolower($s->command))
+            ->merge(['install', 'vpn', 'mdm', 'form'])->flip()->all();
+        // Deliberate refs use the workflow slug (/eprotection). Loose title
+        // matching is NOT honored here — that's exactly how typos would hide
+        // (/domain "resolving" against a doc titled "Domains & SambaBox").
+        $refSlugs = \App\Models\DocPage::withoutGlobalScopes()
+            ->where('company_id', $companyId)->whereNotNull('workflow_slug')
+            ->pluck('workflow_slug')->map(fn ($s) => strtolower($s))->flip()->all();
+
         foreach (array_values($steps) as $i => $step) {
             $texts = [];
             $collect = function ($node) use (&$collect, &$texts) {
@@ -339,7 +351,14 @@ class MachineOnboardController extends Controller
             $collect($step);
 
             $blocks = [];
+            $unknown = [];
             foreach ($texts as $text) {
+                if (preg_match_all('~(?<=^|\s)/([a-z][\w-]{2,}+)(?![./])~i', $text, $tm)) {
+                    foreach ($tm[1] as $tok) {
+                        $t = strtolower($tok);
+                        if (! isset($knownCmds[$t]) && ! isset($refSlugs[$t])) $unknown[$t] = true;
+                    }
+                }
                 $hits = [];
                 foreach ($snippets as $s) {
                     if (! preg_match_all('~/' . preg_quote($s->command, '~') . '\b([^\n/]*)~i', $text, $m, PREG_OFFSET_CAPTURE)) continue;
@@ -389,6 +408,10 @@ class MachineOnboardController extends Controller
                         };
                     }
                 }
+            }
+            foreach (array_keys($unknown) as $tok) {
+                $blocks[] = "# !! /{$tok} is not a recognized command — nothing generated for it.\n"
+                    . "# !! Typo? (/domainjoin, /localadmin, …) See Docs > Commands, or type /help in the SOP.";
             }
             if ($blocks) {
                 $n = $i + 1;
