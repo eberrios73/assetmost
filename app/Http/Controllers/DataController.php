@@ -282,15 +282,16 @@ class DataController extends Controller
             'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
-            'is_active' => 'boolean', 'is_restricted' => 'boolean',
+            'is_active' => 'nullable|boolean', 'is_restricted' => 'nullable|boolean',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
-        $login = \App\Models\Login::create($v->validated() + [
+        $login = \App\Models\Login::create(collect($v->validated())->filter(fn ($x) => $x !== null)->all() + [
             'company_id' => $company->id,
             'sharing' => 'service',
             'is_active' => $request->boolean('is_active', true),
+            'is_restricted' => $request->boolean('is_restricted', false),
         ]);
         $company->domain_join_login_id = $login->loginID;
         $company->save();
@@ -339,16 +340,22 @@ class DataController extends Controller
             'login_name' => 'required|string|max:255', 'login_id' => 'nullable|string|max:255',
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
-            'is_active' => 'boolean', 'is_restricted' => 'boolean',
+            'is_active' => 'nullable|boolean', 'is_restricted' => 'nullable|boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
-        $login = \App\Models\Login::create($v->validated() + [
+        $data = collect($v->validated())->except('holder_ids')->filter(fn ($x) => $x !== null)->all();
+        $login = \App\Models\Login::create($data + [
             'user_id' => $person->id,
             'company_id' => $person->company_id,
             'is_active' => $request->boolean('is_active', true),
+            'is_restricted' => $request->boolean('is_restricted', false),
         ]);
+        // Adding FROM a person's screen assigns it to that person unless the
+        // form says otherwise — login_access is the source of truth.
+        $login->holders()->sync($v->validated()['holder_ids'] ?? [$person->id]);
         return response()->json(['id' => $login->id], 201);
     }
 
@@ -636,13 +643,17 @@ class DataController extends Controller
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
             'sharing' => 'nullable|in:'.implode(',', \App\Models\Login::SHARING),
-            'is_active' => 'boolean', 'is_restricted' => 'boolean',
+            'is_active' => 'nullable|boolean', 'is_restricted' => 'nullable|boolean',
             'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = $v->validated();
+        // An untouched checkbox arrives null — that means "leave it alone".
+        foreach (['is_active', 'is_restricted'] as $b) {
+            if (array_key_exists($b, $data) && $data[$b] === null) unset($data[$b]);
+        }
         if (empty($data['login_pass'])) {
             unset($data['login_pass']); // blank = keep existing secret
         }

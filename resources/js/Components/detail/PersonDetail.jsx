@@ -31,7 +31,7 @@ export default function PersonDetail({ u }) {
             <div className="flex-1 min-h-0">
                 <Tabs
                     tabs={[
-                        { key: 'logins', label: 'Logins', count: u.logins_count, render: () => <LoginsTable endpoint={`/data/people/${u.id}/logins`} createEndpoint={`/data/people/${u.id}/logins`} /> },
+                        { key: 'logins', label: 'Logins', count: u.logins_count, render: () => <LoginsTable endpoint={`/data/people/${u.id}/logins`} createEndpoint={`/data/people/${u.id}/logins`} presetHolderIds={[u.id]} /> },
                         // One tab, not two — "Licenses" and "Subscriptions" were the same
                         // endpoint rendered twice under different names.
                         { key: 'licenses', label: 'Licenses', count: u.licenses_count, render: () => <LicensesTable endpoint={`/data/people/${u.id}/licenses`} /> },

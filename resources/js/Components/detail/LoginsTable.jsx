@@ -20,8 +20,9 @@ const LOGIN_FIELDS = [
 ];
 
 /** Shared logins table — one DataTable like every other screen. `showUser` for the
- *  vendor view; `createEndpoint` (optional) enables the shared Add button. */
-export default function LoginsTable({ endpoint, showUser = false, createEndpoint = null }) {
+ *  vendor view; `createEndpoint` (optional) enables the shared Add button.
+ *  `presetHolderIds`: adding from a person's screen pre-assigns to that person. */
+export default function LoginsTable({ endpoint, showUser = false, createEndpoint = null, presetHolderIds = null }) {
     const [reload, setReload] = useState(0);
     const { loading, data } = useJson(`${endpoint}?_=${reload}`);
     const [edit, setEdit] = useState(null);
@@ -104,7 +105,8 @@ export default function LoginsTable({ endpoint, showUser = false, createEndpoint
 
             {adding && createEndpoint && (
                 <RecordModal title="Add login" endpoint={createEndpoint} method="POST" fields={LOGIN_FIELDS}
-                    initial={{ is_active: true }} onClose={() => setAdding(false)}
+                    initial={{ is_active: true, is_restricted: false, ...(presetHolderIds ? { holder_ids: presetHolderIds } : {}) }}
+                    onClose={() => setAdding(false)}
                     onSaved={() => { setAdding(false); setReload((r) => r + 1); }} />
             )}
             {edit && (
