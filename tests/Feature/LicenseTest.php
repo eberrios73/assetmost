@@ -16,7 +16,8 @@ class LicenseTest extends TestCase
     public function test_a_license_can_be_added_and_lands_under_its_vendor(): void
     {
         $company = Company::create(['name' => 'Acme', 'tag_prefix' => 'AC', 'tag_next' => 1001, 'active' => true]);
-        $vendor = Vendor::create(['name' => 'Adobe', 'active' => true]);
+        // Vendors are company-scoped, not shared — the vendor belongs to Acme.
+        $vendor = Vendor::create(['name' => 'Adobe', 'active' => true, 'company_id' => $company->id]);
         $product = Product::create(['vendor_id' => $vendor->id, 'name' => 'Firefly', 'active' => true]);
         $u = User::factory()->canLogin()->create(['company_id' => $company->id]);
 
@@ -39,9 +40,10 @@ class LicenseTest extends TestCase
 
     public function test_product_options_are_labelled_vendor_dash_product(): void
     {
-        $vendor = Vendor::create(['name' => 'Adobe', 'active' => true]);
+        $company = Company::create(['name' => 'Acme', 'tag_prefix' => 'AC', 'tag_next' => 1001, 'active' => true]);
+        $vendor = Vendor::create(['name' => 'Adobe', 'active' => true, 'company_id' => $company->id]);
         Product::create(['vendor_id' => $vendor->id, 'name' => 'Firefly', 'active' => true]);
-        $u = User::factory()->canLogin()->create();
+        $u = User::factory()->canLogin()->create(['company_id' => $company->id]);
 
         $this->actingAs($u)->getJson('/data/product-options')
             ->assertOk()->assertJsonPath('0.label', 'Adobe — Firefly');

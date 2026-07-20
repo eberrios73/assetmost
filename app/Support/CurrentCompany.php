@@ -31,7 +31,7 @@ class CurrentCompany implements TenantResolver
         }
         $u = $this->user();
         if (! $u) {
-            return $this->allowed = [];
+            return [];   // don't memoize: auth may resolve later in this lifecycle
         }
         return $this->allowed = $u->managedCompanyIds();
     }
