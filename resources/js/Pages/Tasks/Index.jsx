@@ -366,8 +366,10 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
                 </td>
                 <td className="px-3 py-1.5"><AssigneeSelect value={t.assigned_to} people={people} onChange={(id) => patch(t.id, { assigned_to: id })} /></td>
                 <td className="px-3 py-1.5 text-center">
-                    <button onClick={() => patch(t.id, { pri: ((t.pri || 0) + 1) % 4 })} title="click to cycle priority"
-                        className={`inline-block min-w-[42px] px-2 py-0.5 rounded-full text-[11px] font-semibold ${PRI_PILL[t.pri] || PRI_PILL[0]}`}>{PRI[t.pri]}</button>
+                    <select value={t.pri || 0} onChange={(e) => patch(t.id, { pri: Number(e.target.value) })} title="priority"
+                        className={`min-w-[58px] cursor-pointer rounded-full border-0 py-0.5 pl-2.5 pr-6 text-[11px] font-semibold focus:ring-1 focus:ring-blue-500 ${PRI_PILL[t.pri] || PRI_PILL[0]}`}>
+                        {PRI.map((label, i) => <option key={i} value={i}>{i === 0 ? 'None' : label}</option>)}
+                    </select>
                 </td>
                 <td className="px-3 py-1.5 text-center text-xs"><Age t={t} /></td>
                 <td className="px-3 py-1.5"><PctCell t={t} onCommit={(v) => patch(t.id, { pct: v }, { reload: true })} /></td>
@@ -396,42 +398,50 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
                                     <span className="text-xs text-gray-400">This step {form.mode === 'edit' ? 'updates' : 'records'} a {form.kind} — in the workflow's company.</span>
                                 </div>
                             )}
-                            <div className="flex items-start gap-3">
-                                <div className="flex-1">
-                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>
-                                    <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
-                                </div>
-                                <div className="flex flex-col gap-2 pt-5 w-40 shrink-0">
-                                    <label className="block">
-                                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Project</span>
-                                        <select value={t.parent_id ?? ''} onChange={(e) => patch(t.id, { parent_id: e.target.value ? Number(e.target.value) : null })}
-                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
-                                            <option value="">— none —</option>
-                                            {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-                                        </select>
-                                    </label>
-                                    <label className="block">
-                                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Planned / due</span>
-                                        <input type="date" value={t.planned_start || ''} onChange={(e) => patch(t.id, { planned_start: e.target.value || null })}
-                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1 mb-1 focus:border-blue-500 focus:ring-blue-500" />
-                                        <input type="date" value={t.due_date || ''} onChange={(e) => patch(t.id, { due_date: e.target.value || null })}
-                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1 focus:border-blue-500 focus:ring-blue-500" />
-                                    </label>
-                                    <label className="block">
-                                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">After</span>
-                                        <select value={t.depends_on_id ?? ''} onChange={(e) => patch(t.id, { depends_on_id: e.target.value ? Number(e.target.value) : null })}
-                                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
-                                            <option value="">— none —</option>
-                                            {allTasks.filter((o) => o.id !== t.id).map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
-                                        </select>
-                                    </label>
+                            <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>
+                            <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
+                            <div className="mt-3 flex flex-wrap items-end gap-3">
+                                <label className="block w-44">
+                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Project</span>
+                                    <select value={t.parent_id ?? ''} onChange={(e) => patch(t.id, { parent_id: e.target.value ? Number(e.target.value) : null })}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">— none —</option>
+                                        {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                    </select>
+                                </label>
+                                <label className="block w-24">
+                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Priority</span>
+                                    <select value={t.pri || 0} onChange={(e) => patch(t.id, { pri: Number(e.target.value) })}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                                        {PRI.map((label, i) => <option key={i} value={i}>{i === 0 ? 'None' : label}</option>)}
+                                    </select>
+                                </label>
+                                <label className="block w-36">
+                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Planned</span>
+                                    <input type="date" value={t.planned_start || ''} onChange={(e) => patch(t.id, { planned_start: e.target.value || null })}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                                </label>
+                                <label className="block w-36">
+                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Due</span>
+                                    <input type="date" value={t.due_date || ''} onChange={(e) => patch(t.id, { due_date: e.target.value || null })}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                                </label>
+                                <label className="block w-44">
+                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">After</span>
+                                    <select value={t.depends_on_id ?? ''} onChange={(e) => patch(t.id, { depends_on_id: e.target.value ? Number(e.target.value) : null })}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
+                                        <option value="">— none —</option>
+                                        {allTasks.filter((o) => o.id !== t.id).map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
+                                    </select>
+                                </label>
+                                <div className="ml-auto flex items-end gap-2">
                                     <button onClick={() => onProject(t.id, true)}
                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400 hover:text-indigo-600"><Wrench /> Make project</button>
                                     <input placeholder="Add subtask ⏎"
                                         onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { onAddSub?.(t.id, e.target.value.trim(), t.week); e.target.value = ''; } }}
-                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                                        className="w-40 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-2 focus:border-blue-500 focus:ring-blue-500" />
                                     <TemplateMenu label="Make doc" glyph={<DocGlyph />} onPick={(k) => onMakeDoc(t, k)}
-                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm w-full rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600" />
+                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600" />
                                 </div>
                             </div>
                         </div>
