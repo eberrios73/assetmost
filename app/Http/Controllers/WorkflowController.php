@@ -65,6 +65,7 @@ class WorkflowController extends Controller
             // The SOP tab edits the page itself in the same DocEditor as Docs —
             // one renderer everywhere; steps recompile from the body on save.
             'body' => $page->body,
+            'rev' => $page->updated_at?->getTimestamp() ?? 0,
         ]);
     }
 

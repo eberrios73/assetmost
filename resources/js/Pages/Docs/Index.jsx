@@ -34,6 +34,9 @@ export default function Index() {
     const [selectedId, setSelectedId] = useState(null);
     const [page, setPage] = useState(null);
     const [status, setStatus] = useState('');
+    const [conflict, setConflict] = useState(null);   // { mine } — unsaved buffer at conflict time
+    const [editorRev, setEditorRev] = useState(0);    // re-key the editor after a conflict reload
+    const revRef = useRef(0);                         // the doc revision this view loaded
     const [navTab, setNavTab] = useState('docs');   // docs | templates | commands
     const [snips, setSnips] = useState([]);
     const [selSnipId, setSelSnipId] = useState(null);
@@ -78,7 +81,10 @@ export default function Index() {
     useEffect(() => {
         if (!selectedId) { setPage(null); return; }
         api(`/data/docs/${selectedId}`)
-            .then((p) => { if (p && p.id) setPage(p); else { setSelectedId(null); setLast(scope, null); } });
+            .then((p) => {
+                if (p && p.id) { setPage(p); revRef.current = p.rev ?? 0; setConflict(null); }
+                else { setSelectedId(null); setLast(scope, null); }
+            });
     }, [selectedId]);
 
     const newPage = async (parentId = null, templateKey = 'freeform') => {
@@ -108,11 +114,28 @@ export default function Index() {
         await api(`/data/docs/${selectedId}`, 'PATCH', { category: category || null });
         loadTree();
     };
+    // Optimistic lock: every save carries the rev we loaded. A stale buffer
+    // (second tab, the Onboarding SOP view) gets a conflict banner instead of
+    // silently resurrecting deleted content.
     const saveBody = async (html) => {
+        if (conflict) return;   // don't fight a known conflict; the banner decides
         setStatus('Saving…');
-        await api(`/data/docs/${selectedId}`, 'PATCH', { body: html });
+        const r = await api(`/data/docs/${selectedId}`, 'PATCH', { body: html, rev: revRef.current });
+        if (r?.conflict) { setConflict({ mine: html }); setStatus(''); return; }
+        if (r?.rev) revRef.current = r.rev;
         setStatus('Saved');
         setTimeout(() => setStatus(''), 1200);
+    };
+    const conflictReload = async () => {
+        const p = await api(`/data/docs/${selectedId}`);
+        setPage(p); revRef.current = p.rev ?? 0; setConflict(null); setEditorRev((v) => v + 1);
+    };
+    const conflictOverwrite = async () => {
+        const html = conflict.mine;
+        setConflict(null);
+        const r = await api(`/data/docs/${selectedId}`, 'PATCH', { body: html });
+        if (r?.rev) revRef.current = r.rev;
+        setStatus('Saved'); setTimeout(() => setStatus(''), 1200);
     };
     const saveTitle = (title) => {
         setPage((p) => ({ ...p, title }));
@@ -290,7 +313,14 @@ export default function Index() {
                 // Info | SOP | Script tabs as the onboarding side. One page, one look.
                 <OnboardingSetup key={page.id} workflow={{ id: page.id }} onChanged={loadTree} />
             ) : (
-                <DocEditor key={page.id} pageId={page.id} initialBody={page.body} onSave={saveBody} ownerDefault={me} companyId={page.company_id} />
+                {conflict && (
+                    <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
+                        <span>This page changed in another view (second tab, or the Onboarding SOP tab). Your edits here are <strong>not saved</strong>.</span>
+                        <button onClick={conflictReload} className="px-2 py-1 rounded border border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20">Load the latest</button>
+                        <button onClick={conflictOverwrite} className="px-2 py-1 rounded border border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20">Keep mine (overwrite)</button>
+                    </div>
+                )}
+                <DocEditor key={`${page.id}:${editorRev}`} pageId={page.id} initialBody={page.body} onSave={saveBody} ownerDefault={me} companyId={page.company_id} />
             )}
             {page.versions?.length > 0 && (
                 <div className="mt-8 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">

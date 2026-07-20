@@ -108,6 +108,7 @@ class DocController extends Controller
             'workflow_type' => $page->workflow_type,
             'company_id' => $page->company_id,
             'updated_at' => $page->updated_at,
+            'rev' => $page->updated_at?->getTimestamp() ?? 0,
             'editor' => $page->editor ? trim("{$page->editor->name} {$page->editor->last}") : null,
             'versions' => $versions,          // older versions, newest first
             'current_id' => $currentId,       // set only when THIS page is superseded
@@ -276,7 +277,19 @@ class DocController extends Controller
             'category' => 'sometimes|nullable|string|max:40',
             'parent_id' => 'sometimes|nullable|integer|exists:doc_pages,id',
             'space_id' => 'sometimes|nullable|integer|exists:spaces,id',
+            'rev' => 'sometimes|nullable|integer',
         ]);
+        // Optimistic lock: a stale buffer (another tab, the Onboarding SOP view,
+        // a server-side edit) must never silently clobber newer content — that's
+        // how deleted steps resurrect. The client sends the rev it loaded;
+        // mismatch = 409 carrying the current truth, the client decides.
+        if (array_key_exists('body', $data) && ($data['rev'] ?? null) !== null) {
+            $current = $page->updated_at?->getTimestamp() ?? 0;
+            if ((int) $data['rev'] !== $current) {
+                return response()->json(['conflict' => true, 'rev' => $current, 'body' => $page->body], 409);
+            }
+        }
+        unset($data['rev']);
         // Reparenting must not create a cycle: the new parent can't be the page
         // itself or any of its descendants.
         if (array_key_exists('parent_id', $data) && $data['parent_id']) {
@@ -303,7 +316,8 @@ class DocController extends Controller
             }
         }
 
-        return response()->json(['ok' => true, 'recompiled' => $recompiled]);
+        return response()->json(['ok' => true, 'recompiled' => $recompiled,
+            'rev' => $page->fresh()->updated_at?->getTimestamp() ?? 0]);
     }
 
     public function destroy(DocPage $page): JsonResponse

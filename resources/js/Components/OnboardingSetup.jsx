@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import AddButton from '@/Components/ui/AddButton';
 import { MultiPicker } from '@/Components/RecordModal';
@@ -81,12 +81,16 @@ export default function OnboardingSetup({ workflow, onChanged }) {
     const [text, setText] = useState('');
     const [saved, setSaved] = useState('');
     const [tab, setTab] = useState('steps');         // run | steps | script
+    const [conflict, setConflict] = useState(null);  // { mine } — unsaved buffer at conflict time
+    const revRef = useRef(0);                        // the doc revision this view loaded
 
     const load = (resetTab = false) => {
         api(`/data/workflows/${wfId}`).then((r) => {
             setWf(r);
             setSteps(r.steps?.steps?.length ? r.steps.steps : null);
             setBodyRev((v) => v + 1);
+            revRef.current = r.rev ?? 0;
+            setConflict(null);
             if (resetTab) setTab(r.wizard ? 'run' : 'steps');
         }).catch(() => {});
     };
@@ -97,11 +101,25 @@ export default function OnboardingSetup({ workflow, onChanged }) {
         await api(`/data/workflows/${wfId}/steps`, 'PUT', { steps: { version: 1, steps: next } });
         setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
     };
-    // The SOP tab saves the doc body itself; the server recompiles the steps from it.
+    // The SOP tab saves the doc body itself; the server recompiles the steps
+    // from it. Optimistic lock: a stale buffer conflicts instead of clobbering.
     const saveBody = async (html) => {
+        if (conflict) return;
+        try {
+            const r = await api(`/data/docs/${wfId}`, 'PATCH', { body: html, rev: revRef.current });
+            if (r?.rev) revRef.current = r.rev;
+            setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
+            if (r?.recompiled && steps === null) load();
+        } catch (e) {
+            if (e?.conflict) { setConflict({ mine: html }); return; }
+        }
+    };
+    const conflictOverwrite = async () => {
+        const html = conflict.mine;
+        setConflict(null);
         const r = await api(`/data/docs/${wfId}`, 'PATCH', { body: html });
+        if (r?.rev) revRef.current = r.rev;
         setSaved('Saved'); setTimeout(() => setSaved(''), 1200);
-        if (r?.recompiled && steps === null) load();
     };
     const adopt = async () => { await api(`/data/workflows/${wfId}/adopt`, 'POST'); load(); };
     const importDoc = async (pageId) => { if (!pageId) return; await api(`/data/workflows/${wfId}/parse-doc`, 'POST', { page_id: pageId }); load(); };
@@ -149,6 +167,13 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                             Open in Docs
                         </a>
                     </div>
+                    {conflict && (
+                        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
+                            <span>This SOP changed in another view (the Docs page, or another tab). Your edits here are <strong>not saved</strong>.</span>
+                            <button onClick={() => load()} className="px-2 py-1 rounded border border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20">Load the latest</button>
+                            <button onClick={conflictOverwrite} className="px-2 py-1 rounded border border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20">Keep mine (overwrite)</button>
+                        </div>
+                    )}
                     {(steps === null && !wf.body) ? (
                         <ImportSources pasting={false} shipped={wf.shipped}
                             text={text} setText={setText}
