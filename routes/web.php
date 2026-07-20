@@ -172,7 +172,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/logins/{login}', [$dc, 'login']);
     Route::patch('/data/logins/{login}', [$dc, 'updateLogin']);
     Route::delete('/data/logins/{login}', [$dc, 'destroyLogin']);
-    Route::get('/data/logins/{login}/secret', [$dc, 'loginSecret']);
+    // Revealing a secret is sudo-mode: the matrix says WHO may, the confirm window
+    // says they're PRESENT (re-typed their password recently). 423 = raise the gate.
+    Route::get('/data/logins/{login}/secret', [$dc, 'loginSecret'])
+        ->middleware(\App\Http\Middleware\ConfirmAccountsAccess::class);
     Route::get('/data/devices/{device}/users', [$dc, 'deviceUsers']);
     Route::get('/data/vendors', [$dc, 'vendors']);
     Route::post('/data/vendors', [$dc, 'storeVendor']);

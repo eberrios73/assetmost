@@ -165,11 +165,39 @@ class AccessTest extends TestCase
             'company_id' => $op->company_id, 'active' => true,
         ]);
 
+        // Open the sudo window first — the gate fires before the matrix does.
+        $this->actingAs($op)->postJson('/data/accounts-unlock', ['password' => 'secret1234'])->assertOk();
+
         $this->actingAs($op)->getJson("/data/logins/{$login->id}/secret")->assertForbidden();
 
         RolePermission::create(['role' => 'Operations', 'permission' => Access::REVEAL, 'allowed' => true]);
 
         $this->actingAs($op)->getJson("/data/logins/{$login->id}/secret")
             ->assertOk()->assertJsonPath('password', 'hunter2');
+    }
+
+    public function test_revealing_a_secret_demands_a_recent_password_confirmation(): void
+    {
+        $admin = $this->person('IT Admin', ['password' => 'secret1234', 'can_login' => true]);
+        $login = Login::create([
+            'login_name' => 'svc@acme.com', 'login_pass' => 'hunter2',
+            'company_id' => $admin->company_id, 'active' => true,
+        ]);
+        $url = "/data/logins/{$login->id}/secret";
+
+        // Full permission, live session — still locked until they prove presence.
+        $this->actingAs($admin)->getJson($url)->assertStatus(423);
+
+        // The wrong password doesn't open the window.
+        $this->actingAs($admin)->postJson('/data/accounts-unlock', ['password' => 'wrong'])->assertStatus(422);
+        $this->actingAs($admin)->getJson($url)->assertStatus(423);
+
+        // The right one does.
+        $this->actingAs($admin)->postJson('/data/accounts-unlock', ['password' => 'secret1234'])->assertOk();
+        $this->actingAs($admin)->getJson($url)->assertOk()->assertJsonPath('password', 'hunter2');
+
+        // And the window expires — a stale unlock is no unlock.
+        session(['accounts_confirmed_at' => time() - 901]);
+        $this->actingAs($admin)->getJson($url)->assertStatus(423);
     }
 }

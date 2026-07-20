@@ -6,10 +6,11 @@ use Closure;
 use Illuminate\Http\Request;
 
 /**
- * The Accounts registry is a map of every admin credential in the realm — the list
- * itself is sensitive, not just the passwords on it. So reaching it requires
- * re-entering YOUR password, recently. The UI prompts on every visit; this window
- * is the server-side backstop so a stolen session can't quietly enumerate it.
+ * Sudo mode for the sensitive surfaces: the Accounts registry (the list itself is a
+ * map of the realm's admin credentials) and every password reveal. Reaching them
+ * requires re-entering YOUR password, recently — proof of presence, not just a live
+ * session. The UI raises the gate on 423; this window is the server-side backstop so
+ * a stolen session can't enumerate the registry or drain secrets one eye-click at a time.
  */
 class ConfirmAccountsAccess
 {

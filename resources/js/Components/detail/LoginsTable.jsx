@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useJson } from '@/Components/detail/Field';
 import RecordModal from '@/Components/RecordModal';
 import DataTable from '@/Components/ui/DataTable';
+import GateOverlay from '@/Components/ui/GateOverlay';
 import { CopyIcon, KeyIcon, ChatIcon, TrashIcon, EyeIcon, EyeOffIcon } from '@/Components/Icons';
 
 const LOGIN_FIELDS = [
@@ -30,6 +31,7 @@ export default function LoginsTable({ endpoint, showUser = false, createEndpoint
     const [adding, setAdding] = useState(false);
     const [flash, setFlash] = useState(null);   // { id, msg } after a copy
     const [shown, setShown] = useState(null);   // { id, password } — one at a time
+    const [gate, setGate] = useState(null);     // { retry, cancel } when a reveal hit 423
 
     const openEdit = async (r) => {
         const l = await fetch(`/data/logins/${r.id}`, { headers: { Accept: 'application/json' } }).then((x) => x.json());
@@ -38,15 +40,28 @@ export default function LoginsTable({ endpoint, showUser = false, createEndpoint
 
     const toast = (id, msg) => { setFlash({ id, msg }); setTimeout(() => setFlash(null), 1200); };
     const copy = async (text, id, msg) => { try { await navigator.clipboard.writeText(text ?? ''); toast(id, msg); } catch { /* ignore */ } };
-    const reveal = async (id) => (await (await fetch(`/data/logins/${id}/secret`, { headers: { Accept: 'application/json' } })).json());
-    const copyPassword = async (id) => copy((await reveal(id)).password, id, 'Password copied');
+    // Reveal is sudo-mode: a 423 means the server wants the user's own password
+    // re-typed. Raise the gate, and replay the reveal once it opens. Null = cancelled.
+    const reveal = async (id) => {
+        const res = await fetch(`/data/logins/${id}/secret`, { headers: { Accept: 'application/json' } });
+        if (res.status === 423) {
+            return new Promise((resolve) => setGate({
+                retry: async () => { setGate(null); resolve(await reveal(id)); },
+                cancel: () => { setGate(null); resolve(null); },
+            }));
+        }
+        return res.json();
+    };
+    const copyPassword = async (id) => { const s = await reveal(id); if (s) copy(s.password, id, 'Password copied'); };
     const toggleShow = async (id) => {
         if (shown?.id === id) return setShown(null);
-        setShown({ id, password: (await reveal(id)).password ?? '' });
+        const s = await reveal(id);
+        if (s) setShown({ id, password: s.password ?? '' });
     };
     // Share = text the credentials to the holder's cell (sms: opens Messages on macOS/iOS).
     const share = async (l) => {
         const s = await reveal(l.id);
+        if (!s) return;
         const body = [
             s.name ? `Hi ${s.name.split(' ')[0]},` : 'Hi,', '',
             `Your ${l.login_name} login:`,
@@ -116,6 +131,10 @@ export default function LoginsTable({ endpoint, showUser = false, createEndpoint
                     fields={LOGIN_FIELDS} initial={edit.initial}
                     onClose={() => setEdit(null)}
                     onSaved={() => { setEdit(null); setReload((r) => r + 1); onChanged?.(); }} />
+            )}
+            {gate && (
+                <GateOverlay reason="Re-enter your password to reveal credentials. The unlock lasts 15 minutes."
+                    onUnlocked={gate.retry} onCancel={gate.cancel} />
             )}
         </>
     );

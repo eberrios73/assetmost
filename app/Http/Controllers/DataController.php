@@ -708,7 +708,7 @@ class DataController extends Controller
         $sole = $login->holders->count() === 1 ? $login->holders->first() : null;
 
         return response()->json([
-            'password' => $login->login_pass, // plaintext on River (matches ITer)
+            'password' => $login->login_pass, // decrypted here by the model cast — this is the only exit
             'cell' => $sole?->cell,
             'name' => $sole ? trim("{$sole->name} {$sole->last}") : null,
         ]);

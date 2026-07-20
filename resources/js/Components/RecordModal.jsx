@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import SearchSelect from '@/Components/SearchSelect';
+import GateOverlay from '@/Components/ui/GateOverlay';
 import { EyeIcon, EyeOffIcon } from '@/Components/Icons';
 
 /**
@@ -60,6 +61,7 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
     const [saving, setSaving] = useState(false);
     const [shown, setShown] = useState(false);
     const [revealed, setRevealed] = useState({});   // { [fieldKey]: true }
+    const [gate, setGate] = useState(null);         // field whose reveal hit the sudo gate (423)
 
     useEffect(() => { const t = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(t); }, []);
     const close = () => { setShown(false); setTimeout(onClose, 200); };
@@ -74,6 +76,7 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
                 const res = await fetch(f.revealEndpoint(initial.id), {
                     headers: { Accept: 'application/json' }, credentials: 'same-origin',
                 });
+                if (res.status === 423) { setGate(f); return; }   // sudo gate; retried on unlock
                 const body = await res.json();
                 setValues((v) => ({ ...v, [f.key]: body[f.revealKey || 'password'] ?? '' }));
             } catch { /* leave the field as-is */ }
@@ -166,6 +169,11 @@ export default function RecordModal({ title, endpoint, method = 'POST', fields, 
                     </button>
                 </div>
             </div>
+            {gate && (
+                <GateOverlay reason="Re-enter your password to reveal credentials. The unlock lasts 15 minutes."
+                    onUnlocked={() => { const f = gate; setGate(null); toggleReveal(f); }}
+                    onCancel={() => setGate(null)} />
+            )}
         </div>
     );
 }
