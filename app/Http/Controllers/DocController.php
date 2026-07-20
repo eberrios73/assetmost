@@ -267,6 +267,31 @@ class DocController extends Controller
         return response()->json(['id' => $page->id], 201);
     }
 
+    /**
+     * Editing presence heartbeat. Every open editor pings with its editor_id
+     * (a per-mount random token) every ~45s; the response lists the OTHER
+     * active editors so every view shows the lock — including "you, in another
+     * window", which is how deleted steps used to resurrect. Cache-only, 90s
+     * freshness, no schema.
+     */
+    public function editing(Request $request, DocPage $page): JsonResponse
+    {
+        $data = $request->validate(['editor_id' => 'required|string|max:40', 'release' => 'sometimes|boolean']);
+        $key = "doc-editing:{$page->id}";
+        $now = time();
+        $others = collect(\Illuminate\Support\Facades\Cache::get($key, []))
+            ->filter(fn ($e) => ($now - ($e['ts'] ?? 0)) < 90 && ($e['editor_id'] ?? '') !== $data['editor_id'])
+            ->values();
+        $store = $others->all();
+        if (! $request->boolean('release')) {
+            $store[] = ['editor_id' => $data['editor_id'], 'user_id' => auth()->id(),
+                'user' => trim((auth()->user()->name ?? '') . ' ' . (auth()->user()->last ?? '')), 'ts' => $now];
+        }
+        \Illuminate\Support\Facades\Cache::put($key, $store, 120);
+        return response()->json(['others' => $others
+            ->map(fn ($e) => ['user' => $e['user'] ?? '?', 'you' => ($e['user_id'] ?? null) === auth()->id()])]);
+    }
+
     public function update(Request $request, DocPage $page): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);

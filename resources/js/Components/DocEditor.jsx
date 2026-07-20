@@ -619,6 +619,8 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
     const [menu, setMenu] = useState(null); // { query, from, x, y, index }
     const [helpOpen, setHelpOpen] = useState(false);
     const [flash, setFlash] = useState(null);       // "✓ device recorded: …" after a /form save
+    const [editedBy, setEditedBy] = useState(null); // { user, you } — someone ELSE has this doc open
+    const editorIdRef = useRef(Math.random().toString(36).slice(2));
     const [refs, setRefs] = useState([]);         // runbook references: [{slug, name}]
     const [installers, setInstallers] = useState([]);   // indexed installers share
     const [snippets, setSnippets] = useState([]);       // the commands registry
@@ -874,6 +876,27 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
 
     useEffect(() => () => clearTimeout(saveTimer.current), []);
 
+    // Editing presence: heartbeat while this editor is mounted; show a lock
+    // when ANY other editor has the same doc open (another person, or you in
+    // another window — the way deleted steps used to resurrect).
+    useEffect(() => {
+        if (!pageId) return;
+        let stop = false;
+        const beat = (release = false) => {
+            const xsrf = decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
+            return fetch(`/data/docs/${pageId}/editing`, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf },
+                body: JSON.stringify({ editor_id: editorIdRef.current, release }),
+            }).then((r) => r.json())
+                .then((d) => { if (!stop && !release) setEditedBy(d.others?.[0] ?? null); })
+                .catch(() => {});
+        };
+        beat();
+        const t = setInterval(() => beat(), 45000);
+        return () => { stop = true; clearInterval(t); beat(true); };
+    }, [pageId]);
+
     // /form substep buttons bubble up from the node views; they summon the
     // app-wide drawer with this page's context, and the result flashes back.
     useEffect(() => {
@@ -945,6 +968,12 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
 
     return (
         <div className="relative" ref={wrapRef}>
+            {editedBy && (
+                <div className="mb-2 inline-flex items-center gap-2 rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+                    <span aria-hidden>🔒</span>
+                    {editedBy.you ? 'You have this doc open in another window' : `Being edited by ${editedBy.user}`} — simultaneous edits will conflict.
+                </div>
+            )}
             {flash && (
                 <div className="fixed bottom-4 right-4 z-50 rounded-md border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-500/10 px-3 py-1.5 text-sm text-green-700 dark:text-green-400 shadow-sm">
                     {flash}

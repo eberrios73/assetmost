@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/data/docs/{page}/promote', [$doc, 'promote']);
     Route::post('/data/docs', [$doc, 'store']);
     Route::get('/data/docs/{page}', [$doc, 'show']);
+    Route::post('/data/docs/{page}/editing', [$doc, 'editing']);
     Route::patch('/data/docs/{page}', [$doc, 'update']);
     Route::delete('/data/docs/{page}', [$doc, 'destroy']);
 
