@@ -248,7 +248,7 @@ class MachineOnboardController extends Controller
         $out = ['mac' => [], 'windows' => [], 'linux' => []];
         $found = [];
         foreach (self::registry($companyId) as $s) {
-            if (! preg_match_all('~/' . preg_quote($s->command, '~') . '\b([^\n/]*)~i', $blob, $m, PREG_OFFSET_CAPTURE)) continue;
+            if (! preg_match_all('~/' . preg_quote($s->command, '~') . '\b((?:[^\n/]|(?<!\s)/)*)~i', $blob, $m, PREG_OFFSET_CAPTURE)) continue;
             foreach ($m[1] as $hit) {
                 $found[] = ['snippet' => $s, 'args' => trim($hit[0]), 'at' => $hit[1]];
             }
@@ -369,7 +369,7 @@ class MachineOnboardController extends Controller
                 }
                 $hits = [];
                 foreach ($snippets as $s) {
-                    if (! preg_match_all('~/' . preg_quote($s->command, '~') . '\b([^\n/]*)~i', $text, $m, PREG_OFFSET_CAPTURE)) continue;
+                    if (! preg_match_all('~/' . preg_quote($s->command, '~') . '\b((?:[^\n/]|(?<!\s)/)*)~i', $text, $m, PREG_OFFSET_CAPTURE)) continue;
                     foreach ($m[1] as $hit) $hits[] = ['at' => $hit[1], 'kind' => 'snippet', 'snippet' => $s, 'args' => trim($hit[0])];
                 }
                 if (preg_match_all('~/(install|vpn)\s+[^\n/]+~i', $text, $m, PREG_OFFSET_CAPTURE)) {
