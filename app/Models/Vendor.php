@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,7 +15,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Vendor extends Model
 {
-    // River schema: PK vendorID; company link is the vendor_client pivot.
+    use BelongsToCompany;   // one company per vendor — vendors are NOT shared
+
+    // River schema: PK vendorID. vendors.company_id is the authority now;
+    // the legacy vendor_client pivot stays for ITer but the app doesn't read it.
     protected $primaryKey = 'vendorID';
     protected $guarded = ['vendorID'];
     protected $appends = ['id'];
