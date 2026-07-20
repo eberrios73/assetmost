@@ -73,6 +73,35 @@ class PlutonicGamesSeeder extends Seeder
         $aisha  = $mk(['name' => 'Aisha',  'last' => 'Williams',  'username' => 'awilliams','email' => 'aisha@plutonicgames.com',  'title' => 'QA Lead',            'department' => 'QA']);
         $erin   = $mk(['name' => 'Erin',   'last' => "O'Neil",    'username' => 'eoneil',   'email' => 'erin@plutonicgames.com',   'title' => 'Office Manager',     'department' => 'Operations']);
 
+        // The rest of a ~30-person studio. [first, last, username, title, department]
+        $roster = [
+            ['Noor',   'Haddad',    'nhaddad',   'Concept Artist',      'Art'],
+            ['Felix',  'Grant',     'fgrant',    'Animator',            'Art'],
+            ['Yuki',   'Tanaka',    'ytanaka',   'Animator',            'Art'],
+            ['Carla',  'Mendes',    'cmendes',   'UI Artist',           'Art'],
+            ['Ben',    'Carter',    'bcarter',   'Graphics Programmer', 'Engineering'],
+            ['Ivy',    'Zhou',      'izhou',     'Tools Programmer',    'Engineering'],
+            ['Owen',   'Park',      'opark',     'Tools Programmer',    'Engineering'],
+            ['Dmitri', 'Volkov',    'dvolkov',   'Backend Engineer',    'Engineering'],
+            ['Hana',   'Suzuki',    'hsuzuki',   'Build Engineer',      'Engineering'],
+            ['Ravi',   'Shah',      'rshah',     'Lead Game Designer',  'Design'],
+            ['Tessa',  'Morgan',    'tmorgan',   'Level Designer',      'Design'],
+            ['Cole',   'Bennett',   'cbennett',  'Game Designer',       'Design'],
+            ['Luis',   'Herrera',   'lherrera',  'QA Tester',           'QA'],
+            ['Ingrid', 'Bergström', 'ibergstrom','QA Tester',           'QA'],
+            ['Kofi',   'Mensah',    'kmensah',   'QA Tester',           'QA'],
+            ['Dana',   'Whitfield', 'dwhitfield','Associate Producer',  'Production'],
+            ['Theo',   'Laurent',   'tlaurent',  'Sound Designer',      'Audio'],
+            ['June',   'Park',      'jpark',     'Composer',            'Audio'],
+            ['Zoe',    'Castillo',  'zcastillo', 'Community Manager',   'Marketing'],
+            ['Adam',   'Novak',     'anovak',    'Marketing Manager',   'Marketing'],
+        ];
+        $team = [];   // username => User, for the wider roster
+        foreach ($roster as [$first, $lastName, $uname, $title, $dept]) {
+            $team[$uname] = $mk(['name' => $first, 'last' => $lastName, 'username' => $uname,
+                'email' => "{$uname}@plutonicgames.com", 'title' => $title, 'department' => $dept]);
+        }
+
         // ---------- Vendors & products ----------
         $vendor = [];
         foreach (['Adobe', 'Autodesk', 'Microsoft', 'Perforce', 'JetBrains', 'Epic Games', 'Ubiquiti'] as $v) {
@@ -97,8 +126,8 @@ class PlutonicGamesSeeder extends Seeder
         ]);
         $licCC    = $lic('Creative Cloud All Apps', 'Creative Cloud — studio pool', 6, 2159.28, '2027-01-15');
         $licMaya  = $lic('Maya', 'Maya — art team', 4, 7340.00, '2026-11-01');
-        $licM365  = $lic('Microsoft 365 Business Standard', 'M365 Business Standard', 12, 150.00, '2026-08-01', 1);
-        $licHelix = $lic('Helix Core', 'Helix Core — 10 users', 10, 5390.00, '2027-03-01');
+        $licM365  = $lic('Microsoft 365 Business Standard', 'M365 Business Standard', 35, 437.50, '2026-08-01', 1);
+        $licHelix = $lic('Helix Core', 'Helix Core — 20 users', 20, 10780.00, '2027-03-01');
         $licRider = $lic('Rider', 'Rider — engineering', 3, 447.00, '2026-10-12');
         $lic('Substance 3D', 'Substance 3D — texturing', 2, 549.88, '2027-01-15');
 
@@ -131,6 +160,19 @@ class PlutonicGamesSeeder extends Seeder
                 'brand' => 'Apple', 'model' => 'MacBook Pro 14 M4', 'ram' => '32 GB', 'op_sys' => 'macOS 15']);
             $d->users()->attach($person->id);
         }
+        // Makers get workstations; everyone else a laptop.
+        $wsRoom = ['Art' => '101', 'Engineering' => '102', 'Design' => '102', 'Audio' => '110'];
+        foreach ($team as $person) {
+            if (isset($wsRoom[$person->department])) {
+                $d = $dev(['device_type_id' => $type['WS'], 'room_id' => $rooms[$wsRoom[$person->department]]->id,
+                    'type' => 'Workstation', 'brand' => 'Puget Systems', 'model' => 'Threadripper 7970X',
+                    'ram' => '128 GB', 'op_sys' => 'Windows 11 Pro']);
+            } else {
+                $d = $dev(['device_type_id' => $type['LT'], 'type' => 'Laptop',
+                    'brand' => 'Apple', 'model' => 'MacBook Pro 14 M4', 'ram' => '32 GB', 'op_sys' => 'macOS 15']);
+            }
+            $d->users()->attach($person->id);
+        }
         $p4srv = $dev(['device_type_id' => $type['SR'], 'room_id' => $rooms['104B']->id, 'computer_name' => 'PG-P4-01',
             'type' => 'Server', 'brand' => 'Dell', 'model' => 'PowerEdge R7625', 'op_sys' => 'Ubuntu 24.04', 'notes' => 'Helix Core (Perforce) depot.']);
         $buildsrv = $dev(['device_type_id' => $type['SR'], 'room_id' => $rooms['104B']->id, 'computer_name' => 'PG-BUILD-01',
@@ -152,7 +194,7 @@ class PlutonicGamesSeeder extends Seeder
         }
 
         // personal: M365 sign-ins, one human each, consuming M365 seats
-        foreach ([$sam, $maya, $tom, $lena, $jordan, $aisha] as $person) {
+        foreach (array_merge([$sam, $maya, $diego, $priya, $marcus, $tom, $lena, $jordan, $aisha, $erin], array_values($team)) as $person) {
             $l = $login(['login_name' => "M365 — {$person->name} {$person->last}", 'login_id' => $person->email,
                 'login_pass' => 'Fixture-M365-' . $person->username, 'vendor_id' => $vendor['Microsoft']->id,
                 'product_id' => $product['Microsoft 365 Business Standard']->id, 'sharing' => 'personal',
@@ -188,16 +230,18 @@ class PlutonicGamesSeeder extends Seeder
             'login_pass' => 'Fixture-BreakGlass-Sealed', 'sharing' => 'breakglass', 'is_restricted' => true,
             'notes' => 'Sealed envelope in the 104B safe mirrors this. Use = incident.']);
 
-        // Perforce user seats for the team (consume Helix seats, personal)
-        foreach ([$diego, $priya, $marcus, $tom, $lena, $maya] as $person) {
+        // Perforce user seats for everyone who touches the depot (consume Helix seats, personal)
+        $depotUsers = array_merge([$diego, $priya, $marcus, $tom, $lena, $maya],
+            array_values(array_filter($team, fn ($p) => in_array($p->department, ['Art', 'Engineering', 'Design'], true))));
+        foreach ($depotUsers as $person) {
             $l = $login(['login_name' => "Helix — {$person->username}", 'login_id' => $person->username,
                 'login_pass' => 'Fixture-P4-' . $person->username, 'vendor_id' => $vendor['Perforce']->id,
                 'product_id' => $product['Helix Core']->id, 'sharing' => 'personal']);
             $l->holders()->attach($person->id);
             $licHelix->logins()->attach($l->id);
         }
-        // Rider seats for the two engineers
-        foreach ([$tom, $lena] as $person) {
+        // Rider seats — 3 of 3 consumed: an exhausted license is a demo state worth having
+        foreach ([$tom, $lena, $team['bcarter']] as $person) {
             $l = $login(['login_name' => "Rider — {$person->username}", 'login_id' => $person->email,
                 'login_pass' => 'Fixture-Rider-' . $person->username, 'vendor_id' => $vendor['JetBrains']->id,
                 'product_id' => $product['Rider']->id, 'sharing' => 'personal']);
