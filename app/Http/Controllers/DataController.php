@@ -347,6 +347,10 @@ class DataController extends Controller
             'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
+            // Messages and keys only — never the submitted values (credentials).
+            \Illuminate\Support\Facades\Log::info('login.add.rejected', [
+                'person' => $person->id, 'errors' => $v->errors()->toArray(), 'keys' => array_keys($request->all()),
+            ]);
             return response()->json(['errors' => $v->errors()], 422);
         }
         $data = collect($v->validated())->except('holder_ids')->filter(fn ($x) => $x !== null)->all();
