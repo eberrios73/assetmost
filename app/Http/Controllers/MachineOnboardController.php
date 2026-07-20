@@ -611,12 +611,13 @@ class MachineOnboardController extends Controller
                 'ASSET_TAG' => '{ASSET_TAG}', 'BASE_URL' => '{BASE_URL}', 'TOKEN' => '{TOKEN}',
                 'REPO' => rtrim($company?->installers_url ?? '', '/'),
                 'DOMAIN' => $company?->domain, 'LOCAL_DOMAIN' => $company?->local_domain,
-                // The PREVIEW keeps credentials as placeholders; the real values are
-                // inserted only when a machine script is generated at /onboard.
-                'LOCAL_ADMIN_USER' => '{LOCAL_ADMIN_USER}',
-                'LOCAL_ADMIN_PASS' => '{LOCAL_ADMIN_PASS}',
-                'DOMAIN_JOIN_USER' => '{DOMAIN_JOIN_USER}',
-                'DOMAIN_JOIN_PASS' => '{DOMAIN_JOIN_PASS}',
+                // The PREVIEW keeps credentials as placeholders — but only when the
+                // company actually HAS them; an unset one stays empty so the
+                // missing-config warning shows here, not on the machine.
+                'LOCAL_ADMIN_USER' => filled($company?->local_admin_user) ? '{LOCAL_ADMIN_USER}' : '',
+                'LOCAL_ADMIN_PASS' => filled($company?->local_admin_pass) ? '{LOCAL_ADMIN_PASS}' : '',
+                'DOMAIN_JOIN_USER' => filled(($djLogin = Login::withoutGlobalScopes()->find($company?->domain_join_login_id))?->login_id) ? '{DOMAIN_JOIN_USER}' : '',
+                'DOMAIN_JOIN_PASS' => filled($djLogin?->login_pass) ? '{DOMAIN_JOIN_PASS}' : '',
             ])
             : '';
 
