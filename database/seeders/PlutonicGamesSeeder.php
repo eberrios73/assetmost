@@ -104,7 +104,7 @@ class PlutonicGamesSeeder extends Seeder
 
         // ---------- Vendors & products ----------
         $vendor = [];
-        foreach (['Adobe', 'Autodesk', 'Microsoft', 'Perforce', 'JetBrains', 'Epic Games', 'Ubiquiti'] as $v) {
+        foreach (['Adobe', 'Autodesk', 'Microsoft', 'Perforce', 'JetBrains', 'Epic Games', 'Ubiquiti', 'Duo Security'] as $v) {
             $vendor[$v] = Vendor::create(['company_id' => $co->id, 'name' => $v, 'active' => true]);
         }
         $product = [];
@@ -113,7 +113,7 @@ class PlutonicGamesSeeder extends Seeder
             ['Autodesk', 'Maya'], ['Autodesk', '3ds Max'],
             ['Microsoft', 'Microsoft 365 Business Standard'],
             ['Perforce', 'Helix Core'], ['JetBrains', 'Rider'],
-            ['Epic Games', 'Unreal Engine'], ['Ubiquiti', 'UniFi Network'],
+            ['Epic Games', 'Unreal Engine'], ['Ubiquiti', 'UniFi Network'], ['Duo Security', 'Duo MFA'],
         ] as [$v, $p]) {
             $product[$p] = Product::create(['vendor_id' => $vendor[$v]->id, 'name' => $p, 'active' => true]);
         }
@@ -130,6 +130,7 @@ class PlutonicGamesSeeder extends Seeder
         $licHelix = $lic('Helix Core', 'Helix Core — 20 users', 20, 10780.00, '2027-03-01');
         $licRider = $lic('Rider', 'Rider — engineering', 3, 447.00, '2026-10-12');
         $lic('Substance 3D', 'Substance 3D — texturing', 2, 549.88, '2027-01-15');
+        $licDuo = $lic('Duo MFA', 'Duo MFA — workstation logons', 35, 105.00, '2026-09-01', 1);
 
         // ---------- Floating accounts (assignable credential identities) ----------
         $acct = fn (string $ident, string $sharing, ?string $notes = null) => Account::create([
@@ -148,17 +149,18 @@ class PlutonicGamesSeeder extends Seeder
         // ---------- Devices (tags auto-issue: PG-WS-1001…) ----------
         $type = DeviceType::query()->pluck('id', 'code');
         $dev = fn (array $a) => Device::create($a + ['company_id' => $co->id, 'location_id' => $studio->id, 'active' => true]);
-        $ws = [];
+        $machineOf = [];   // user_id => their Device
         foreach ([[$maya, '101'], [$diego, '101'], [$priya, '101'], [$marcus, '101'], [$tom, '102'], [$lena, '102']] as [$person, $room]) {
             $d = $dev(['device_type_id' => $type['WS'], 'room_id' => $rooms[$room]->id, 'type' => 'Workstation',
                 'brand' => 'Puget Systems', 'model' => 'Threadripper 7970X', 'ram' => '128 GB', 'op_sys' => 'Windows 11 Pro']);
             $d->users()->attach($person->id);
-            $ws[$person->id] = $d;
+            $machineOf[$person->id] = $d;
         }
         foreach ([$sam, $jordan, $aisha, $erin] as $person) {
             $d = $dev(['device_type_id' => $type['LT'], 'type' => 'Laptop',
                 'brand' => 'Apple', 'model' => 'MacBook Pro 14 M4', 'ram' => '32 GB', 'op_sys' => 'macOS 15']);
             $d->users()->attach($person->id);
+            $machineOf[$person->id] = $d;
         }
         // Makers get workstations; everyone else a laptop.
         $wsRoom = ['Art' => '101', 'Engineering' => '102', 'Design' => '102', 'Audio' => '110'];
@@ -172,6 +174,7 @@ class PlutonicGamesSeeder extends Seeder
                     'brand' => 'Apple', 'model' => 'MacBook Pro 14 M4', 'ram' => '32 GB', 'op_sys' => 'macOS 15']);
             }
             $d->users()->attach($person->id);
+            $machineOf[$person->id] = $d;
         }
         $p4srv = $dev(['device_type_id' => $type['SR'], 'room_id' => $rooms['104B']->id, 'computer_name' => 'PG-P4-01',
             'type' => 'Server', 'brand' => 'Dell', 'model' => 'PowerEdge R7625', 'op_sys' => 'Ubuntu 24.04', 'notes' => 'Helix Core (Perforce) depot.']);
@@ -247,6 +250,21 @@ class PlutonicGamesSeeder extends Seeder
                 'product_id' => $product['Rider']->id, 'sharing' => 'personal']);
             $l->holders()->attach($person->id);
             $licRider->logins()->attach($l->id);
+        }
+
+        // workstation logons: the PLUTONIC\username each machine boots into. Mundane until
+        // Duo is on the logon screen — then IT can't remote in without the user present
+        // unless this credential is recorded here. Each one consumes a Duo seat.
+        foreach (array_merge([$sam, $maya, $diego, $priya, $marcus, $tom, $lena, $jordan, $aisha, $erin], array_values($team)) as $person) {
+            $machine = $machineOf[$person->id];
+            $l = $login(['login_name' => "Workstation — {$machine->asset_tag}",
+                'login_id' => 'PLUTONIC\\' . $person->username,
+                'login_pass' => 'Fixture-Wks-' . $person->username,
+                'vendor_id' => $vendor['Microsoft']->id, 'device_id' => $machine->id,
+                'sharing' => 'personal', 'type' => 'Domain',
+                'notes' => 'Duo-protected logon. Needed for remote work on the box when the user is away.']);
+            $l->holders()->attach($person->id);
+            $licDuo->logins()->attach($l->id);
         }
 
         // ---------- Work (weekly board + a project) ----------
