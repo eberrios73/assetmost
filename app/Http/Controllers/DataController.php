@@ -283,16 +283,19 @@ class DataController extends Controller
             'login_pass' => 'nullable|string|max:255', 'url' => 'nullable|string|max:255',
             'type' => 'nullable|string|max:255', 'notes' => 'nullable|string',
             'is_active' => 'nullable|boolean', 'is_restricted' => 'nullable|boolean',
+            'holder_ids' => 'nullable|array', 'holder_ids.*' => 'integer|exists:users,id',
         ]);
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
         }
-        $login = \App\Models\Login::create(collect($v->validated())->filter(fn ($x) => $x !== null)->all() + [
-            'company_id' => $company->id,
-            'sharing' => 'service',
-            'is_active' => $request->boolean('is_active', true),
-            'is_restricted' => $request->boolean('is_restricted', false),
-        ]);
+        $login = \App\Models\Login::create(
+            collect($v->validated())->except('holder_ids')->filter(fn ($x) => $x !== null)->all() + [
+                'company_id' => $company->id,
+                'sharing' => 'service',
+                'is_active' => $request->boolean('is_active', true),
+                'is_restricted' => $request->boolean('is_restricted', false),
+            ]);
+        $login->holders()->sync($v->validated()['holder_ids'] ?? []);
         $company->domain_join_login_id = $login->loginID;
         $company->save();
         return response()->json(['id' => $login->id], 201);

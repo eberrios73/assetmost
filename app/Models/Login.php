@@ -35,6 +35,11 @@ class Login extends Model
     // River's logins table has created_at but NO updated_at — writing it is a
     // column-not-found error on every insert/update.
     const UPDATED_AT = null;
+
+    // The app speaks snake_case; River's columns are camelCase. Map on write so
+    // every controller/form can keep saying vendor_id / user_id.
+    public function setVendorIdAttribute($v) { $this->attributes['vendorID'] = $v; }
+    public function setUserIdAttribute($v) { $this->attributes['userID'] = $v; }
     protected $appends = ['id'];
     public function getIdAttribute() { return $this->getKey(); }   // expose River PK as `id`
     protected $casts = [
