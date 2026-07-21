@@ -119,6 +119,7 @@ class AccessTest extends TestCase
                 ->has('access.matrix', fn ($m) => $m
                     ->where('Operations', fn ($r) => $r[Access::REVEAL] === false && $r['assets.edit'] === true)
                     ->where('IT Admin', fn ($r) => $r[Access::REVEAL] === true)
+                    ->where('Admin', fn ($r) => $r[Access::REVEAL] === true)
                     ->where('SuperAdmin', fn ($r) => $r[Access::REVEAL] === true)
                     ->where('User', fn ($r) => $r[Access::REVEAL] === false))
                 ->etc());

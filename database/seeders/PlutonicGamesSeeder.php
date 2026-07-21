@@ -29,6 +29,13 @@ class PlutonicGamesSeeder extends Seeder
 {
     public function run(): void
     {
+        // The install's landlord company — the platform operator itself. Plutonic
+        // Games below is a tenant of it. (A fresh migrate creates one; seed it only
+        // when running on a database that somehow predates the landlord migration.)
+        $landlordCo = Company::landlord() ?? Company::create([
+            'name' => config('app.name', 'AssetMost'), 'is_landlord' => true, 'active' => true,
+        ]);
+
         $co = Company::create([
             'name' => 'Plutonic Games', 'tag_prefix' => 'PG', 'tag_next' => 1001,
             'domain' => 'plutonicgames.com', 'local_domain' => 'plutonic.local',
@@ -57,12 +64,15 @@ class PlutonicGamesSeeder extends Seeder
             'company_id' => $co->id, 'location_id' => $studio->id, 'domain' => 'plutonicgames.com',
             'role' => 'User', 'can_login' => false, 'password' => null, 'active' => true,
         ]);
+        // Sam is the landlord SuperAdmin — the platform operator's account, filed in
+        // the landlord company and reaching Plutonic as a tenant, not a member.
         $sam = User::create([
             'name' => 'Sam', 'last' => 'Reyes', 'username' => 'sreyes', 'email' => 'sam@plutonicgames.com',
-            'title' => 'IT Manager', 'department' => 'IT', 'company_id' => $co->id, 'location_id' => $studio->id,
-            'domain' => 'plutonicgames.com', 'role' => 'SuperAdmin', 'can_login' => true,
+            'title' => 'IT Manager', 'department' => 'IT', 'company_id' => $landlordCo->id, 'location_id' => $studio->id,
+            'domain' => 'plutonicgames.com', 'role' => 'SuperAdmin', 'can_login' => true, 'is_landlord' => true,
             'password' => Hash::make('password'), 'active' => true,
         ]);
+        $sam->managedCompanies()->sync([$co->id]);
         $maya   = $mk(['name' => 'Maya',   'last' => 'Chen',      'username' => 'mchen',    'email' => 'maya@plutonicgames.com',   'title' => 'Art Director',       'department' => 'Art']);
         $diego  = $mk(['name' => 'Diego',  'last' => 'Fuentes',   'username' => 'dfuentes', 'email' => 'diego@plutonicgames.com',  'title' => 'Environment Artist', 'department' => 'Art']);
         $priya  = $mk(['name' => 'Priya',  'last' => 'Natarajan', 'username' => 'priyan',   'email' => 'priya@plutonicgames.com',  'title' => 'Character Artist',   'department' => 'Art']);

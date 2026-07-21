@@ -86,6 +86,7 @@ class DataController extends Controller
 
     public function updateCompany(Request $r, \App\Models\Company $company): JsonResponse
     {
+        abort_unless(in_array($company->id, auth()->user()->managedCompanyIds(), true), 403);
         $before = $company->installers_url;
         $res = $this->applyUpdate($company, $r, [
             'name' => 'required|string|max:255', 'domain' => 'nullable|string|max:255',
@@ -789,6 +790,7 @@ class DataController extends Controller
 
     public function company(\App\Models\Company $company): JsonResponse
     {
+        abort_unless(in_array($company->id, auth()->user()->managedCompanyIds(), true), 403);
         $company->loadCount(['users', 'devices', 'locations']);
         return response()->json($company);
     }
@@ -828,7 +830,8 @@ class DataController extends Controller
             // Most staff are directory records who never sign in, so this is optional —
             // set one only for someone who actually uses the app.
             'password' => 'nullable|string|min:8',
-            'role' => 'nullable|in:'.implode(',', \App\Support\Access::ROLES),
+            // People screens create tenant users only; landlord users come from Settings.
+            'role' => 'nullable|in:'.implode(',', \App\Support\Access::TENANT_ROLES),
             'can_login' => 'nullable|boolean',
         ]);
         if ($v->fails()) {
@@ -836,6 +839,8 @@ class DataController extends Controller
         }
         $data = $v->validated();
         $data['company_id'] ??= app(\App\Support\Contracts\TenantResolver::class)->id();
+        // Nobody files a person into a company they can't see themselves.
+        abort_unless(! $data['company_id'] || in_array($data['company_id'], auth()->user()->managedCompanyIds(), true), 403);
         $data['role'] ??= \App\Support\Access::USER;
         $data['can_login'] = (bool) ($data['can_login'] ?? false);
 
@@ -919,7 +924,10 @@ class DataController extends Controller
     /** Create a company. Only SuperAdmin / IT Admin may add. Companies are unlimited. */
     public function storeCompany(Request $request): JsonResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        // Tenants are created (and one day deleted) only by a landlord SuperAdmin —
+        // landlord Admins work within their assigned tenants, they don't mint new ones.
+        $u = auth()->user();
+        abort_unless($u?->isLandlord() && $u->isSuperAdmin(), 403);
 
         $v = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name' => 'required|string|max:255',

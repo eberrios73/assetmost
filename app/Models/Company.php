@@ -10,7 +10,13 @@ use Illuminate\Support\Facades\DB;
 class Company extends Model
 {
     protected $guarded = ['id'];
-    protected $casts = ['active' => 'boolean', 'tag_next' => 'integer'];
+    protected $casts = ['active' => 'boolean', 'is_landlord' => 'boolean', 'tag_next' => 'integer'];
+
+    /** The platform operator's own company — every install has exactly one. */
+    public static function landlord(): ?self
+    {
+        return static::query()->withoutGlobalScopes()->where('is_landlord', true)->first();
+    }
 
     public function locations(): HasMany { return $this->hasMany(Location::class); }
     public function users(): HasMany { return $this->hasMany(User::class); }

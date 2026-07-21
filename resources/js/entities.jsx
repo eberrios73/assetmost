@@ -46,11 +46,12 @@ export const ENTITIES = {
                 { key: 'company_id', label: 'Company', type: 'select-search', optionsEndpoint: '/data/company-options' },
                 // Most staff are a directory record and never sign in. Access is stated
                 // here, not inferred from whether a password happens to exist.
+                // Tenant roles only — SuperAdmin/Admin live on the landlord side
+                // and are assigned from Settings > Landlord, never here.
                 { key: 'role', label: 'Role', type: 'select', options: [
                     { value: 'User', label: 'User — directory record, no app access' },
                     { value: 'Operations', label: 'Operations — everything except passwords' },
                     { value: 'IT Admin', label: 'IT Admin — including passwords' },
-                    { value: 'SuperAdmin', label: 'SuperAdmin — full access' },
                 ] },
                 { key: 'can_login', label: 'Can sign in to AssetMost', type: 'checkbox' },
                 { key: 'password', label: 'Password (only if they can sign in)', type: 'password' },

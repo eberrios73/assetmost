@@ -97,6 +97,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/installers-config', [$sc, 'installersConfig']);
     Route::post('/settings/installers-path', [$sc, 'saveInstallersPath']);
     Route::post('/settings/installers-scan', [$sc, 'scanInstallers']);
+    Route::post('/settings/landlord/users', [$sc, 'storeLandlordUser']);
+    Route::patch('/settings/landlord/users/{user}', [$sc, 'updateLandlordUser']);
     // /m365 was its own screen; Microsoft is now one identity provider among three.
     Route::get('/m365', fn () => redirect()->route('settings.index'))->name('m365.index');
 

@@ -23,7 +23,7 @@ class CurrentCompany implements TenantResolver
         return auth()->user();
     }
 
-    /** Company ids this user may access. SuperAdmin/IT Admin = all; others = own. */
+    /** Company ids this user may access — see User::managedCompanyIds(). */
     public function allowedIds(): array
     {
         if ($this->allowed !== null) {
@@ -47,10 +47,10 @@ class CurrentCompany implements TenantResolver
     }
 
     /**
-     * Ids to filter queries by. Null = no filter (SuperAdmin viewing "all").
-     * - a company is focused  -> just that one
-     * - non-super, no focus   -> everything they may see
-     * - super, no focus       -> null (all)
+     * Ids to filter queries by. Null = no filter (landlord SuperAdmin viewing "all").
+     * - a company is focused            -> just that one
+     * - landlord super, no focus        -> null (all)
+     * - everyone else, no focus         -> everything they may see
      */
     public function scopeIds(): ?array
     {
@@ -58,7 +58,7 @@ class CurrentCompany implements TenantResolver
             return [$active];
         }
         $u = $this->user();
-        if ($u && $u->isSuperAdmin()) {
+        if ($u && $u->isLandlord() && $u->isSuperAdmin()) {
             return null;
         }
         return $this->allowedIds();

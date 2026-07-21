@@ -28,6 +28,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'active' => 'boolean',
             'can_login' => 'boolean',
+            'is_landlord' => 'boolean',
             'restricted' => 'boolean',
             'force_password_change' => 'boolean',
             'samba_synced' => 'boolean',
@@ -62,19 +63,32 @@ class User extends Authenticatable
         );
     }
 
-    public function managedCompanies(): BelongsToMany { return $this->belongsToMany(Company::class, 'admin_company'); }
+    /** Tenants a landlord user has been assigned. Empty for tenant users. */
+    public function managedCompanies(): BelongsToMany { return $this->belongsToMany(Company::class, 'admin_company')->withTimestamps(); }
 
+    public function isLandlord(): bool { return (bool) $this->is_landlord; }
     public function isSuperAdmin(): bool { return $this->role === Access::SUPER_ADMIN; }
-    public function isAdmin(): bool { return in_array($this->role, [Access::SUPER_ADMIN, Access::IT_ADMIN], true); }
+    public function isAdmin(): bool { return in_array($this->role, [Access::SUPER_ADMIN, Access::ADMIN, Access::IT_ADMIN], true); }
 
     /** Does this person's role carry this permission? See App\Support\Access. */
     public function may(string $permission): bool { return Access::allows($this->role, $permission); }
 
-    /** Company ids this user may access (all for SuperAdmin/IT Admin, own otherwise). */
+    /**
+     * Company ids this user may access. The landlord boundary lives here:
+     * landlord SuperAdmin sees every company; other landlord users see their own
+     * (landlord) company plus explicitly assigned tenants; tenant users see exactly
+     * their company — no role inside a tenant crosses to another tenant.
+     */
     public function managedCompanyIds(): array
     {
-        if (in_array($this->role, ['SuperAdmin', 'IT Admin'], true)) {
-            return Company::query()->withoutGlobalScopes()->pluck('id')->all();
+        if ($this->isLandlord()) {
+            if ($this->isSuperAdmin()) {
+                return Company::query()->withoutGlobalScopes()->pluck('id')->all();
+            }
+            return array_values(array_unique(array_merge(
+                array_filter([$this->company_id]),
+                $this->managedCompanies()->pluck('companies.id')->all(),
+            )));
         }
         return array_filter([$this->company_id]);
     }

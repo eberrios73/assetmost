@@ -25,10 +25,19 @@ class Access
     public const USER = 'User';
     public const OPERATIONS = 'Operations';
     public const IT_ADMIN = 'IT Admin';
+    public const ADMIN = 'Admin';
     public const SUPER_ADMIN = 'SuperAdmin';
 
-    /** Assignable roles, least privileged first. */
-    public const ROLES = [self::USER, self::OPERATIONS, self::IT_ADMIN, self::SUPER_ADMIN];
+    /** Every role the matrix knows, least privileged first. */
+    public const ROLES = [self::USER, self::OPERATIONS, self::IT_ADMIN, self::ADMIN, self::SUPER_ADMIN];
+
+    /**
+     * Which side of the landlord boundary a role may be assigned on. SuperAdmin and
+     * Admin exist only on the landlord side; Operations and IT Admin only inside a
+     * tenant. User is both — a directory record is a directory record.
+     */
+    public const TENANT_ROLES = [self::USER, self::OPERATIONS, self::IT_ADMIN];
+    public const LANDLORD_ROLES = [self::USER, self::ADMIN, self::SUPER_ADMIN];
 
     /** The one permission the escrow key gates. Checking it is not enough on its own. */
     public const REVEAL = 'logins.reveal';
@@ -50,6 +59,7 @@ class Access
         ['key' => self::REVEAL,      'group' => 'Credentials', 'label' => 'Reveal passwords', 'keyed' => true],
         ['key' => 'companies.manage', 'group' => 'Administration', 'label' => 'Add and edit companies'],
         ['key' => 'settings.manage', 'group' => 'Administration', 'label' => 'Change settings and roles'],
+        ['key' => 'landlord.manage', 'group' => 'Administration', 'label' => 'Manage landlord users and tenants'],
     ];
 
     /** Shipped defaults. Anything absent is denied. */
@@ -63,6 +73,13 @@ class Access
             'people.view', 'people.edit', 'assets.view', 'assets.edit',
             'licenses.view', 'licenses.edit', 'tasks.view', 'tasks.edit',
             'logins.view', self::REVEAL, 'companies.manage',
+        ],
+        // Landlord Admin: everything IT Admin has, across their assigned tenants, plus
+        // settings — but not landlord.manage. Tenants live and die by SuperAdmin's hand.
+        self::ADMIN => [
+            'people.view', 'people.edit', 'assets.view', 'assets.edit',
+            'licenses.view', 'licenses.edit', 'tasks.view', 'tasks.edit',
+            'logins.view', self::REVEAL, 'companies.manage', 'settings.manage',
         ],
         // SuperAdmin is implicit — see allows().
     ];
