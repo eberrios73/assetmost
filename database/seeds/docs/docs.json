@@ -2,57 +2,89 @@
   {
     "title": "Adopt a Retail Mac into ABM (Apple Configurator)",
     "category": "SOP",
+    "steps": [
+      {
+        "id": "20079edf",
+        "title": "Check the Mac qualifies",
+        "category": "other",
+        "offset_days": 0,
+        "why": "",
+        "instructions": "Apple silicon or a T2 chip, macOS 12.0.1 or later. Older Intel Macs without T2 cannot be adopted - keep them on /mdm Jamf manual.",
+        "done_when": "Model confirmed eligible.",
+        "record": "",
+        "automatable": false,
+        "subtasks": []
+      },
+      {
+        "id": "b97b1853",
+        "title": "Prepare the iPhone",
+        "category": "other",
+        "offset_days": 0,
+        "why": "",
+        "instructions": "Install Apple Configurator from the App Store. Sign in with the Managed Apple ID.",
+        "done_when": "Configurator open and signed in.",
+        "record": "",
+        "automatable": false,
+        "subtasks": []
+      },
+      {
+        "id": "4a61e299",
+        "title": "Preset auto-assignment in ABM (one time)",
+        "category": "other",
+        "offset_days": 0,
+        "why": "",
+        "instructions": "ABM > Settings > Device Management Settings > Devices added by Apple Configurator > assign to the Jamf server. With this set, adopted Macs skip manual assignment.",
+        "done_when": "",
+        "record": "",
+        "automatable": false,
+        "subtasks": []
+      },
+      {
+        "id": "2d837a36",
+        "title": "Erase the Mac to Setup Assistant",
+        "category": "other",
+        "offset_days": 0,
+        "why": "",
+        "instructions": "New in box: just power on. Used: System Settings > General > Transfer or Reset > Erase All Content and Settings. Join Wi-Fi during setup.",
+        "done_when": "Mac sits at the country/region pane.",
+        "record": "",
+        "automatable": false,
+        "subtasks": []
+      },
+      {
+        "id": "78cf6dfb",
+        "title": "Pair with the iPhone",
+        "category": "other",
+        "offset_days": 0,
+        "why": "",
+        "instructions": "Hold the iPhone near the Mac at the country/region pane. The Mac shows a pairing animation; scan it with the iPhone camera in Configurator.",
+        "done_when": "Device visible in ABM > Devices, assigned to Jamf.",
+        "record": "",
+        "automatable": false,
+        "subtasks": []
+      },
+      {
+        "id": "567a5a64",
+        "title": "Restart Setup Assistant and enroll",
+        "category": "other",
+        "offset_days": 0,
+        "why": "",
+        "instructions": "Erase again if setup went past the region pane. This time the Remote Management screen appears and the Mac enrolls into Jamf. From now on this Mac uses /mdm Jamf auto in the Workstation SOP.",
+        "done_when": "Mac shows in Jamf as managed.",
+        "record": "",
+        "automatable": false,
+        "subtasks": []
+      }
+    ],
     "meta": {
       "why": "Retail-bought Macs have no Apple Business Manager record, so zero-touch enrollment (ADE) can never happen. Adoption gives the Mac an ABM record - after this it enrolls like a business-bought machine, on every future rebuild.",
       "how": "Pair the erased Mac with an iPhone running Apple Configurator at Setup Assistant; ABM records the device; Jamf takes it from there.",
       "tools": "iPhone (iOS 15+) with the Apple Configurator app\niPhone signed in with a Managed Apple ID - Administrator or Device Enrollment Manager role\nWi-Fi both devices can reach",
       "safety": "The Mac must be erased - adoption only works from Setup Assistant. Back up anything on it first.\n30-day provisional period: the device can be released from ABM during it. Keep the Mac in IT hands until enrollment is confirmed.",
       "os": "macOS",
+      "owner": "Enrique Berrios",
       "version": "1.0",
       "status": "Draft"
-    },
-    "steps": [
-      {
-        "id": "52716306",
-        "title": "Check the Mac qualifies",
-        "subtasks": [],
-        "instructions": "Apple silicon or a T2 chip, macOS 12.0.1 or later. Older Intel Macs without T2 cannot be adopted - keep them on /mdm Jamf manual.",
-        "done_when": "Model confirmed eligible."
-      },
-      {
-        "id": "94513368",
-        "title": "Prepare the iPhone",
-        "subtasks": [],
-        "instructions": "Install Apple Configurator from the App Store. Sign in with the Managed Apple ID.",
-        "done_when": "Configurator open and signed in."
-      },
-      {
-        "id": "28109247",
-        "title": "Preset auto-assignment in ABM (one time)",
-        "subtasks": [],
-        "instructions": "ABM > Settings > Device Management Settings > Devices added by Apple Configurator > assign to the Jamf server. With this set, adopted Macs skip manual assignment."
-      },
-      {
-        "id": "38367237",
-        "title": "Erase the Mac to Setup Assistant",
-        "subtasks": [],
-        "instructions": "New in box: just power on. Used: System Settings > General > Transfer or Reset > Erase All Content and Settings. Join Wi-Fi during setup.",
-        "done_when": "Mac sits at the country/region pane."
-      },
-      {
-        "id": "79400052",
-        "title": "Pair with the iPhone",
-        "subtasks": [],
-        "instructions": "Hold the iPhone near the Mac at the country/region pane. The Mac shows a pairing animation; scan it with the iPhone camera in Configurator.",
-        "done_when": "Device visible in ABM > Devices, assigned to Jamf."
-      },
-      {
-        "id": "40033370",
-        "title": "Restart Setup Assistant and enroll",
-        "subtasks": [],
-        "instructions": "Erase again if setup went past the region pane. This time the Remote Management screen appears and the Mac enrolls into Jamf. From now on this Mac uses /mdm Jamf auto in the Workstation SOP.",
-        "done_when": "Mac shows in Jamf as managed."
-      }
-    ]
+    }
   }
 ]
