@@ -1,0 +1,210 @@
+{
+  "steps": [
+    {
+      "id": "inv1",
+      "title": "Add to Inventory",
+      "subtasks": [
+        {
+          "id": "23483076",
+          "title": "Remove from Packaging and Set up neatly in workspace. Connect Power, Monitors, Mouse, Keyboard and Ethernet.",
+          "subtasks": []
+        },
+        {
+          "id": "45773451",
+          "title": "Turn on device. Skip Siri, Skip Apple ID.",
+          "subtasks": []
+        },
+        {
+          "id": "13652529",
+          "title": "Go to your AssetMost instance and log in with admin credentials",
+          "subtasks": []
+        },
+        {
+          "id": "47461711",
+          "title": "/form new device",
+          "subtasks": [],
+          "instructions": "Creates the record; the tag it issues IS the hostname."
+        }
+      ]
+    },
+    {
+      "id": "onb2",
+      "title": "Onboard Device",
+      "subtasks": [
+        {
+          "id": "44671982",
+          "title": "/osupdate",
+          "subtasks": []
+        },
+        {
+          "id": "26316318",
+          "title": "/hostname",
+          "subtasks": [],
+          "instructions": "Applies the hostname to the machine - the tag issued by the step 1 form. Set Info fields by hand: 1 = assigned user, 2 = asset tag ID."
+        },
+        {
+          "id": "49319257",
+          "title": "/localadmin",
+          "subtasks": []
+        },
+        {
+          "id": "76906725",
+          "title": "/domainjoin",
+          "subtasks": []
+        },
+        {
+          "id": "10553634",
+          "title": "/encryptdisk",
+          "subtasks": [],
+          "instructions": "FileVault2 on; the recovery key escrows to the registry - no paper, no txt."
+        },
+        {
+          "id": "36717028",
+          "title": "/firewall",
+          "subtasks": []
+        },
+        {
+          "id": "61628526",
+          "title": "/banner",
+          "subtasks": [],
+          "instructions": "Company login banner - PolicyBanner.rtfd.zip from the installers share."
+        },
+        {
+          "id": "87105164",
+          "title": "/remotemgmt",
+          "subtasks": [],
+          "instructions": "Remote Management sharing on - full access only for administrators."
+        },
+        {
+          "id": "36020128",
+          "title": "/screenlock",
+          "subtasks": [],
+          "instructions": "Screen saver after 5 minutes idle, lock + require password immediately, no password hints."
+        },
+        {
+          "id": "50101374",
+          "title": "/wifioff",
+          "subtasks": [],
+          "instructions": "Wired production subnet only. Wi-Fi re-enabled only for users with administrative permission."
+        },
+        {
+          "id": "14488126",
+          "title": "/mdm Jamf auto",
+          "subtasks": [],
+          "instructions": "Company-sponsored laptops and smart devices enroll in Jamf Pro. Retail-bought Macs: switch this line to manual mode, or adopt into ABM first (see the Apple Configurator SOP)."
+        }
+      ]
+    },
+    {
+      "id": "sw3",
+      "title": "Software",
+      "subtasks": [
+        {
+          "id": "80126780",
+          "title": "/install mac office",
+          "subtasks": []
+        },
+        {
+          "id": "36757954",
+          "title": "/install mac wazuh",
+          "subtasks": [],
+          "instructions": "Wazuh agent."
+        },
+        {
+          "id": "51332425",
+          "title": "/chrome",
+          "subtasks": [],
+          "instructions": "The only approved third-party browser - installed straight from Google, no MDM needed."
+        },
+        {
+          "id": "10994138",
+          "title": "/install mac synologydrive",
+          "subtasks": [],
+          "instructions": "Synology Drive Client - keep its installer on the share (Mac folder)."
+        },
+        {
+          "id": "13671991",
+          "title": "ClamXav - deployed by Jamf after enrollment",
+          "subtasks": [],
+          "instructions": "Antivirus. Verify it landed and is running."
+        },
+        {
+          "id": "13175880",
+          "title": "/printer OFFICE-PRINTER 192.168.1.50",
+          "subtasks": [],
+          "instructions": "EDIT the name and IP to your office printer. Driverless IPP covers most modern printers; install the vendor driver if it does not print."
+        },
+        {
+          "id": "5760453",
+          "title": "Copy the company font library to Users > Shared",
+          "subtasks": []
+        }
+      ]
+    },
+    {
+      "id": "pol4",
+      "title": "Policies set by hand",
+      "subtasks": [
+        {
+          "id": "62072317",
+          "title": "User account set with Standard permissions (no admin)",
+          "subtasks": []
+        },
+        {
+          "id": "4871971",
+          "title": "Assign manual IP on the production/management subnet; add the company search domain",
+          "subtasks": [],
+          "record": "IP recorded on the device (Assets > Devices - the IP column)"
+        },
+        {
+          "id": "97305380",
+          "title": "Assign the user password: 12 characters, mixed case, alphanumeric + special",
+          "subtasks": [],
+          "record": "Stored as a login on the person - never on paper"
+        },
+        {
+          "id": "29014929",
+          "title": "External hard drives / USB flash drives encrypted",
+          "subtasks": []
+        },
+        {
+          "id": "70125953",
+          "title": "Time Machine backups encrypted",
+          "subtasks": []
+        },
+        {
+          "id": "35345410",
+          "title": "Additional apps / subscriptions per user function",
+          "subtasks": []
+        }
+      ]
+    },
+    {
+      "id": "usr5",
+      "title": "User install (at the desk)",
+      "subtasks": [
+        {
+          "id": "71708549",
+          "title": "/servers smb://LA-SERVER/Jobs smb://ARLINGTON-SERVER/Jobs",
+          "subtasks": [],
+          "instructions": "EDIT THE URLS to the real LA and Arlington servers. Mounts each and adds a login item so they reconnect at login."
+        },
+        {
+          "id": "96789017",
+          "title": "Set up local backup - decision pending (Carbon Copy Cloner is the leading candidate)",
+          "subtasks": []
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "why": "Every office production laptop/desktop gets this baseline before it reaches its user. An imaged system (Basic Setup) exists for quick deployment; this SOP is the full path and the audit trail.",
+    "scope": "All office production laptop/desktop systems (macOS) before deployment to the end user.",
+    "how": "Work top to bottom. The machine steps generate the bootstrap script at /onboard - run it with sudo on the Mac; it reports each step back to this checklist.",
+    "tools": "Imaged system (Basic Setup) for quick deployment\nPolicyBanner.rtfd.zip on the installers share (Mac folder)\nCanon 6065 vendor driver if the office printer needs it",
+    "safety": "System is locked from further changes without IT / Management approval.\nUpdate the asset inventory before deployment - new system, or reassignment to a new user.",
+    "os": "macOS",
+    "version": "1.0",
+    "status": "Draft"
+  }
+}

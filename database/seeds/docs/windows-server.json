@@ -1,0 +1,115 @@
+{
+    "steps": [
+        {
+            "id": "intake",
+            "title": "Intake and inventory",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "A machine that is not in inventory does not exist when it goes missing.",
+            "instructions": "Record it in AssetMost (Assets > Onboard).",
+            "done_when": "Asset tag issued; it becomes the hostname.",
+            "record": "Device in inventory with tag, serial, model.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "provision",
+            "title": "Provision",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "prov-ip",
+                    "title": "Static IP and DNS record",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "Forward and reverse lookups resolve.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "prov-roles",
+                    "title": "Roles/services installed and documented",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "What this server DOES is written on its device record  -  the next admin should not have to guess.",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "svc-accounts",
+            "title": "Service accounts into the registry",
+            "category": "accounts",
+            "offset_days": 0,
+            "why": "A server born with undocumented admin credentials is a future breach with a hostname.",
+            "instructions": "Every admin/service credential this server runs on enters the registry as a SERVICE account (held by nobody  -  it runs the system).",
+            "done_when": "Each credential resolves in the registry; none exist only in someone's head.",
+            "record": "Service accounts linked to this device.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "protect",
+            "title": "Protection",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "prot-monitor",
+                    "title": "Monitoring agent reporting",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "Server visible in the monitoring console with alerts armed.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "prot-backup",
+                    "title": "Backup agent + first successful backup",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "A restore test of one file succeeds  -  a backup that never restored is a hope, not a backup.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "qa",
+            "title": "QA before it enters the ready pool",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "The pool only works if \"ready\" means ready  -  onboarding trusts it blindly.",
+            "instructions": "Test login, network, printers, peripherals. For servers: confirm services survive a reboot.",
+            "done_when": "A test user session works end to end.",
+            "record": "Device marked READY in inventory  -  it can now be assigned by onboarding.",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}

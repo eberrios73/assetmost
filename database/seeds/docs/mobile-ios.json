@@ -1,0 +1,65 @@
+{
+    "steps": [
+        {
+            "id": "intake",
+            "title": "Intake and inventory",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Record it in AssetMost with serial and IMEI; issue the asset tag.",
+            "done_when": "",
+            "record": "Device in inventory with tag, serial, IMEI, carrier/number if any.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "enroll",
+            "title": "MDM enrollment",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "An unmanaged phone with company mail is a breach in a pocket.",
+            "instructions": "Type /mdm in this SOP to name your MDM. Supervised via ABM/DEP when company-owned; otherwise the enrollment profile.",
+            "done_when": "Device appears in the MDM console and receives policy.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "policy",
+            "title": "Passcode and encryption policy applied",
+            "category": "access",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "MDM shows passcode set and encryption on; remote wipe armed.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "apps",
+            "title": "Company apps via MDM",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Push mail, chat, and the role's apps through the MDM - no personal store sign-ins for company apps.",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "handoff",
+            "title": "Hand-off",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Assign to the person in AssetMost; confirm mail and MFA prompts work on the device.",
+            "done_when": "The user - not the tech - signs into mail and passes an MFA prompt.",
+            "record": "Device shows its holder; number recorded.",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}

@@ -1,0 +1,175 @@
+{
+    "steps": [
+        {
+            "id": "inventory",
+            "title": "Inventory their access",
+            "category": "accounts",
+            "offset_days": -2,
+            "why": "You cannot revoke what you have not listed.",
+            "instructions": "Open the person in AssetMost  -  their logins, floating accounts, devices and seats ARE this checklist.",
+            "done_when": "Their access list is printed/open and every item below maps to it.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "disable",
+            "title": "Disable sign-ins",
+            "category": "accounts",
+            "offset_days": 0,
+            "why": "Order matters: identity first, then sessions, then remote paths  -  before they leave the building.",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "off-ad",
+                    "title": "Disable the Domain/AD account",
+                    "category": "accounts",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "Account shows disabled in ADUC; a test bind fails.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "off-m365",
+                    "title": "Block Microsoft 365 sign-in and revoke active sessions",
+                    "category": "accounts",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "Sign-in blocked AND sessions revoked in admin center  -  blocking alone leaves live tokens.",
+                    "record": "",
+                    "automatable": true,
+                    "subtasks": []
+                },
+                {
+                    "id": "off-vpn",
+                    "title": "Revoke VPN and remote access",
+                    "category": "access",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "A connection attempt with their profile is refused.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "floating",
+            "title": "Rotate floating accounts they held",
+            "category": "accounts",
+            "offset_days": 0,
+            "why": "A departed person with a living shared password is a breach with a start date.",
+            "instructions": "Every pooled/shared account they held gets a new password TODAY; reassign or return seats in the registry.",
+            "done_when": "No floating account they held still accepts its old password.",
+            "record": "New passwords stored in the registry; holder lists updated.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "collect",
+            "title": "Collect hardware",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "col-laptop",
+                    "title": "Laptop/workstation, chargers, peripherals",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "Devices return to the pool marked \"returned  -  needs reimage\".",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "col-badge",
+                    "title": "Badge, keys, access cards",
+                    "category": "access",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "mail",
+            "title": "Mail and voicemail routing",
+            "category": "accounts",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Mailbox forwarding/auto-reply per policy; clear their voicemail forwarding.",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "seats",
+            "title": "Reclaim license seats",
+            "category": "accounts",
+            "offset_days": 1,
+            "why": "Ghost seats are money; they also hide real availability from the next onboarding.",
+            "instructions": "",
+            "done_when": "License counts reflect the freed seats.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "archive",
+            "title": "Archive mailbox and files",
+            "category": "other",
+            "offset_days": 3,
+            "why": "",
+            "instructions": "Per retention policy; confirm before removal from groups.",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "deactivate",
+            "title": "Deactivate in the directory",
+            "category": "other",
+            "offset_days": 3,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "Person marked inactive in AssetMost  -  history stays.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "audit",
+            "title": "Final access audit",
+            "category": "other",
+            "offset_days": 7,
+            "why": "The audit is the offboarding; everything before it was preparation.",
+            "instructions": "Re-open their page in AssetMost.",
+            "done_when": "Zero active logins, zero floating accounts held, zero devices assigned. Anything left is a finding, not a shrug.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}

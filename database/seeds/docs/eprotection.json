@@ -1,0 +1,41 @@
+{
+    "steps": [
+        {
+            "id": "385f1c7f",
+            "title": "Install the endpoint agent (current standard: Wazuh)",
+            "category": "other",
+            "offset_days": 0,
+            "why": "A machine the fleet monitor cannot see is where a compromise lives unnoticed.",
+            "instructions": "How: How: How: How: Install the current agent for this platform; point it at the manager. Update THIS runbook when the tooling changes - everything referencing /eprotection follows automatically.",
+            "done_when": "The machine appears in the monitoring console and reports events.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "7146565c",
+            "title": "Antivirus active",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Platform standard (Defender policy on Windows; ClamXav on Mac). Confirm real-time protection is ON, not just installed.",
+            "done_when": "A test EICAR file is detected.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "21a17dcb",
+            "title": "Agent auto-update confirmed",
+            "category": "other",
+            "offset_days": 0,
+            "why": "A stale agent is a false sense of security with a version number.",
+            "instructions": "",
+            "done_when": "Auto-update enabled, or the update task exists in the maintenance schedule.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}

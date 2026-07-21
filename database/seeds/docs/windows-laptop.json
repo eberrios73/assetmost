@@ -1,0 +1,151 @@
+{
+    "steps": [
+        {
+            "id": "intake",
+            "title": "Intake and inventory",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "A machine that is not in inventory does not exist when it goes missing.",
+            "instructions": "Record it in AssetMost (Assets > Onboard).",
+            "done_when": "Asset tag issued; it becomes the hostname.",
+            "record": "Device in inventory with tag, serial, model.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "base",
+            "title": "Clean current OS",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "Golden images are stale five days after you make them  -  build live from a clean, fully-updated OS instead; configuration comes from the domain and the checklist, not a stamp.",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "base-os",
+                    "title": "Clean install / OOBE with all OS and firmware updates",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "base-drivers",
+                    "title": "Drivers and vendor tools",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "join",
+            "title": "Name and join",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "join-host",
+                    "title": "Hostname = asset tag",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "hostname prints the tag.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "join-domain",
+                    "title": "Join to the domain",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "Machine object appears in ADUC; GPOs apply on gpupdate.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "bitlocker",
+            "title": "Enable BitLocker",
+            "category": "access",
+            "offset_days": 0,
+            "why": "Lost or stolen disks are unreadable; encryption at rest is policy.",
+            "instructions": "Applies via GPO on domain join. Manual fallback: Control Panel > BitLocker > Turn On.",
+            "done_when": "Recovery key VISIBLE IN AD (computer object > BitLocker Recovery tab)  -  not when the progress bar finishes; GPO escrow silently fails sometimes.",
+            "record": "Escrow the key into the registry against the asset tag anyway  -  AD is the copy that sometimes does not save.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "agents",
+            "title": "Endpoint agents",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "Machine reports in each console (AV, monitoring, management).",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "software",
+            "title": "Standard software set",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Use /install at the bench  -  it reads the installers share for this platform; 32/64-bit stays coherent with the machine.",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "mobility",
+            "title": "Mobility: VPN and off-network readiness",
+            "category": "access",
+            "offset_days": 0,
+            "why": "A laptop that only works on the office LAN is a desktop with a battery.",
+            "instructions": "Pull the VPN profile at the bench - type /vpn in this SOP to pick it from the installers share. Confirm email and core tools work OFF the office network (hotspot test).",
+            "done_when": "VPN connects from an outside network and the daily tools load through it.",
+            "record": "VPN profile name noted on the device record.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "qa",
+            "title": "QA before it enters the ready pool",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "The pool only works if \"ready\" means ready  -  onboarding trusts it blindly.",
+            "instructions": "Test login, network, printers, peripherals.",
+            "done_when": "A test user session works end to end.",
+            "record": "Device marked READY in inventory  -  it can now be assigned by onboarding.",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}

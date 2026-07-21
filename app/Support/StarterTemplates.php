@@ -47,9 +47,21 @@ class StarterTemplates
         'eprotection' => ['title' => 'Endpoint protection', 'type' => 'device', 'form_factor' => null, 'wizard' => false],
     ];
 
-    /** Steps for a catalog slug (null if unknown). */
+    /**
+     * Steps for a catalog slug. The REAL content exported from the reference
+     * instance (database/seeds/docs/{slug}.json) wins — those are the SOPs the
+     * product actually ships; the hand-written generators below are the
+     * fallback for slugs without an export yet.
+     */
     public static function workflow(string $slug): ?array
     {
+        $file = database_path("seeds/docs/{$slug}.json");
+        if (is_file($file)) {
+            $data = json_decode(file_get_contents($file), true);
+            if (! empty($data['steps'])) {
+                return ['version' => 1, 'steps' => $data['steps'], 'meta' => $data['meta'] ?? []];
+            }
+        }
         return match ($slug) {
             'onboarding' => self::onboarding(),
             'freelancer' => self::freelancer(),

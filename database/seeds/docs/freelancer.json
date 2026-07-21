@@ -1,0 +1,77 @@
+{
+    "steps": [
+        {
+            "id": "scope",
+            "title": "Confirm scope and contract dates",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "agreement",
+            "title": "Contractor agreement / NDA signed",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "access",
+            "title": "Grant limited, time-boxed access",
+            "category": "access",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "accounts",
+            "title": "Create the accounts their role needs",
+            "category": "accounts",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "remote",
+            "title": "Remote access if required",
+            "category": "access",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "review",
+            "title": "Access review at contract end",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}

@@ -45,8 +45,39 @@ class SeedWorkflows extends Command
             $this->line("== {$company->name} (#{$company->id})");
             $this->backfill($company->id);
             $this->seed($company->id);
+            $this->seedDocs($company->id);
         }
         return self::SUCCESS;
+    }
+
+    /** Shipped PLAIN docs (not workflows) — e.g. the ABM Configurator SOP.
+     *  Listed in database/seeds/docs/docs.json; idempotent by title. */
+    private function seedDocs(int $companyId): void
+    {
+        $file = database_path('seeds/docs/docs.json');
+        if (! is_file($file)) return;
+        foreach (json_decode(file_get_contents($file), true) ?: [] as $doc) {
+            $exists = DocPage::withoutGlobalScopes()->where('company_id', $companyId)
+                ->where('title', $doc['title'])->exists();
+            if ($exists) continue;
+            $spaceId = $this->spaceFor($companyId);
+            DocPage::withoutGlobalScopes()->forceCreate([
+                'company_id' => $companyId, 'space_id' => $spaceId,
+                'title' => $doc['title'],
+                'body' => SopDocParser::toHtml($doc['steps'] ?? [], '', $doc['meta'] ?? []),
+                'category' => $doc['category'] ?? 'SOP',
+            ]);
+            $this->info("  seeded doc: {$doc['title']}");
+        }
+    }
+
+    private function spaceFor(int $companyId): int
+    {
+        return DocPage::withoutGlobalScopes()->where('company_id', $companyId)
+            ->whereNotNull('workflow_type')->whereNotNull('space_id')->value('space_id')
+            ?? Space::withoutGlobalScopes()->where('company_id', $companyId)
+                ->orderBy('position')->value('id')
+            ?? Space::withoutGlobalScopes()->forceCreate(['company_id' => $companyId, 'name' => 'Docs', 'position' => 0])->id;
     }
 
     /** Adopt legacy templates: stamp their source pages (or create pages) as workflows. */
@@ -106,17 +137,15 @@ class SeedWorkflows extends Command
         $steps ??= StarterTemplates::workflow($slug);
         // File next to the company's existing workflow docs (siblings cluster in the
         // tree); first space by position only when there are none yet.
-        $spaceId = DocPage::withoutGlobalScopes()->where('company_id', $companyId)
-            ->whereNotNull('workflow_type')->whereNotNull('space_id')->value('space_id')
-            ?? Space::withoutGlobalScopes()->where('company_id', $companyId)
-                ->orderBy('position')->value('id')
-            ?? Space::withoutGlobalScopes()->forceCreate(['company_id' => $companyId, 'name' => 'Docs', 'position' => 0])->id;
+        $spaceId = $this->spaceFor($companyId);
 
         DocPage::withoutGlobalScopes()->forceCreate([
             'company_id' => $companyId,
             'space_id' => $spaceId,
             'title' => $meta['title'],
-            'body' => SopDocParser::toHtml($steps['steps'] ?? []),
+            // Meta rides along: the exported SOPs carry the full formal header
+            // (Why/Scope/Tools/Safety/OS row), not just steps.
+            'body' => SopDocParser::toHtml($steps['steps'] ?? [], '', $steps['meta'] ?? []),
             'category' => 'SOP',
             'workflow_type' => $meta['type'], 'workflow_slug' => $slug,
             'form_factor' => $meta['form_factor'], 'workflow_active' => true,

@@ -1,0 +1,90 @@
+{
+    "steps": [
+        {
+            "id": "intake",
+            "title": "Intake and inventory",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "This is the generic device runbook - DUPLICATE it for each device class you run (access point, switch, printer, camera) and tailor the steps.",
+            "instructions": "Record it in AssetMost (Assets > Onboard); issue the asset tag and label the unit.",
+            "done_when": "",
+            "record": "Device in inventory with tag, serial, model, location.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "network",
+            "title": "Network",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "net-ip",
+                    "title": "Static IP or DHCP reservation + DNS record",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "The device answers at a name, not a mystery IP.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "creds",
+            "title": "Admin credential into the registry",
+            "category": "accounts",
+            "offset_days": 0,
+            "why": "Default passwords on infrastructure are how guests become admins.",
+            "instructions": "Change the default admin password; store it in the registry as a SERVICE account linked to this device.",
+            "done_when": "The default password no longer works; the registry credential does.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "firmware",
+            "title": "Firmware current",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "Running the latest stable firmware; auto-update on if supported.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "hardening",
+            "title": "Hardening",
+            "category": "access",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Disable unused services (telnet, UPnP, WPS...); management UI restricted to the admin VLAN if possible.",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "record",
+            "title": "Record and monitor",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Location and what it serves on the device record; add to monitoring if it speaks SNMP/ping.",
+            "done_when": "Someone new could find and understand this device from AssetMost alone.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}

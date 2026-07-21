@@ -1,0 +1,271 @@
+{
+    "steps": [
+        {
+            "id": "accounts",
+            "title": "Create accounts",
+            "category": "accounts",
+            "offset_days": -2,
+            "instructions": "Pre-arrival - complete at least 2 days before {start_date}. Record every credential in the registry as you create it.",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "acct-m365",
+                    "title": "Create email with 2FA (Microsoft 365)",
+                    "category": "accounts",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": true,
+                    "subtasks": []
+                },
+                {
+                    "id": "acct-cp",
+                    "title": "Create C&P account",
+                    "category": "accounts",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "acct-vpn",
+                    "title": "Create VPN account",
+                    "category": "accounts",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "acct-zoom",
+                    "title": "Create Zoom account",
+                    "category": "accounts",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "acct-perforce",
+                    "title": "Create Perforce account",
+                    "category": "accounts",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "acct-smartsheet",
+                    "title": "Create Smartsheet account",
+                    "category": "accounts",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "hardware",
+            "title": "Prepare hardware",
+            "category": "machine",
+            "offset_days": -2,
+            "instructions": "Pre-arrival. Workstation ready at their desk before day one.",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "hw-station",
+                    "title": "Prepare workstation (desktop/laptop, keyboard, mouse, monitor(s), headset)",
+                    "category": "machine",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "hw-config",
+                    "title": "Configure device (OS, antivirus, encryption)",
+                    "category": "machine",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "hw-dock",
+                    "title": "Set up docking stations and printers",
+                    "category": "machine",
+                    "offset_days": -2,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "software",
+            "title": "Install software",
+            "category": "machine",
+            "offset_days": -2,
+            "instructions": "Pre-arrival: Microsoft Office, Slack, Zoom, VPN software, and role-specific tools.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "security-setup",
+            "title": "Security setup (MFA, SSO, antivirus, firewalls)",
+            "category": "access",
+            "offset_days": -2,
+            "instructions": "Pre-arrival. MFA enrollment finishes on day one with the hire present.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "network",
+            "title": "Configure network access",
+            "category": "access",
+            "offset_days": -2,
+            "instructions": "LAN access (restricted if applicable) and credentials for office and remote teams.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "voicemail",
+            "title": "Set up voicemail",
+            "category": "accounts",
+            "offset_days": -1,
+            "instructions": "Set the new person's voicemail and ensure any forwarding is deactivated. Dial ##002#, or Settings > Phone > Call Forwarding.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "orientation",
+            "title": "Welcome orientation",
+            "category": "training",
+            "offset_days": 0,
+            "instructions": "Day one.",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "orient-policies",
+                    "title": "Review IT policies (acceptable use, data protection) and get signature",
+                    "category": "training",
+                    "offset_days": 0,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "orient-security",
+                    "title": "Explain security protocols (passwords, phishing)",
+                    "category": "training",
+                    "offset_days": 0,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "handoff",
+            "title": "Device hand-off",
+            "category": "machine",
+            "offset_days": 0,
+            "instructions": "Day one, at their desk.",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "handoff-setup",
+                    "title": "Set up workstation and peripherals",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "handoff-test",
+                    "title": "Test network and internet connectivity",
+                    "category": "machine",
+                    "offset_days": 0,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "first-login",
+            "title": "Login & credentials",
+            "category": "accounts",
+            "offset_days": 0,
+            "instructions": "Provide login details and guide through first login. Credentials come from the registry - never a sticky note.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "walkthrough",
+            "title": "System access walkthrough",
+            "category": "training",
+            "offset_days": 0,
+            "instructions": "Introduce key systems: email, collaboration tools, project management.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "support-info",
+            "title": "IT support info",
+            "category": "training",
+            "offset_days": 0,
+            "instructions": "Provide contact details for IT support (helpdesk, ticket system).",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "sec-training",
+            "title": "IT security training & best practices",
+            "category": "training",
+            "offset_days": 1,
+            "instructions": "First/second day.",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "sec-video",
+                    "title": "Watch the IT security video and acknowledge IT policies by signing",
+                    "category": "training",
+                    "offset_days": 1,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "sec-habits",
+                    "title": "Train on strong passwords, phishing, and data security",
+                    "category": "training",
+                    "offset_days": 1,
+                    "instructions": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "followup",
+            "title": "One-week follow-up",
+            "category": "other",
+            "offset_days": 7,
+            "instructions": "Ensure all systems are working properly; resolve any issues.",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "feedback",
+            "title": "Onboarding feedback",
+            "category": "other",
+            "offset_days": 7,
+            "instructions": "Discuss feedback with management to improve the IT onboarding process.",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}

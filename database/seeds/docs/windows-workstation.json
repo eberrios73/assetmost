@@ -1,0 +1,198 @@
+{
+    "steps": [
+        {
+            "id": "9b1f99cd",
+            "title": "If new: unpack",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Dispose of all packaging neatly.",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "521eb8f1",
+            "title": "Add components",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "4c3c63be",
+            "title": "RAM / HD as specified",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "10b8a9ad",
+            "title": "Plug in all peripherals: mouse, keyboard, monitor, camera, microphone, printer, scanner, security device, Wacom tablet",
+            "category": "machine",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "89b81ed7",
+            "title": "First run",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": [
+                {
+                    "id": "89543965",
+                    "title": "Install Windows (if drive replaced)",
+                    "category": "other",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "48be482d",
+                    "title": "Create local admin",
+                    "category": "other",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "Local admin credential goes in the registry - never in a text file.",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "9d6a208a",
+                    "title": "Update OS",
+                    "category": "other",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "ae9344f7",
+                    "title": "Update all drivers and firmware",
+                    "category": "other",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "",
+                    "done_when": "",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                },
+                {
+                    "id": "ea69f22d",
+                    "title": "Join domain",
+                    "category": "accounts",
+                    "offset_days": 0,
+                    "why": "",
+                    "instructions": "Group Policy carries most settings from here - that is why this runbook stays short.",
+                    "done_when": "Machine object in ADUC; gpupdate applies cleanly.",
+                    "record": "",
+                    "automatable": false,
+                    "subtasks": []
+                }
+            ]
+        },
+        {
+            "id": "45a55ba5",
+            "title": "Reboot",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "759bfec8",
+            "title": "Turn on BitLocker",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Applies via GPO on domain join; manual fallback in Control Panel.\nRecord: Capture the key with your phone (QR capture on this task) into the registry against the asset tag - no txt files.",
+            "done_when": "Recovery key visible in AD (computer object > BitLocker Recovery tab) - not when the progress bar finishes.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "b1c99c30",
+            "title": "Endpoint protection",
+            "category": "other",
+            "offset_days": 0,
+            "why": "A machine without the endpoint agent is invisible to the fleet monitor.",
+            "instructions": "Run /eprotection - installs the current agent and antivirus for this platform.",
+            "done_when": "Machine reports in the monitoring console.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "d4fad7e7",
+            "title": "Install software",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "Type /install and choose the app - the list is whatever is in the installers share.\n/install Microsoft_365_and_Office_16.95.25030928_Installer.pkg\n/install Clients & Profits Cloud 11.3.2.pkg",
+            "done_when": "",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "f6c1d32b",
+            "title": "Enroll system on Intune",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "",
+            "done_when": "Device appears in the Intune console and receives policy.",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        },
+        {
+            "id": "af911094",
+            "title": "Apply all updates",
+            "category": "other",
+            "offset_days": 0,
+            "why": "",
+            "instructions": "/eprotection\n/vpn pfSense-udp-1196-viscosity-config.ovpn\n/install",
+            "done_when": "No pending OS, driver or app updates.'",
+            "record": "",
+            "automatable": false,
+            "subtasks": []
+        }
+    ],
+    "meta": []
+}
