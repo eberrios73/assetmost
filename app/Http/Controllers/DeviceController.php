@@ -15,10 +15,10 @@ class DeviceController extends Controller
         $devices = Device::query()
             ->with(['company:id,name', 'location:id,name', 'room:id,name'])
             ->when($request->string('search')->toString(), function ($q, $s) {
-                $q->where(fn ($w) => $w->where('asset_tag', 'like', "%{$s}%")
-                    ->orWhere('computer_name', 'like', "%{$s}%")
-                    ->orWhere('type', 'like', "%{$s}%")
-                    ->orWhere('serial_num', 'like', "%{$s}%"));
+                $q->where(fn ($w) => $w->where('asset_tag', 'ilike', "%{$s}%")
+                    ->orWhere('computer_name', 'ilike', "%{$s}%")
+                    ->orWhere('type', 'ilike', "%{$s}%")
+                    ->orWhere('serial_num', 'ilike', "%{$s}%"));
             })
             ->orderBy('asset_tag')
             ->paginate(30)

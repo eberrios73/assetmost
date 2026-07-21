@@ -253,8 +253,8 @@ class DocController extends Controller
         return response()->json(
             DocPage::query()
                 ->whereNull('superseded_by_id')   // search finds current versions only
-                ->where(fn ($w) => $w->where('title', 'like', $like)->orWhere('body', 'like', $like))
-                ->orderByRaw('title LIKE ? DESC', [$like])->orderBy('title')
+                ->where(fn ($w) => $w->where('title', 'ilike', $like)->orWhere('body', 'ilike', $like))
+                ->orderByRaw('title ILIKE ? DESC', [$like])->orderBy('title')
                 ->limit(25)
                 ->get(['id', 'title', 'category', 'space_id'])
         );

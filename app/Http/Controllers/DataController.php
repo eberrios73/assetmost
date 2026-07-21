@@ -122,17 +122,17 @@ class DataController extends Controller
     public function devices(Request $request): JsonResponse
     {
         $q = Device::query()->with(['location:id,name', 'room:id,name', 'deviceType:id,name,code']);
-        // IPs sort numerically (INET_ATON), everything else alphabetically.
+        // IPs sort numerically (inet cast), everything else alphabetically.
         if ($request->string('sort')->toString() === 'ip_1') {
-            $q->orderByRaw('ip_1 IS NULL, INET_ATON(ip_1) ' . ($request->string('dir')->toString() === 'desc' ? 'DESC' : 'ASC'));
+            $q->orderByRaw('ip_1 IS NULL, ip_1::inet ' . ($request->string('dir')->toString() === 'desc' ? 'DESC' : 'ASC'));
         } else {
             $this->sort($q, $request, ['asset_tag', 'computer_name', 'type'], 'asset_tag');
         }
 
         if ($s = $request->string('search')->toString()) {
-            $q->where(fn ($w) => $w->where('asset_tag', 'like', "%{$s}%")
-                ->orWhere('computer_name', 'like', "%{$s}%")
-                ->orWhere('serial_num', 'like', "%{$s}%"));
+            $q->where(fn ($w) => $w->where('asset_tag', 'ilike', "%{$s}%")
+                ->orWhere('computer_name', 'ilike', "%{$s}%")
+                ->orWhere('serial_num', 'ilike', "%{$s}%"));
         }
         // Filter on the controlled type (by code), not the legacy free-text column.
         if ($code = $request->string('type')->toString()) {
@@ -213,10 +213,10 @@ class DataController extends Controller
         $q = User::query();
         $this->sort($q, $request, ['name', 'last', 'department', 'ext'], 'name');
         if ($s = $request->string('search')->toString()) {
-            $q->where(fn ($w) => $w->where('name', 'like', "%{$s}%")
-                ->orWhere('last', 'like', "%{$s}%")
-                ->orWhere('email', 'like', "%{$s}%")
-                ->orWhere('department', 'like', "%{$s}%"));
+            $q->where(fn ($w) => $w->where('name', 'ilike', "%{$s}%")
+                ->orWhere('last', 'ilike', "%{$s}%")
+                ->orWhere('email', 'ilike', "%{$s}%")
+                ->orWhere('department', 'ilike', "%{$s}%"));
         }
         if ($dept = $request->string('department')->toString()) {
             $q->where('department', $dept);
@@ -419,9 +419,9 @@ class DataController extends Controller
         $q = Vendor::query();
         $this->sort($q, $request, ['name', 'contact_name'], 'name');
         if ($s = $request->string('search')->toString()) {
-            $q->where(fn ($w) => $w->where('name', 'like', "%{$s}%")
-                ->orWhere('contact_name', 'like', "%{$s}%")
-                ->orWhere('email', 'like', "%{$s}%"));
+            $q->where(fn ($w) => $w->where('name', 'ilike', "%{$s}%")
+                ->orWhere('contact_name', 'ilike', "%{$s}%")
+                ->orWhere('email', 'ilike', "%{$s}%"));
         }
         if ($request->boolean('active_only', true)) {
             $q->where('active', true);
@@ -727,7 +727,7 @@ class DataController extends Controller
         $q = \App\Models\Room::query()->with('location:id,name,company_id');
         $this->sort($q, $request, ['name', 'room_type', 'room_number'], 'name');
         if ($s = $request->string('search')->toString()) {
-            $q->where(fn ($w) => $w->where('name', 'like', "%{$s}%")->orWhere('room_number', 'like', "%{$s}%"));
+            $q->where(fn ($w) => $w->where('name', 'ilike', "%{$s}%")->orWhere('room_number', 'ilike', "%{$s}%"));
         }
         if ($request->boolean('active_only', true)) $q->where('active', true);
         $ids = app(\App\Support\Contracts\TenantResolver::class)->scopeIds();
@@ -752,7 +752,7 @@ class DataController extends Controller
         $q = \App\Models\Location::query()->withCount(['rooms', 'devices']);
         $this->sort($q, $request, ['name', 'city', 'type'], 'name');
         if ($s = $request->string('search')->toString()) {
-            $q->where(fn ($w) => $w->where('name', 'like', "%{$s}%")->orWhere('city', 'like', "%{$s}%"));
+            $q->where(fn ($w) => $w->where('name', 'ilike', "%{$s}%")->orWhere('city', 'ilike', "%{$s}%"));
         }
         if ($request->boolean('active_only', true)) $q->where('active', true);
 
@@ -776,7 +776,7 @@ class DataController extends Controller
         $q = \App\Models\Company::query()->whereIn('id', $allowed);
         $this->sort($q, $request, ['name', 'city'], 'name');
         if ($s = $request->string('search')->toString()) {
-            $q->where(fn ($w) => $w->where('name', 'like', "%{$s}%")->orWhere('domain', 'like', "%{$s}%"));
+            $q->where(fn ($w) => $w->where('name', 'ilike', "%{$s}%")->orWhere('domain', 'ilike', "%{$s}%"));
         }
         if ($request->boolean('active_only', true)) $q->where('active', true);
 
@@ -967,9 +967,9 @@ class DataController extends Controller
         $this->sort($q, $request, ['identifier', 'sharing'], 'identifier');
 
         if ($s = $request->string('search')->toString()) {
-            $q->where(fn ($w) => $w->where('identifier', 'like', "%{$s}%")
-                ->orWhere('notes', 'like', "%{$s}%")
-                ->orWhereHas('logins', fn ($l) => $l->where('login_name', 'like', "%{$s}%")));
+            $q->where(fn ($w) => $w->where('identifier', 'ilike', "%{$s}%")
+                ->orWhere('notes', 'ilike', "%{$s}%")
+                ->orWhereHas('logins', fn ($l) => $l->where('login_name', 'ilike', "%{$s}%")));
         }
         if ($sharing = $request->string('sharing')->toString()) {
             $q->where('sharing', $sharing);
@@ -1095,17 +1095,17 @@ class DataController extends Controller
 
         $devices = Device::query()
             ->when($scope !== null, fn ($x) => $x->whereIn('company_id', $scope))
-            ->where(fn ($w) => $w->where('asset_tag', 'like', $like)
-                ->orWhere('computer_name', 'like', $like)
-                ->orWhere('serial_num', 'like', $like))
+            ->where(fn ($w) => $w->where('asset_tag', 'ilike', $like)
+                ->orWhere('computer_name', 'ilike', $like)
+                ->orWhere('serial_num', 'ilike', $like))
             ->orderBy('asset_tag')->limit(6)
             ->get(['id', 'asset_tag', 'computer_name', 'brand', 'model']);
 
         $people = User::query()
             ->when($scope !== null, fn ($x) => $x->whereIn('company_id', $scope))
-            ->where(fn ($w) => $w->where('name', 'like', $like)
-                ->orWhere('last', 'like', $like)
-                ->orWhere('email', 'like', $like))
+            ->where(fn ($w) => $w->where('name', 'ilike', $like)
+                ->orWhere('last', 'ilike', $like)
+                ->orWhere('email', 'ilike', $like))
             ->orderBy('name')->limit(6)
             ->get(['id', 'name', 'last', 'email']);
 
@@ -1164,7 +1164,7 @@ class DataController extends Controller
             $q->where('platform', $platform);
         }
         if ($term = $request->string('q')->toString()) {
-            $q->where('name', 'like', "%{$term}%");
+            $q->where('name', 'ilike', "%{$term}%");
         }
         if ($arch = $request->string('arch')->toString()) {
             $q->where(fn ($w) => $w->where('arch', $arch)->orWhereNull('arch'));

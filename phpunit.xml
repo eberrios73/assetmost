@@ -24,18 +24,18 @@
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <!--
-            MariaDB, not sqlite. The schema needs things sqlite has no answer for — dropping
+            PostgreSQL, not sqlite. The schema needs things sqlite has no answer for — dropping
             a foreign key by name, because Schema::rename leaves constraints under their old
             names — so an in-memory sqlite suite couldn't even finish migrating. Testing on a
             different engine than we ship on is also how MySQL-only NOW() sat in a migration
-            unnoticed. Needs the local container: docker start assetmost-db
+            unnoticed. Uses the local Postgres.app on 5432 (trust auth).
         -->
-        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
-        <env name="DB_PORT" value="3307"/>
+        <env name="DB_PORT" value="5432"/>
         <env name="DB_DATABASE" value="assetmost_test"/>
-        <env name="DB_USERNAME" value="root"/>
-        <env name="DB_PASSWORD" value="amroot_local"/>
+        <env name="DB_USERNAME" value="assetmost"/>
+        <env name="DB_PASSWORD" value=""/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

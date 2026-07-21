@@ -650,7 +650,7 @@ class MachineOnboardController extends Controller
         $task = Task::query()->withoutGlobalScopes()
             ->where(fn ($q) => $q->where('parent_id', $ctx['project_id'])
                 ->orWhereIn('parent_id', Task::query()->withoutGlobalScopes()->where('parent_id', $ctx['project_id'])->pluck('id')))
-            ->where('title', 'like', '%' . $data['step'] . '%')->first();
+            ->where('title', 'ilike', '%' . $data['step'] . '%')->first();
 
         if ($task) {
             $note = trim(($task->notes ?? '') . "\n\n" . ($data['ok'] ? 'Bootstrap script: done. ' : 'Bootstrap script FAILED: ') . ($data['note'] ?? ''));

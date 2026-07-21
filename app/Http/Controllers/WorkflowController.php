@@ -446,7 +446,7 @@ class WorkflowController extends Controller
             if (! $plug) continue;
             [$prov, $config] = $plug;
             $task = Task::query()->where('parent_id', $result['project_id'])
-                ->where('title', 'like', "Create {$c['vendor']} account%")->first();
+                ->where('title', 'ilike', "Create {$c['vendor']} account%")->first();
             try {
                 $summary = $prov->provision($config, $data);
                 $result['credentials'][$i]['provisioned'] = true;
