@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetMost — untangle your IT</title>
+<meta name="description" content="Open-source IT asset, identity, credential and docs management. People, assets, credentials, and work — and the connections between them.">
+<style>
+  :root{
+    --ink:#14171A; --muted:#5B6570; --faint:#8A929B;
+    --line:#E4E8ED; --line-soft:#EEF1F4;
+    --surface:#FFFFFF; --canvas:#F6F8FA;
+    --blue:#2F6BE5; --blue-deep:#1E4FB8; --blue-tint:#EAF0FD;
+    --ok:#2E9E6B;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--sans);color:var(--ink);background:var(--canvas);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  header{position:sticky;top:0;z-index:50;background:rgba(246,248,250,.82);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .logo{font-size:19px;font-weight:700;letter-spacing:-.02em}
+  .logo b{color:var(--blue)}
+  .nav-links{display:flex;align-items:center;gap:26px;font-size:14px;color:var(--muted)}
+  .nav-links a:hover{color:var(--ink)}
+  .tag{font-size:12px;color:var(--faint);border:1px solid var(--line);border-radius:99px;padding:3px 10px}
+  .btn{display:inline-block;background:var(--blue);color:#fff;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:600}
+  .btn:hover{background:var(--blue-deep)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--faint)}
+
+  .hero{padding:72px 0 28px;text-align:center}
+  .hero .kicker{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+  .hero h1{font-size:clamp(30px,5vw,52px);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin:14px auto 16px;max-width:820px}
+  .hero p{font-size:18px;color:var(--muted);max-width:640px;margin:0 auto 28px}
+  .hero .cta{display:flex;gap:12px;justify-content:center;margin-bottom:14px}
+  .hero .sub{font-size:13px;color:var(--faint)}
+  .hero .sub code{font-family:var(--mono);background:var(--line-soft);border-radius:6px;padding:2px 7px}
+
+  .shot{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:0 24px 60px -28px rgba(20,30,50,.25)}
+  .shot img{display:block;width:100%;height:auto}
+  .shot .bar{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line-soft);background:var(--surface)}
+  .shot .bar i{width:10px;height:10px;border-radius:50%;background:var(--line)}
+  .hero .shot{margin:34px auto 0;max-width:1000px}
+
+  .pillars{padding:84px 0 10px}
+  .sect-head{max-width:640px;margin:0 auto 44px;text-align:center}
+  .sect-head h2{font-size:clamp(24px,3.4vw,34px);font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
+  .sect-head p{color:var(--muted);font-size:16px}
+  .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px}
+  .card h3{font-size:16px;margin-bottom:2px}
+  .card .sub{font-size:13px;color:var(--blue);margin-bottom:10px}
+  .card p{font-size:14px;color:var(--muted);margin-bottom:10px}
+  .card ul{list-style:none;font-size:13.5px;color:var(--muted)}
+  .card li{padding:5px 0 5px 22px;position:relative;border-top:1px solid var(--line-soft)}
+  .card li::before{content:"✓";position:absolute;left:2px;color:var(--ok);font-weight:700}
+  .card code{font-family:var(--mono);font-size:.9em;background:var(--line-soft);border-radius:5px;padding:1px 5px}
+
+  .feature{padding:56px 0}
+  .feature .wrap{display:grid;grid-template-columns:5fr 7fr;gap:48px;align-items:center}
+  .feature.flip .wrap{grid-template-columns:7fr 5fr}
+  .feature.flip .copy{order:2}
+  .feature .kicker{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+  .feature h3{font-size:clamp(20px,2.6vw,28px);font-weight:800;letter-spacing:-.02em;margin:8px 0 12px}
+  .feature p{color:var(--muted);font-size:15.5px;margin-bottom:12px}
+  .feature code{font-family:var(--mono);font-size:.9em;background:var(--line-soft);border-radius:6px;padding:1px 6px}
+  @media (max-width:820px){.feature .wrap,.feature.flip .wrap{grid-template-columns:1fr}.feature.flip .copy{order:0}}
+
+  .oss{padding:84px 0;text-align:center}
+  .oss .box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:52px 32px;max-width:760px;margin:0 auto}
+  .oss h2{font-size:clamp(22px,3vw,30px);font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
+  .oss p{color:var(--muted);margin-bottom:22px;max-width:520px;margin-left:auto;margin-right:auto}
+  .clone{font-family:var(--mono);font-size:13.5px;background:var(--ink);color:#E7ECF2;border-radius:10px;padding:14px 18px;display:inline-block;margin-bottom:22px;text-align:left}
+  .clone b{color:#7FB0FF;font-weight:400}
+
+  footer{border-top:1px solid var(--line);padding:28px 0;font-size:13px;color:var(--faint)}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="/">Asset<b>Most</b></a>
+    <nav class="nav-links">
+      <a href="#pillars">Product</a>
+      <a href="#work">Work</a>
+      <a href="#docs">Docs&nbsp;as&nbsp;scripts</a>
+      <a href="https://github.com/eberrios73/assetmost">GitHub</a>
+      <span class="tag">AGPL · open source</span>
+      <a class="btn" href="#get-started">Get started</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="kicker">IT asset &amp; identity management</div>
+    <h1>The four things IT juggles, finally untangled.</h1>
+    <p>People, assets, credentials, and work — and the connections between them. The stuff that usually lives in six spreadsheets and one person's head.</p>
+    <div class="cta">
+      <a class="btn" href="#get-started">Get the open-source version</a>
+      <a class="btn ghost" href="https://github.com/eberrios73/assetmost">View source</a>
+    </div>
+    <div class="sub">Single company, self-hosted. <code>git clone</code> and go.</div>
+    <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="assets/workspace.png" alt="The AssetMost workspace" loading="eager"></div>
+  </div>
+</section>
+
+<section class="pillars" id="pillars">
+  <div class="wrap">
+    <div class="sect-head">
+      <h2>Four pillars, one system</h2>
+      <p>Track four things — and every connection between them. Each answers a question you shouldn't have to guess at: who has it, where it is, what it's for, and what's left to do.</p>
+    </div>
+    <div class="grid4">
+      <div class="card">
+        <h3>People</h3><div class="sub">Staff, and everything tied to them</div>
+        <p>Every person, their devices, their accounts, and what they're licensed for — in one profile.</p>
+        <ul>
+          <li>Devices, logins, and license seats on one screen</li>
+          <li>Shared and pooled accounts handled as they really are</li>
+          <li>Onboard and offboard without the checklist living in your head</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Assets</h3><div class="sub">Hardware from intake to e-waste</div>
+        <p>Placed in a room, assigned to a person, with an asset tag that means something.</p>
+        <ul>
+          <li>Auto-issued asset tags — <code>PG-WS-1011</code>, not a serial number</li>
+          <li>Rooms and locations, so "what's in 104B?" has an answer</li>
+          <li>Full lifecycle: intake → assigned → retired → e-waste</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Credentials</h3><div class="sub">Vendor → product → seat → holder</div>
+        <p>The way licensing actually flows — including the shared mailboxes and pooled logins nobody else models.</p>
+        <ul>
+          <li>See who actually holds each seat</li>
+          <li>Answer "who has an Adobe seat?" in seconds</li>
+          <li>Shared accounts that get handed between people, tracked</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Work</h3><div class="sub">Work that remembers itself</div>
+        <p>A weekly rolling board where unfinished work carries forward — and a solved ticket becomes a runbook, not a problem you solve again next year.</p>
+        <ul>
+          <li>Unfinished tasks roll into the current week automatically</li>
+          <li>Turn any task into an SOP or playbook — it always was one</li>
+          <li>Run big projects without administering a big tool</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="feature" id="work">
+  <div class="wrap">
+    <div class="copy">
+      <div class="kicker">Work</div>
+      <h3>Sprints without the ceremony.</h3>
+      <p>One weekly sheet. Unfinished tasks roll into the current week on their own — no backlog grooming, no dragging stragglers. States are just <code>todo · doing · blocked · done</code>, labels are just words, and the sheet makes neglect visible: age turns amber, then red.</p>
+      <p>Like Jira's sprints and epics — minus the administration.</p>
+    </div>
+    <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="assets/tasks-week.png" alt="The weekly task sheet" loading="lazy"></div>
+  </div>
+</section>
+
+<section class="feature flip">
+  <div class="wrap">
+    <div class="copy">
+      <div class="kicker">Projects</div>
+      <h3>Project → Milestone → Task. Words everyone already knows.</h3>
+      <p>Projects carry structure a ticket can't: impact, needs, challenges, workarounds. Milestones give them dates and roll-up progress. Any task can become a doc — because a solved problem was always a runbook waiting to be written.</p>
+    </div>
+    <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="assets/tasks-projects.png" alt="Projects with milestones" loading="lazy"></div>
+  </div>
+</section>
+
+<section class="feature">
+  <div class="wrap">
+    <div class="copy">
+      <div class="kicker">Timeline</div>
+      <h3>Drag to replan. Chain what depends.</h3>
+      <p>A Gantt that stays honest: planned windows drag, dependencies chain, and the current week is always the anchor. Roadmap-tier planning without a premium tier.</p>
+    </div>
+    <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="assets/tasks-timeline.png" alt="Timeline with dependencies" loading="lazy"></div>
+  </div>
+</section>
+
+<section class="feature flip" id="docs">
+  <div class="wrap">
+    <div class="copy">
+      <div class="kicker">Docs that execute</div>
+      <h3>Your documentation doubles as a scripting system.</h3>
+      <p>Write the SOP; the SOP writes the script. <code>/commands</code> in a runbook carry real per-platform script bodies — the machine steps compile into a bootstrap script that runs with <code>sudo</code> and reports each step back to the checklist.</p>
+      <p>Paste Markdown, get a living document. Type <code>/</code>, get every command your company has.</p>
+    </div>
+    <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="assets/docs-sop.png" alt="An SOP with executable slash commands" loading="lazy"></div>
+  </div>
+</section>
+
+<section class="feature">
+  <div class="wrap">
+    <div class="copy">
+      <div class="kicker">Assets</div>
+      <h3>The sticker on the box means something over the phone.</h3>
+      <p>Every device tagged, placed, and assigned. IPs sort like IPs. Search finds the machine, the person, or the room — whichever end of the cable you're holding.</p>
+    </div>
+    <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="assets/devices.png" alt="Device inventory" loading="lazy"></div>
+  </div>
+</section>
+
+<section class="feature flip">
+  <div class="wrap">
+    <div class="copy">
+      <div class="kicker">Multi-tenant</div>
+      <h3>Built for one company. Ready for all of yours.</h3>
+      <p>An Organization level above your tenants: platform admins see the companies assigned to them and nothing else. MSP-shaped from day one — one install, every client, clean walls between them.</p>
+    </div>
+    <div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="assets/settings-organization.png" alt="Organization settings — tenants and roles" loading="lazy"></div>
+  </div>
+</section>
+
+<section class="oss" id="get-started">
+  <div class="wrap">
+    <div class="box">
+      <h2>Open source, self-hosted, yours.</h2>
+      <p>AGPL. A single company on your own box is free forever. Point it at PostgreSQL, migrate, and sign in.</p>
+      <div class="clone">
+        <b>$</b> git clone https://github.com/eberrios73/assetmost.git<br>
+        <b>$</b> composer install &amp;&amp; npm install &amp;&amp; npm run build<br>
+        <b>$</b> php artisan migrate --seed &amp;&amp; php artisan serve
+      </div>
+      <div>
+        <a class="btn" href="https://github.com/eberrios73/assetmost">Star it on GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 AssetMost · AGPL-3.0</span>
+    <span><a href="https://github.com/eberrios73/assetmost">GitHub</a> · <a href="#pillars">Product</a> · <a href="#docs">Docs as scripts</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,6 +1,7 @@
 import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
 import { Node, mergeAttributes, Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
+import { DOMParser as PmDomParser } from '@tiptap/pm/model';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import ListItem from '@tiptap/extension-list-item';
 import StarterKit from '@tiptap/starter-kit';
@@ -438,6 +439,13 @@ const toHtml = (body) => {
     return /^\s*</.test(body) ? body : marked.parse(body, { breaks: true });
 };
 
+// Pasted plain text that reads like Markdown becomes rich content — a formatted
+// .md file dropped into the canvas lands as headings and lists, not literal
+// #-signs. Only plain-text pastes qualify: a clipboard that carries HTML was
+// already rich and TipTap handles it natively.
+const looksLikeMarkdown = (text) =>
+    /^#{1,6}\s.+|^\s*[-*+]\s.+|^\s*\d+[.)]\s.+|^>\s.+|```|\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\n]+\)|^\s*\|.+\|\s*$/m.test(text || '');
+
 // Insert a command token as a SUBSTEP: a bullet under the current step (top-level
 // bullets parse as subtasks). Already inside a bullet? The text lands right there.
 // Inside a step card — including its field table — the bullet appends to the CARD's
@@ -661,7 +669,18 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
             TableCell,
         ],
         content: toHtml(initialBody),
-        editorProps: { attributes: { class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[65vh] pb-24' } },
+        editorProps: {
+            attributes: { class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[65vh] pb-24' },
+            handlePaste: (view, event) => {
+                if (event.clipboardData?.getData('text/html')) return false;   // already rich
+                const text = event.clipboardData?.getData('text/plain') || '';
+                if (!looksLikeMarkdown(text)) return false;
+                const dom = new window.DOMParser().parseFromString(marked.parse(text, { breaks: true }), 'text/html');
+                const slice = PmDomParser.fromSchema(view.state.schema).parseSlice(dom.body);
+                view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+                return true;
+            },
+        },
         onUpdate: ({ editor }) => {
             detectSlash(editor);
             clearTimeout(saveTimer.current);
