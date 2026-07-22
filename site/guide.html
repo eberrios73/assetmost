@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User guide — AssetMost</title>
+<meta name="description" content="How to use AssetMost: people, logins, licenses, the account registry, devices, onboarding SOPs, tasks, and docs.">
+<style>
+  :root{
+    --ink:#14171A;
+    --muted:#5B6570;
+    --faint:#8A929B;
+    --line:#E4E8ED;
+    --line-soft:#EEF1F4;
+    --surface:#FFFFFF;
+    --canvas:#F6F8FA;
+    --blue:#2F6BE5;
+    --blue-deep:#1E4FB8;
+    --blue-tint:#EAF0FD;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--sans);color:var(--ink);background:var(--canvas);line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+
+  header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(246,248,250,.82);
+    backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;letter-spacing:-.02em}
+  .brand .glyph{width:22px;height:22px;color:var(--blue)}
+  .brand b{color:var(--blue);font-weight:800}
+  .navlinks{display:flex;align-items:center;gap:28px}
+  .navlinks a{font-size:14.5px;color:var(--muted);font-weight:500}
+  .navlinks a:hover{color:var(--ink)}
+  .btn{display:inline-flex;align-items:center;gap:7px;font-size:14.5px;font-weight:600;border-radius:8px;padding:9px 16px;border:1px solid transparent}
+  .btn-primary{background:var(--blue);color:#fff}
+  .btn-primary:hover{background:var(--blue-deep)}
+
+  .layout{display:grid;grid-template-columns:230px 1fr;gap:56px;padding:52px 0 96px}
+
+  /* ---------- toc ---------- */
+  .toc{position:sticky;top:92px;align-self:start;font-size:14px}
+  .toc .toc-title{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:12px}
+  .toc ol{list-style:none;display:flex;flex-direction:column;gap:2px}
+  .toc a{display:block;color:var(--muted);padding:5px 10px;border-radius:7px;border-left:2px solid transparent}
+  .toc a:hover{color:var(--ink);background:var(--line-soft)}
+
+  /* ---------- article ---------- */
+  article{min-width:0;max-width:760px}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;color:var(--blue-deep);text-transform:uppercase;margin-bottom:16px;font-weight:600}
+  h1{font-size:40px;line-height:1.08;letter-spacing:-.03em;font-weight:800;margin-bottom:16px}
+  .lede{font-size:17.5px;color:var(--muted);margin-bottom:40px;max-width:56ch}
+  section{padding-top:44px;margin-top:20px;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:0;padding-top:0;margin-top:0}
+  h2{font-size:26px;letter-spacing:-.02em;font-weight:800;margin-bottom:14px}
+  h3{font-size:18px;letter-spacing:-.01em;font-weight:700;margin:26px 0 8px}
+  p{color:var(--muted);font-size:15.5px;margin-bottom:14px;max-width:64ch}
+  p b, li b{color:var(--ink);font-weight:600}
+  code{font-family:var(--mono);font-size:13px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  ol.steps{margin:0 0 16px 0;padding-left:0;list-style:none;counter-reset:step;display:flex;flex-direction:column;gap:9px}
+  ol.steps li{counter-increment:step;display:flex;gap:12px;font-size:15px;color:var(--ink);align-items:flex-start;max-width:64ch}
+  ol.steps li::before{
+    content:counter(step);flex:none;width:22px;height:22px;border-radius:7px;
+    background:var(--blue-tint);color:var(--blue-deep);border:1px solid #D6E3FB;
+    font-family:var(--mono);font-size:12px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;margin-top:1px;
+  }
+  ul.plain{list-style:none;display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+  ul.plain li{font-size:14.5px;color:var(--ink);display:flex;gap:9px;align-items:flex-start;max-width:64ch}
+  ul.plain li::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--blue);margin-top:8px;flex:none}
+  .tip{
+    border:1px solid #D6E3FB;background:var(--blue-tint);border-radius:10px;
+    padding:14px 16px;font-size:14px;color:var(--blue-deep);margin:18px 0;max-width:64ch;
+  }
+  .tip b{color:var(--blue-deep)}
+
+  .shot{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:0 1px 0 rgba(20,23,26,.02),0 20px 42px -30px rgba(20,23,26,.25);
+    margin:22px 0 6px;
+  }
+  .shot .bar{display:flex;align-items:center;gap:6px;height:30px;padding:0 13px;background:var(--canvas);border-bottom:1px solid var(--line-soft)}
+  .shot .dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+  .shot img{display:block;width:100%;height:auto}
+  .shot-caption{font-size:13px;color:var(--faint);margin:10px 0 22px;font-family:var(--mono)}
+
+  footer{border-top:1px solid var(--line);background:var(--surface)}
+  footer .wrap{padding:38px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  footer .brand{font-size:16px}
+  footer .fnote{font-size:13px;color:var(--faint)}
+  footer .fnote a{color:var(--muted)}
+  footer .fnote a:hover{color:var(--ink)}
+
+  @media(max-width:920px){
+    .layout{grid-template-columns:1fr;gap:32px}
+    .toc{position:static;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:16px}
+    h1{font-size:32px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="index.html">
+      <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <span>Asset<b>Most</b></span>
+    </a>
+    <nav class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="https://github.com/eberrios73/assetmost" class="btn btn-primary">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+  <nav class="toc" aria-label="Guide contents">
+    <div class="toc-title">On this page</div>
+    <ol>
+      <li><a href="#start">Getting started</a></li>
+      <li><a href="#workspace">The workspace</a></li>
+      <li><a href="#people">People</a></li>
+      <li><a href="#logins">Logins</a></li>
+      <li><a href="#licenses">Licenses</a></li>
+      <li><a href="#registry">The account registry</a></li>
+      <li><a href="#vendors">Vendors</a></li>
+      <li><a href="#onboarding">Onboarding with SOPs</a></li>
+      <li><a href="#assets">Assets &amp; locations</a></li>
+      <li><a href="#tasks">Tasks</a></li>
+      <li><a href="#docs">Docs</a></li>
+      <li><a href="#companies">Companies &amp; settings</a></li>
+    </ol>
+  </nav>
+
+  <article>
+    <div class="eyebrow">User guide</div>
+    <h1>How to use AssetMost</h1>
+    <p class="lede">Everything below uses the built-in demo company, Plutonic Games, so the screens match what you'll see after seeding a fresh install. Fifteen minutes here covers the whole app.</p>
+
+    <!-- ============================================================ -->
+    <section id="start">
+      <h2>Getting started</h2>
+      <p>AssetMost is self-hosted. Once your instance is running, browse to it and sign in with your email and password. Signing in lands you on <b>People</b> — the screen you'll live in.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/login.png" alt="The AssetMost sign-in screen" loading="lazy">
+      </div>
+      <div class="shot-caption">Sign in — email, password, optional remember-me.</div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="workspace">
+      <h2>The workspace</h2>
+      <p>Four destinations in the top bar: <b>People</b>, <b>Assets</b>, <b>Tasks</b> (with a live count of open work), and <b>Docs</b>. To their right:</p>
+      <ul class="plain">
+        <li><b>Company switcher</b> — scope every list to one company, or "All companies"</li>
+        <li><b>Theme toggle</b> — light or dark, one click</li>
+        <li><b>Gear</b> — Settings</li>
+        <li><b>Your avatar</b> — profile and log out</li>
+      </ul>
+      <p>Most screens share one layout: a <b>list on the left</b> (search box, filters, sortable column headers), a <b>detail pane on the right</b>, and one <b>+ Add</b> button. Click a column header to sort by it. The footer shows how many records you're seeing and the selected record's ID and dates.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="people">
+      <h2>People</h2>
+      <p>The People screen has four tabs: <b>Staff</b>, <b>Accounts</b>, <b>Vendors</b>, and <b>Onboarding</b>. Staff is the directory: every person, their title and department, and — once you select someone — their contact details with three tabs of connections: <b>Logins</b>, <b>Licenses</b>, and <b>Devices</b>.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/people-profile.png" alt="A staff profile: contact fields plus Logins, Licenses, and Devices tabs" loading="lazy">
+      </div>
+      <div class="shot-caption">A person is the hub — everything they hold hangs off this screen.</div>
+
+      <h3>Find someone</h3>
+      <ol class="steps">
+        <li>Type in the search box, or filter by department with the dropdown.</li>
+        <li>The <b>Active</b> toggle hides departed staff; untick it to see everyone.</li>
+        <li>Click a column header (First name, Last name, Department, Ext) to sort.</li>
+      </ol>
+
+      <h3>Add a person</h3>
+      <ol class="steps">
+        <li>Click <b>+ Add Staff</b>.</li>
+        <li>Fill in name, email, title, department, and contact details. Pick the <b>company</b> they belong to.</li>
+        <li><b>Role</b> and <b>can sign in to AssetMost</b> control whether this person can also log into the app itself — most staff can't, and that's fine: they're records, not users.</li>
+        <li>Save. Use <b>Edit</b> on any profile to change it later.</li>
+      </ol>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/add-staff.png" alt="The Add Staff drawer with name, contact, company, and role fields" loading="lazy">
+      </div>
+      <div class="shot-caption">Add Staff — one drawer, everything about the person.</div>
+      <div class="tip"><b>Tip:</b> hiring someone? Don't add them by hand — run an onboarding SOP instead and the person, their accounts, and the setup tasks are created together. See <a href="#onboarding" style="text-decoration:underline">Onboarding</a>.</div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="logins">
+      <h2>Logins</h2>
+      <p>A login is an identity credential that belongs to a specific person — their M365 sign-in, their domain account, their seat in a tool. It lives on the person, which is what makes offboarding a checklist instead of an archaeology dig.</p>
+      <ol class="steps">
+        <li>Open a person and stay on the <b>Logins</b> tab.</li>
+        <li>Click <b>+ Add login</b>; each row records the service, the login ID, its type (e.g. Domain), and an optional URL.</li>
+        <li>Use the row icons to <b>copy</b> the credential, <b>reveal</b> it, <b>edit</b>, comment, or delete it.</li>
+      </ol>
+      <div class="tip"><b>Reading a row:</b> "Workstation — PG-WS-1015 · PLUTONIC\bcarter · Domain" means Ben's domain account on that workstation — the login connects the person to the machine.</div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="licenses">
+      <h2>Licenses</h2>
+      <p>The <b>Licenses</b> tab on a person shows the seats they hold: the product, the vendor, what the seat costs, and when it renews. Filter by product, search, or click <b>+ Add license</b> to grant a seat.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/licenses.png" alt="License seats on a person: product, vendor, amount, renewal date" loading="lazy">
+      </div>
+      <div class="shot-caption">Seats with real renewal dates and amounts — budget answers without a spreadsheet.</div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="registry">
+      <h2>The account registry</h2>
+      <p>People → <b>Accounts</b> is the registry of credentials that <em>don't</em> belong to one person: pooled logins like <code>artist001</code>, shared mailboxes, service accounts, break-glass admin credentials. These float — they get assigned to whoever needs them now, and handed to someone else later.</p>
+      <p>Because it maps privileged credentials across your realm, the registry stays locked until you <b>re-enter your password</b>, even though you're already signed in.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/registry-locked.png" alt="The locked account registry asking for your password again" loading="lazy">
+      </div>
+      <div class="shot-caption">Locked by default — a second password prompt guards the registry.</div>
+      <ol class="steps">
+        <li>Open <b>People → Accounts</b> and unlock with your password.</li>
+        <li>Click <b>+ Add Account</b> to register a shared or service credential.</li>
+        <li>Assign it to the person currently holding it; reassign when it changes hands.</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="vendors">
+      <h2>Vendors</h2>
+      <p>People → <b>Vendors</b> lists the companies you buy from — Adobe, Microsoft, JetBrains, Perforce. A vendor collects its <b>products</b>, the <b>logins</b> on your side of that relationship, and the <b>licenses</b> bought from them, so "everything we have with JetBrains" is one click.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/vendors.png" alt="A vendor record with Overview, Products, Logins, and Licenses tabs" loading="lazy">
+      </div>
+      <div class="shot-caption">Vendor → products → logins → licenses, in one place.</div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="onboarding">
+      <h2>Onboarding with SOPs</h2>
+      <p>This is the part that makes the rest of the app fill itself in. An SOP in AssetMost is an executable document: it has a <b>Run</b> tab (a form) and an <b>SOP</b> tab (the script behind it). Running "Employee onboarding" does the data entry for you.</p>
+      <ol class="steps">
+        <li>Go to <b>People → Onboarding</b> (or open the SOP in Docs) and pick a workflow — employee onboarding, freelancer onboarding, offboarding.</li>
+        <li>On the <b>Run</b> tab, enter the new hire: name, email, username for Domain/AD, title, department, start date.</li>
+        <li>Pick <b>vendor accounts to create</b> — each one becomes a registry credential <em>and</em> a task for whoever sets it up.</li>
+        <li>Assign <b>floating accounts</b> — pooled seats and shared mailboxes they'll use.</li>
+        <li>Click <b>Run onboarding</b>. The person, their credentials, and the work all appear at once.</li>
+      </ol>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/sop-run.png" alt="The Run tab of the employee onboarding SOP: a form that creates the person, accounts, and tasks" loading="lazy">
+      </div>
+      <div class="shot-caption">An SOP you run, not read.</div>
+
+      <h3>Editing the SOP itself</h3>
+      <p>The script behind the form is steps with <b>Why</b>, <b>How</b>, and <b>Done when</b> — so the reasoning survives the person who wrote it. Type <code>/</code> for commands while editing (<code>/help</code> lists them); steps, tasks, and the script compile from what you write. Reorder, indent, or nest steps with the controls on each row, and use <b>New version</b> when the process changes.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/sop-editor.png" alt="The SOP editor: numbered steps with Why, How, and Done-when rows" loading="lazy">
+      </div>
+      <div class="shot-caption">Every step says why it exists and how you know it's done.</div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="assets">
+      <h2>Assets &amp; locations</h2>
+      <p>The Assets screen tracks hardware: <b>Devices</b>, <b>Locations</b>, and its own <b>Onboarding</b> tab for machine intake. Every device carries an asset tag (like <code>PG-LT-1007</code> — prefix from the company, so the sticker means something), its model, and an <b>Overview</b> of location, room, IPs, serial, service tag, OS, CPU, and RAM. The <b>Assigned Users</b> tab shows who has it.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/devices.png" alt="A device record with asset tag, model, specs, and assigned users" loading="lazy">
+      </div>
+      <div class="shot-caption">The asset tag is the name — readable over the phone, findable in search.</div>
+      <ol class="steps">
+        <li>Filter the list by device type or search by tag; sort by the column headers.</li>
+        <li>Click <b>+ Add Device</b> to intake hardware; <b>Edit</b> to update specs or move it.</li>
+        <li>Under <b>Locations</b>, each site lists its rooms — assign devices to a room so "what's in 104B?" has an answer.</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="tasks">
+      <h2>Tasks</h2>
+      <p>Tasks is a <b>weekly rolling sheet</b>, not a backlog. The week you're looking at is the week that matters; anything unfinished from an earlier week rolls into the current one automatically, marked as carried over.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/tasks-week.png" alt="The weekly task sheet with priorities, progress bars, and a completed section" loading="lazy">
+      </div>
+      <div class="shot-caption">This week, at a glance — completed weeks archive below.</div>
+      <ol class="steps">
+        <li>Type in the box at the top and press <b>Enter</b> — that's the whole add flow.</li>
+        <li>Set priority (High / Med / Low), assign a person, drag the <b>%</b> slider as work progresses.</li>
+        <li>Tick the checkbox when done — it moves into that week's <b>Completed</b> section with the date.</li>
+        <li>Use <b>‹ Prev / This week / Next ›</b> to move between weeks, and the <b>Projects</b> and <b>Timeline</b> tabs when work outgrows a single week.</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="docs">
+      <h2>Docs</h2>
+      <p>Docs is the knowledge base: pages organized into spaces, with tabs for <b>Incidents</b>, <b>Templates</b>, and <b>Commands</b> alongside the docs themselves. Pages tagged <b>SOP</b> are the executable kind you met in Onboarding — the library ships with runbooks like Mac Laptop, Windows Server, Employee offboarding, and Endpoint protection.</p>
+      <ol class="steps">
+        <li>Search all docs from the box, or browse the page tree.</li>
+        <li>Click <b>+ New</b> to write a page; tag it as an SOP if it should be runnable.</li>
+        <li>Keep one doc per procedure — a solved problem becomes a runbook, and next year it's a search away.</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="companies">
+      <h2>Companies &amp; settings</h2>
+      <p>AssetMost is multi-company: assets, people, and licenses all hang off a company, and the switcher in the header scopes every screen to one of them. Settings (the gear) is where companies are defined — name, <b>tag prefix</b> (the <code>PG</code> in <code>PG-LT-1007</code>), domain, and location — alongside <b>Identity &amp; integrations</b>, <b>Email &amp; signatures</b>, <b>Backups</b>, <b>Roles &amp; access</b>, and <b>Organization</b>.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/settings.png" alt="Settings → Companies: each company with its tag prefix, domain, and status" loading="lazy">
+      </div>
+      <div class="shot-caption">Every record belongs to a company; the tag prefix names its hardware.</div>
+    </section>
+
+  </article>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="brand">Asset<b style="color:var(--blue)">Most</b></div>
+    <div class="fnote">Untangle your IT. · <a href="https://github.com/eberrios73/assetmost">GitHub</a> · <a href="index.html">Home</a> · AGPL open source</div>
+  </div>
+</footer>
+
+</body>
+</html>

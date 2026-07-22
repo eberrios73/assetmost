@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AssetMost — untangle your IT</title>
+<meta name="description" content="People, assets, credentials, and work — and the connections between them. Open-source IT asset & identity management.">
 <style>
   :root{
     --ink:#14171A;
@@ -120,28 +121,84 @@
   .strip p{color:var(--muted);font-size:16px;max-width:52ch}
   .strip .before{font-family:var(--mono);font-size:13px;color:var(--faint)}
 
-  /* ---------- pillars ---------- */
-  .section{padding:72px 0}
-  .sec-head{max-width:56ch;margin-bottom:44px}
+  /* ---------- story intro ---------- */
+  .story-intro{padding:72px 0 8px}
+  .sec-head{max-width:56ch}
   .sec-head .eyebrow{margin-bottom:14px}
   .sec-head h2{font-size:34px;letter-spacing:-.025em;font-weight:800;line-height:1.1;margin-bottom:14px}
   .sec-head p{color:var(--muted);font-size:17px}
-  .pillars{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
-  .pillar{
-    background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px;
-    transition:.18s;
+  .scroll-hint{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-top:18px}
+
+  /* ---------- the story (pinned, Apple-style) ---------- */
+  .story{position:relative;height:calc(7 * 100vh)}
+  .story-pin{
+    position:sticky;top:0;height:100vh;overflow:hidden;
+    display:flex;align-items:center;
+    background:var(--canvas);
+    transition:background .6s ease;
   }
-  .pillar:hover{border-color:#CBD3DB;transform:translateY(-2px)}
-  .pillar .tag{
+  .story-pin.night{background:var(--ink)}
+  .story-stage{position:relative;width:100%;height:100%}
+  .scene{
+    position:absolute;inset:0;
+    display:grid;grid-template-columns:.72fr 1.28fr;gap:52px;align-items:center;
+    max-width:1080px;margin:0 auto;padding:0 24px;
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .5s ease,visibility 0s linear .5s;
+  }
+  .scene.active{
+    opacity:1;visibility:visible;pointer-events:auto;
+    transition:opacity .5s ease;
+  }
+  .s-copy .tag{
     font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
     color:var(--blue-deep);font-weight:600;margin-bottom:12px;display:block;
+    transition:color .6s ease;
   }
-  .pillar h3{font-size:20px;letter-spacing:-.02em;margin-bottom:10px}
-  .pillar p{color:var(--muted);font-size:15px;margin-bottom:14px}
-  .pillar ul{list-style:none;display:flex;flex-direction:column;gap:7px}
-  .pillar li{font-size:13.5px;color:var(--ink);display:flex;gap:9px;align-items:flex-start}
-  .pillar li::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--blue);margin-top:7px;flex:none}
-  .pillar li code{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .s-copy h3{font-size:30px;letter-spacing:-.025em;margin-bottom:12px;line-height:1.12;transition:color .6s ease}
+  .s-copy p{color:var(--muted);font-size:15.5px;margin-bottom:16px;transition:color .6s ease}
+  .s-copy ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .s-copy li{font-size:14px;color:var(--ink);display:flex;gap:9px;align-items:flex-start;transition:color .6s ease}
+  .s-copy li::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--blue);margin-top:7px;flex:none}
+  .s-copy li code{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .scene .s-copy{transform:translateY(26px);transition:transform .55s cubic-bezier(.2,.6,.2,1),opacity .5s ease}
+  .scene.active .s-copy{transform:translateY(0)}
+  .s-media .shot{transform:scale(1.025);transition:transform .65s cubic-bezier(.2,.6,.2,1)}
+  .scene.active .s-media .shot{transform:scale(1)}
+
+  .night .s-copy h3{color:#fff}
+  .night .s-copy p{color:#AEB6C0}
+  .night .s-copy li{color:#D5DBE2}
+  .night .s-copy .tag{color:#8FB2F5}
+
+  /* framed screenshot */
+  .shot{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 1px 0 rgba(20,23,26,.02),0 24px 48px -32px rgba(20,23,26,.28);
+  }
+  .shot .bar{
+    display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;
+    background:var(--canvas);border-bottom:1px solid var(--line-soft);
+  }
+  .shot .dot{width:10px;height:10px;border-radius:50%;background:var(--line)}
+  .shot img{display:block;width:100%;height:auto}
+  .shot.dark-frame{border-color:#2E343B;background:#1B1F24;box-shadow:0 24px 48px -30px rgba(0,0,0,.6)}
+  .shot.dark-frame .bar{background:#22262B;border-bottom-color:#2E343B}
+  .shot.dark-frame .dot{background:#3A4149}
+
+  /* progress dots */
+  .story-progress{
+    position:absolute;right:26px;top:50%;transform:translateY(-50%);
+    display:flex;flex-direction:column;gap:10px;z-index:5;
+  }
+  .story-progress button{
+    width:8px;height:8px;border-radius:50%;border:0;cursor:pointer;
+    background:var(--line);padding:0;transition:.25s;
+  }
+  .story-progress button.on{background:var(--blue);transform:scale(1.35)}
+  .night .story-progress button{background:#3A4149}
+  .night .story-progress button.on{background:#8FB2F5}
 
   /* ---------- thesis ---------- */
   .thesis{background:var(--ink);color:#fff}
@@ -154,34 +211,11 @@
   .q{font-family:var(--mono);font-size:13px;color:#D5DBE2;background:#22262B;border:1px solid #2E343B;border-radius:8px;padding:9px 14px}
   .q b{color:#fff;font-weight:600}
 
-  /* ---------- pricing ---------- */
-  .pricing .sec-head{text-align:center;margin:0 auto 44px}
-  .wedge{
-    display:inline-flex;gap:8px;align-items:center;font-family:var(--mono);font-size:12.5px;
-    color:var(--blue-deep);background:var(--blue-tint);border:1px solid #D6E3FB;
-    border-radius:999px;padding:6px 14px;font-weight:600;margin-bottom:20px;
-  }
-  .plans{display:grid;grid-template-columns:1fr 1.25fr;gap:22px;align-items:stretch}
-  .plan{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:32px;display:flex;flex-direction:column}
-  .plan.enterprise{border-color:var(--blue);box-shadow:0 20px 44px -30px rgba(47,107,229,.55)}
-  .plan .kicker{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:8px}
-  .plan.enterprise .kicker{color:var(--blue-deep)}
-  .plan h3{font-size:24px;letter-spacing:-.02em;margin-bottom:6px}
-  .plan .sub{color:var(--muted);font-size:14.5px;margin-bottom:22px}
-  .price{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:4px}
-  .price small{font-size:15px;font-weight:600;color:var(--faint);letter-spacing:0}
-  .price-note{font-size:13px;color:var(--faint);margin-bottom:22px;font-family:var(--mono)}
-  .feat{list-style:none;display:flex;flex-direction:column;gap:11px;margin-bottom:26px;flex:1}
-  .feat li{font-size:14.5px;display:flex;gap:10px;align-items:flex-start;color:var(--ink)}
-  .feat li svg{width:16px;height:16px;color:var(--ok);flex:none;margin-top:2px}
-  .feat li.dim{color:var(--muted)}
-  .tiers{border-top:1px solid var(--line-soft);margin-top:6px;padding-top:18px;display:flex;flex-direction:column;gap:0}
-  .tier-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;font-size:14.5px;border-bottom:1px solid var(--line-soft)}
-  .tier-row:last-child{border-bottom:0}
-  .tier-row .co{color:var(--ink);font-weight:500}
-  .tier-row .amt{font-family:var(--mono);font-weight:600;color:var(--ink)}
-  .tier-row .per{font-family:var(--mono);font-size:12px;color:var(--faint);margin-left:8px}
-  .plan .btn{justify-content:center;width:100%}
+  /* ---------- closing CTA ---------- */
+  .closing{text-align:center;padding:84px 0}
+  .closing h2{font-size:32px;letter-spacing:-.025em;font-weight:800;margin-bottom:12px}
+  .closing p{color:var(--muted);font-size:16.5px;max-width:46ch;margin:0 auto 28px}
+  .closing .cta-row{justify-content:center}
 
   /* ---------- footer ---------- */
   footer{border-top:1px solid var(--line);background:var(--surface);margin-top:8px}
@@ -191,12 +225,29 @@
   footer .fnote a{color:var(--muted)}
   footer .fnote a:hover{color:var(--ink)}
 
+  /* ---------- static fallback: small screens & reduced motion ---------- */
+  @media(max-width:900px),(prefers-reduced-motion:reduce){
+    .story{height:auto}
+    .story-pin{position:static;height:auto;overflow:visible;display:block;background:var(--canvas)}
+    .story-stage{height:auto}
+    .scene{
+      position:static;opacity:1;visibility:visible;pointer-events:auto;
+      grid-template-columns:1fr;gap:22px;padding:34px 24px;
+    }
+    .scene .s-copy{transform:none}
+    .s-media .shot{transform:none}
+    .scene[data-night]{background:var(--ink);border-radius:0}
+    .scene[data-night] .s-copy h3{color:#fff}
+    .scene[data-night] .s-copy p{color:#AEB6C0}
+    .scene[data-night] .s-copy li{color:#D5DBE2}
+    .scene[data-night] .s-copy .tag{color:#8FB2F5}
+    .story-progress{display:none}
+  }
   @media(max-width:860px){
     .hero-grid{grid-template-columns:1fr;gap:36px}
     h1{font-size:40px}
-    .pillars{grid-template-columns:1fr}
-    .plans{grid-template-columns:1fr}
     .navlinks .hide-sm{display:none}
+    .oss-pill{display:none}
   }
 </style>
 </head>
@@ -209,10 +260,10 @@
       <span>Asset<b>Most</b></span>
     </div>
     <nav class="navlinks">
-      <a href="#pillars" class="hide-sm">Product</a>
-      <a href="#" class="hide-sm">Docs</a>
+      <a href="#story" class="hide-sm">Product</a>
+      <a href="guide.html" class="hide-sm">User guide</a>
       <span class="oss-pill">AGPL · open source</span>
-      <a href="#pillars" class="btn btn-primary">Get started</a>
+      <a href="https://github.com/eberrios73/assetmost" class="btn btn-primary">Get started</a>
     </nav>
   </div>
 </header>
@@ -226,6 +277,7 @@
       <p class="lede">People, assets, credentials, and work — and the connections between them. The stuff that usually lives in six spreadsheets and one person's head.</p>
       <div class="cta-row">
         <a href="https://github.com/eberrios73/assetmost" class="btn btn-primary">Get the open-source version</a>
+        <a href="guide.html" class="btn btn-ghost">Read the user guide</a>
       </div>
       <div class="cta-note">Single company, self-hosted. <code>git clone</code> and go.</div>
     </div>
@@ -233,39 +285,31 @@
     <!-- signature: the connection web -->
     <div class="diagram" aria-label="Diagram: people, assets, credentials and work connected at the center">
       <svg viewBox="0 0 420 320" role="img">
-        <!-- links (drawn first so nodes sit on top) -->
         <path class="link" d="M110,70 C180,120 200,130 210,150"/>
         <path class="link" d="M310,70 C240,120 220,130 210,150"/>
         <path class="link" d="M110,250 C180,200 200,190 210,170"/>
         <path class="link" d="M310,250 C240,200 220,190 210,170"/>
         <path class="link" d="M110,70 C90,160 90,160 110,250"/>
         <path class="link" d="M310,70 C330,160 330,160 310,250"/>
-
-        <!-- center chip -->
         <g class="nodeg">
           <rect class="center-chip" x="168" y="146" width="84" height="28" rx="8"/>
           <text class="center-txt" x="210" y="164" text-anchor="middle">connected</text>
         </g>
-
-        <!-- People -->
         <g class="nodeg">
           <rect class="node-box acc" x="26" y="42" width="150" height="56" rx="11"/>
           <text class="node-label" x="44" y="68">People</text>
           <text class="node-sub" x="44" y="85">devices · accounts · seats</text>
         </g>
-        <!-- Assets -->
         <g class="nodeg">
           <rect class="node-box" x="244" y="42" width="150" height="56" rx="11"/>
           <text class="node-label" x="262" y="68">Assets</text>
           <text class="node-sub" x="262" y="85">tag · room · person</text>
         </g>
-        <!-- Credentials -->
         <g class="nodeg">
           <rect class="node-box" x="26" y="222" width="150" height="56" rx="11"/>
           <text class="node-label" x="44" y="248">Credentials</text>
           <text class="node-sub" x="44" y="265">vendor · product · seat</text>
         </g>
-        <!-- Work -->
         <g class="nodeg">
           <rect class="node-box acc" x="244" y="222" width="150" height="56" rx="11"/>
           <text class="node-label" x="262" y="248">Work</text>
@@ -284,55 +328,146 @@
   </div>
 </section>
 
-<!-- PILLARS -->
-<section class="section" id="pillars">
+<!-- STORY INTRO -->
+<section class="story-intro">
   <div class="wrap">
     <div class="sec-head">
-      <div class="eyebrow">Four pillars, one system</div>
-      <h2>Track four things — and every connection between them.</h2>
-      <p>Each answers a question you shouldn't have to guess at: who has it, where it is, what it's for, and what's left to do.</p>
+      <div class="eyebrow">A tour in seven screens</div>
+      <h2>Meet Ben. IT set him up in one afternoon.</h2>
+      <p>Follow one person through the system — everything he holds, everything it costs, and the work it created. Keep scrolling; the story plays in place.</p>
+      <div class="scroll-hint">scroll ↓</div>
     </div>
-    <div class="pillars">
-      <div class="pillar">
-        <span class="tag">People</span>
-        <h3>Staff, and everything tied to them</h3>
-        <p>Every person, their devices, their accounts, and what they're licensed for — in one profile.</p>
-        <ul>
-          <li>Devices, logins, and license seats on one screen</li>
-          <li>Shared and pooled accounts handled as they really are</li>
-          <li>Onboard and offboard without the checklist living in your head</li>
-        </ul>
+  </div>
+</section>
+
+<!-- THE STORY (pinned) -->
+<section class="story" id="story">
+  <div class="story-pin">
+    <div class="story-stage">
+
+      <div class="scene active">
+        <div class="s-copy">
+          <span class="tag">1 · People</span>
+          <h3>One person, one screen.</h3>
+          <p>Ben's profile is the hub: his contact card, plus every login, license seat, and device he holds — connected, not scattered.</p>
+          <ul>
+            <li>Logins, licenses, devices as tabs on the person</li>
+            <li>Search, department filters, column-header sorting</li>
+          </ul>
+        </div>
+        <div class="s-media">
+          <div class="shot">
+            <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <img src="assets/people-profile.png" alt="A staff profile: contact details with logins, licenses, and devices in one place" loading="eager">
+          </div>
+        </div>
       </div>
-      <div class="pillar">
-        <span class="tag">Assets</span>
-        <h3>Hardware from intake to e-waste</h3>
-        <p>Placed in a room, assigned to a person, with an asset tag that means something.</p>
-        <ul>
-          <li>Auto-issued asset tags — <code>HC-WS511</code>, not a serial number</li>
-          <li>Rooms and locations, so "what's in 104B?" has an answer</li>
-          <li>Full lifecycle: intake → assigned → retired → e-waste</li>
-        </ul>
+
+      <div class="scene">
+        <div class="s-copy">
+          <span class="tag">2 · Licensing</span>
+          <h3>Every seat, priced and dated.</h3>
+          <p>The seats Ben holds — with the product, the vendor, the cost, and the renewal date in the same row. "Who has an Adobe seat?" stops being a research project.</p>
+          <ul>
+            <li>Renewal dates and amounts beside every seat</li>
+            <li>Filter by product, grant with one drawer</li>
+          </ul>
+        </div>
+        <div class="s-media">
+          <div class="shot">
+            <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <img src="assets/licenses.png" alt="License seats on a person: product, vendor, amount, renewal date" loading="lazy">
+          </div>
+        </div>
       </div>
-      <div class="pillar">
-        <span class="tag">Credentials</span>
-        <h3>Vendor → product → seat → holder</h3>
-        <p>The way licensing actually flows — including the shared mailboxes and pooled logins nobody else models.</p>
-        <ul>
-          <li>See who actually holds each seat</li>
-          <li>Answer "who has an Adobe seat?" in seconds</li>
-          <li>Shared accounts that get handed between people, tracked</li>
-        </ul>
+
+      <div class="scene">
+        <div class="s-copy">
+          <span class="tag">3 · Credentials</span>
+          <h3>Shared accounts, guarded.</h3>
+          <p>Pooled logins, service accounts, break-glass credentials — the registry maps who holds what across your realm. And it locks behind your password, even mid-session.</p>
+          <ul>
+            <li>Floating accounts that change hands, tracked</li>
+            <li>Re-auth required to open the registry</li>
+          </ul>
+        </div>
+        <div class="s-media">
+          <div class="shot">
+            <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <img src="assets/registry-locked.png" alt="The account registry locked behind a re-authentication prompt" loading="lazy">
+          </div>
+        </div>
       </div>
-      <div class="pillar">
-        <span class="tag">Work</span>
-        <h3>Work that remembers itself</h3>
-        <p>A weekly rolling board where unfinished work carries forward — and a solved ticket becomes a runbook, not a problem you solve again next year.</p>
-        <ul>
-          <li>Unfinished tasks roll into the current week automatically</li>
-          <li>Turn any task into an SOP or playbook — it always was one</li>
-          <li>Run big projects without administering a big tool</li>
-        </ul>
+
+      <div class="scene">
+        <div class="s-copy">
+          <span class="tag">4 · Onboarding</span>
+          <h3>How Ben got here: a form.</h3>
+          <p>Onboarding is an SOP you <em>run</em>, not read. Name, start date, vendor accounts, floating seats — submit, and the person, the credentials, and the tasks are created together.</p>
+          <ul>
+            <li>Each vendor account becomes a registry credential + a task</li>
+            <li>Steps carry <code>Why</code> / <code>How</code> / <code>Done when</code></li>
+          </ul>
+        </div>
+        <div class="s-media">
+          <div class="shot">
+            <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <img src="assets/sop-run.png" alt="An onboarding SOP in Run mode: a form that creates the person, accounts, and tasks" loading="lazy">
+          </div>
+        </div>
       </div>
+
+      <div class="scene">
+        <div class="s-copy">
+          <span class="tag">5 · Assets</span>
+          <h3>A tag that means something.</h3>
+          <p><code>PG-LT-1007</code> — company prefix, readable over the phone, findable in search. Specs, serials, IPs, and the room it sits in, with the people assigned to it.</p>
+          <ul>
+            <li>Auto-issued asset tags, full lifecycle</li>
+            <li>Locations and rooms — "what's in 104B?" has an answer</li>
+          </ul>
+        </div>
+        <div class="s-media">
+          <div class="shot">
+            <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <img src="assets/devices.png" alt="A device record: asset tag, model, specs, location, assigned users" loading="lazy">
+          </div>
+        </div>
+      </div>
+
+      <div class="scene">
+        <div class="s-copy">
+          <span class="tag">6 · Work</span>
+          <h3>The week remembers itself.</h3>
+          <p>Setting Ben up spawned real tasks — on a weekly rolling sheet where unfinished work carries into the current week on its own. Priorities, progress, done-dates; nothing falls off the edge.</p>
+          <ul>
+            <li>Type, press Enter — that's the add flow</li>
+            <li>Projects and a timeline when work outgrows the week</li>
+          </ul>
+        </div>
+        <div class="s-media">
+          <div class="shot">
+            <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <img src="assets/tasks-week.png" alt="The weekly task sheet: priorities, progress, automatic carry-over" loading="lazy">
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" data-night>
+        <div class="s-copy">
+          <span class="tag">7 · For the night shift</span>
+          <h3>Even at 2 a.m.</h3>
+          <p>The whole app has a dark mode — one click in the header. Same screens, easier on the eyes when the maintenance window opens.</p>
+        </div>
+        <div class="s-media">
+          <div class="shot dark-frame">
+            <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <img src="assets/dark-mode.png" alt="AssetMost in dark mode: the same staff profile at night" loading="lazy">
+          </div>
+        </div>
+      </div>
+
+      <div class="story-progress" aria-hidden="true"></div>
     </div>
   </div>
 </section>
@@ -351,12 +486,79 @@
   </div>
 </section>
 
+<!-- CLOSING CTA -->
+<section class="closing">
+  <div class="wrap">
+    <h2>See it with your own data.</h2>
+    <p>Self-hosted and open source. Clone it, seed the demo company, and click around the same screens you just saw.</p>
+    <div class="cta-row">
+      <a href="https://github.com/eberrios73/assetmost" class="btn btn-primary">Get the open-source version</a>
+      <a href="guide.html" class="btn btn-ghost">Read the user guide</a>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="wrap">
     <div class="brand">Asset<b style="color:var(--blue)">Most</b></div>
-    <div class="fnote">Untangle your IT. · <a href="https://github.com/eberrios73/assetmost">GitHub</a> · <a href="#">Docs</a> · AGPL open source</div>
+    <div class="fnote">Untangle your IT. · <a href="https://github.com/eberrios73/assetmost">GitHub</a> · <a href="guide.html">User guide</a> · AGPL open source</div>
   </div>
 </footer>
+
+<script>
+(function () {
+  var story = document.getElementById('story');
+  var pin = story.querySelector('.story-pin');
+  var scenes = Array.prototype.slice.call(story.querySelectorAll('.scene'));
+  var progress = story.querySelector('.story-progress');
+  var current = 0;
+
+  scenes.forEach(function (_, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.addEventListener('click', function () {
+      var vh = window.innerHeight;
+      var top = story.offsetTop + i * vh + vh * 0.5;
+      window.scrollTo({ top: top, behavior: 'smooth' });
+    });
+    progress.appendChild(b);
+  });
+  var dots = Array.prototype.slice.call(progress.children);
+
+  function pinned() {
+    return window.matchMedia('(min-width: 901px)').matches &&
+           !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function setScene(i) {
+    if (i === current) return;
+    scenes[current].classList.remove('active');
+    scenes[i].classList.add('active');
+    dots[current].classList.remove('on');
+    dots[i].classList.add('on');
+    pin.classList.toggle('night', scenes[i].hasAttribute('data-night'));
+    current = i;
+  }
+
+  var ticking = false;
+  function onScroll() {
+    if (!pinned() || ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () {
+      ticking = false;
+      var vh = window.innerHeight;
+      var p = (window.scrollY - story.offsetTop) / (story.offsetHeight - vh);
+      var i = Math.max(0, Math.min(scenes.length - 1, Math.floor(p * scenes.length)));
+      setScene(i);
+    });
+  }
+
+  dots[0].classList.add('on');
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  onScroll();
+})();
+</script>
 
 </body>
 </html>
