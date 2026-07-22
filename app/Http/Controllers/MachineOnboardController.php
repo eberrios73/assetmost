@@ -100,7 +100,7 @@ class MachineOnboardController extends Controller
             $ord = (int) (Task::query()->max('ord') + 1);
             $project = Task::create([
                 'title' => "Set up {$device->asset_tag}",
-                'is_project' => true, 'status' => 'In progress',
+                'kind' => 'project', 'status' => 'In progress',
                 'week' => $monday, 'origin' => Carbon::now()->toDateString(),
                 'notes' => trim("{$template->title} · " . implode(' ', array_filter([$data['brand'] ?? '', $data['model'] ?? '', $data['serial_num'] ?? '']))),
                 'assigned_to' => auth()->id(), 'ord' => $ord++,

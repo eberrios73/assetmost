@@ -333,7 +333,7 @@ class WorkflowController extends Controller
 
             $project = Task::create([
                 'title' => "Onboard {$data['first']} {$data['last']}",
-                'is_project' => true, 'status' => 'In progress',
+                'kind' => 'project', 'status' => 'In progress',
                 'week' => $monday(Carbon::now()), 'origin' => Carbon::now()->toDateString(),
                 'notes' => "DOH {$doh->toDateString()} · {$data['email']}" . ($floating ? ' · floating: ' . implode(', ', $floating) : ''),
                 'assigned_to' => auth()->id(), 'ord' => $ord++,

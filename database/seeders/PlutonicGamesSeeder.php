@@ -33,7 +33,7 @@ class PlutonicGamesSeeder extends Seeder
         // Games below is a tenant of it. (A fresh migrate creates one; seed it only
         // when running on a database that somehow predates the landlord migration.)
         $landlordCo = Company::landlord() ?? Company::create([
-            'name' => config('app.name', 'AssetMost'), 'is_landlord' => true, 'active' => true,
+            'name' => 'Organization', 'is_landlord' => true, 'active' => true,
         ]);
 
         $co = Company::create([
@@ -281,9 +281,9 @@ class PlutonicGamesSeeder extends Seeder
         $week = Carbon::now()->startOfWeek()->toDateString();
         $lastWeek = Carbon::now()->subWeek()->startOfWeek()->toDateString();
         $t = fn (array $a) => Task::create($a + ['company_id' => $co->id, 'week' => $week, 'origin' => $week,
-            'done' => false, 'pct' => 0, 'pri' => 0, 'is_project' => false, 'ord' => 0]);
+            'done' => false, 'pct' => 0, 'pri' => 0, 'kind' => 'task', 'ord' => 0]);
 
-        $move = $t(['title' => 'Studio move to Stage 4', 'is_project' => true, 'pri' => 2, 'assigned_to' => $sam->id,
+        $move = $t(['title' => 'Studio move to Stage 4', 'kind' => 'project', 'pri' => 2, 'assigned_to' => $sam->id,
             'origin' => $lastWeek, 'week' => $lastWeek, 'planned_start' => $lastWeek,
             'due_date' => Carbon::now()->addWeeks(3)->toDateString(),
             'details' => 'Art + mocap consolidate onto Stage 4. Network first, people last.']);

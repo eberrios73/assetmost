@@ -11,8 +11,8 @@ const SECTIONS = [
     { key: 'email', label: 'Email & signatures' },
     { key: 'backups', label: 'Backups' },
     { key: 'roles', label: 'Roles & access' },
-    // Landlord only renders for landlord users — the server sends null otherwise.
-    { key: 'landlord', label: 'Landlord', landlordOnly: true },
+    // Organization (the landlord) only renders for landlord users — the server sends null otherwise.
+    { key: 'landlord', label: 'Organization', landlordOnly: true },
 ];
 
 export default function Index() {
@@ -397,7 +397,7 @@ function Landlord() {
     };
 
     return (
-        <Section title="Landlord" desc="The platform operator: its users, their roles, and which tenants each one can reach. Tenant users never see this screen.">
+        <Section title="Organization" desc="The platform operator: its users, their roles, and which tenants each one can reach. Tenant users never see this screen.">
             <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
                 <table className="w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-900">

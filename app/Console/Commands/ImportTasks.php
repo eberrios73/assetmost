@@ -47,7 +47,7 @@ class ImportTasks extends Command
             return self::FAILURE; // reader already reported why
         }
 
-        $projects = count(array_filter($rows, fn ($r) => $r['is_project']));
+        $projects = count(array_filter($rows, fn ($r) => $r['kind'] === 'project'));
         $this->info(count($rows)." tasks found — {$projects} projects, " . (count($rows) - $projects) . ' regular.');
 
         if ($this->option('dry-run')) {
@@ -114,7 +114,7 @@ class ImportTasks extends Command
             'done' => $done,
             'pct' => (int) ($t['pct'] ?? ($done ? 100 : 0)),
             'pri' => (int) ($t['pri'] ?? 0),
-            'is_project' => ! empty($t['project']),
+            'kind' => ! empty($t['project']) ? 'project' : 'task',
             'ord' => (int) ($t['ord'] ?? $t['order'] ?? 0),
             'status' => (string) ($t['status'] ?? ''),
             'details' => ($t['details'] ?? '') ?: null,

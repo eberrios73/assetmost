@@ -37,7 +37,7 @@ return new class extends Migration
         $landlordId = DB::table('companies')->where('is_landlord', true)->value('id');
         if (! $landlordId) {
             $landlordId = DB::table('companies')->insertGetId([
-                'name' => config('app.name', 'AssetMost'), 'is_landlord' => true, 'active' => true,
+                'name' => 'Organization', 'is_landlord' => true, 'active' => true,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }

@@ -32,6 +32,31 @@ const PRI_PILL = [
 ];
 const PRI_BAR = ['', 'before:bg-blue-500', 'before:bg-amber-500', 'before:bg-red-500'];
 
+// The whole workflow: todo → doing → blocked → (done via the checkbox).
+// Click the chip to cycle; 'todo' renders nothing so the default stays quiet.
+const STATE_STYLE = {
+    doing: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+    blocked: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+};
+const NEXT_STATE = { todo: 'doing', doing: 'blocked', blocked: 'todo' };
+function StateChip({ t, patch }) {
+    if (t.done) return null;
+    const s = t.state || 'todo';
+    return (
+        <button onClick={() => patch(t.id, { state: NEXT_STATE[s] || 'doing' })}
+            title="click to cycle: todo → doing → blocked"
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATE_STYLE[s] || 'text-gray-300 dark:text-gray-600 hover:text-gray-500'}`}>
+            {s === 'todo' ? '·' : s}
+        </button>
+    );
+}
+function LabelChips({ labels }) {
+    if (!labels) return null;
+    return labels.split(',').map((l) => l.trim()).filter(Boolean).map((l) => (
+        <span key={l} className="shrink-0 rounded bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-300">{l}</span>
+    ));
+}
+
 /**
  * Age = how long a task has been open, counted from `origin` (the first week it
  * appeared — carry-overs keep aging, that's the point). Done tasks freeze at
@@ -103,13 +128,17 @@ export default function Index() {
         else send();
     };
     const addTask = async (title, isProject = false) => {
-        const body = { title, week: isProject ? currentWeek : view, ...(isProject ? { is_project: true, status: 'Proposed' } : {}) };
+        const body = { title, week: isProject ? currentWeek : view, ...(isProject ? { kind: 'project', status: 'Proposed' } : {}) };
         const { id } = await api('/data/tasks', 'POST', body);
         await load();
         if (isProject) setOpenProj(id);
     };
     const remove = async (id, title) => { if (confirm(`Delete "${title}"?`)) { await api(`/data/tasks/${id}`, 'DELETE'); load(); } };
-    const setProject = (id, on) => patch(id, { is_project: on }, { reload: true });
+    const setProject = (id, on) => patch(id, { kind: on ? 'project' : 'task' }, { reload: true });
+    const addMilestone = async (projectId, title) => {
+        await api('/data/tasks', 'POST', { title, kind: 'milestone', parent_id: projectId, week: currentWeek });
+        load();
+    };
 
     // Turn a task/project into a doc: create a page from a template (seeded with
     // its notes/details) and open it in the Docs wiki.
@@ -122,18 +151,23 @@ export default function Index() {
     };
 
     // ---- weekly grid data ----
-    const nonProjects = useMemo(() => tasks.filter((t) => !t.is_project), [tasks]);
-    const projects = useMemo(() => tasks.filter((t) => t.is_project).sort((a, b) => a.ord - b.ord), [tasks]);
+    // kind partitions the sheet: projects (and subprojects), milestones, tasks.
+    const nonProjects = useMemo(() => tasks.filter((t) => t.kind === 'task'), [tasks]);
+    const projects = useMemo(() => tasks.filter((t) => t.kind === 'project').sort((a, b) => a.ord - b.ord), [tasks]);
+    const milestones = useMemo(() => tasks.filter((t) => t.kind === 'milestone'), [tasks]);
 
-    // Subtasks: parent_id pointing at a TASK (not a project). They render nested
-    // under their parent everywhere, never as top-level rows.
+    // Subtasks: parent_id pointing at another TASK. A parent that's a project or
+    // milestone keeps the row top-level in the week grid — grouping into projects
+    // and milestones is the other views' job.
     const projectIds = useMemo(() => new Set(projects.map((pj) => pj.id)), [projects]);
+    const milestoneIds = useMemo(() => new Set(milestones.map((m) => m.id)), [milestones]);
+    const isSub = (t) => t.parent_id && !projectIds.has(t.parent_id) && !milestoneIds.has(t.parent_id);
     const subsByParent = useMemo(() => {
         const m = {};
-        for (const t of nonProjects) if (t.parent_id && !projectIds.has(t.parent_id)) (m[t.parent_id] ??= []).push(t);
+        for (const t of nonProjects) if (isSub(t)) (m[t.parent_id] ??= []).push(t);
         return m;
-    }, [nonProjects, projectIds]);
-    const topLevel = useMemo(() => nonProjects.filter((t) => !(t.parent_id && !projectIds.has(t.parent_id))), [nonProjects, projectIds]);
+    }, [nonProjects, projectIds, milestoneIds]);
+    const topLevel = useMemo(() => nonProjects.filter((t) => !isSub(t)), [nonProjects, projectIds, milestoneIds]);
     const addSub = async (parentId, title, week) => { await api('/data/tasks', 'POST', { title, week, parent_id: parentId }); load(); };
 
     const weekTasks = useMemo(() => topLevel.filter((t) => t.week === view), [topLevel, view]);
@@ -204,7 +238,7 @@ export default function Index() {
                             <SectionRow label="Current" right={weekTasks.length ? `${avg}% complete` : ''} />
                             {open.length === 0 && !rollingIn.length && <EmptyRow>{weekTasks.length ? 'All clear for this week.' : 'No tasks yet — add one above.'}</EmptyRow>}
                             {open.map((t) => (
-                                <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects} allTasks={nonProjects}
+                                <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects} milestones={milestones} allTasks={nonProjects}
                                     expandedId={expandedId} onToggleAny={(id) => setExpandedId(expandedId === id ? null : id)}
                                     subs={subsByParent} onAddSub={addSub}
                                     onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
@@ -232,7 +266,7 @@ export default function Index() {
                                 <FragmentRows key={g.wk}>
                                     <SubRow label={weekLabel(g.wk, currentWeek)} right={`${g.items.length} done`} />
                                     {g.items.map((t) => (
-                                        <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects} allTasks={nonProjects}
+                                        <TaskRows key={t.id} t={t} people={people} patch={patch} statuses={statuses} projects={projects} milestones={milestones} allTasks={nonProjects}
                                             expandedId={expandedId} onToggleAny={(id) => setExpandedId(expandedId === id ? null : id)}
                                             subs={subsByParent} onAddSub={addSub}
                                             onProject={setProject} onMakeDoc={makeDoc} onDelete={remove} />
@@ -258,11 +292,18 @@ export default function Index() {
                         </thead>
                         <tbody>
                             {projects.length === 0 && <tr><td colSpan={4} className="px-3 py-4 text-gray-400">No projects yet — add one, or flag a task with the wrench.</td></tr>}
-                            {projects.map((p) => (
+                            {projects.filter((p) => !projectIds.has(p.parent_id))
+                                .flatMap((p) => [{ p, depth: 0 }, ...projects.filter((c) => c.parent_id === p.id).map((c) => ({ p: c, depth: 1 }))])
+                                .map(({ p, depth }) => (
                                 <FragmentRows key={p.id}>
-                                    <ProjectRow p={p} open={openProj === p.id} patch={patch} onToggle={() => setOpenProj(openProj === p.id ? null : p.id)} />
+                                    <ProjectRow p={p} depth={depth} open={openProj === p.id} patch={patch} onToggle={() => setOpenProj(openProj === p.id ? null : p.id)} />
                                     {openProj === p.id && (
                                         <ProjectDetailRow p={p} statuses={statuses} people={people} patch={patch} onMakeDoc={makeDoc}
+                                            milestones={milestones.filter((m) => m.parent_id === p.id)}
+                                            taskCountFor={(mid) => nonProjects.filter((t) => t.parent_id === mid).length}
+                                            parents={projects.filter((o) => o.id !== p.id && !projectIds.has(o.parent_id))}
+                                            onAddMilestone={(title) => addMilestone(p.id, title)}
+                                            onRemove={remove}
                                             onMoveToTasks={() => { setProject(p.id, false); setOpenProj(null); }}
                                             onDelete={() => { remove(p.id, p.title); setOpenProj(null); }} />
                                     )}
@@ -334,7 +375,7 @@ function SubRow({ label, right }) {
 }
 function EmptyRow({ children }) { return <tr><td colSpan={9} className="px-3 py-3 text-gray-400">{children}</td></tr>; }
 
-function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, onAddSub, depth = 0, expandedId, onToggleAny, onProject, onMakeDoc, onDelete }) {
+function TaskRows({ t, people, patch, projects = [], milestones = [], allTasks = [], subs = {}, onAddSub, depth = 0, expandedId, onToggleAny, onProject, onMakeDoc, onDelete }) {
     const expanded = expandedId === t.id;
     const onToggle = () => onToggleAny(t.id);
     const carried = t.origin && t.origin < t.week && !t.done;
@@ -360,6 +401,8 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
                     <div className="flex items-center gap-2" style={depth ? { marginLeft: depth * 20 } : undefined}>
                         {depth > 0 && <span className="text-gray-300 dark:text-gray-600">↳</span>}
                         <InlineText value={t.title} done={t.done} onCommit={(v) => patch(t.id, { title: v }, { debounce: true })} />
+                        <StateChip t={t} patch={patch} />
+                        <LabelChips labels={t.labels} />
                         {t.notes ? <span className="text-gray-300 dark:text-gray-600 shrink-0" title="has notes"><NoteGlyph /></span> : null}
                         {carried && <span className="text-blue-500 shrink-0" title="carried over from an earlier week">↻</span>}
                     </div>
@@ -400,14 +443,27 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
                             )}
                             <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>
                             <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
+                            <LinksBlock t={t} patch={patch} />
                             <div className="mt-3 flex flex-wrap items-end gap-3">
-                                <label className="block w-44">
-                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Project</span>
+                                <label className="block w-52">
+                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Project / milestone</span>
                                     <select value={t.parent_id ?? ''} onChange={(e) => patch(t.id, { parent_id: e.target.value ? Number(e.target.value) : null })}
                                         className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500">
                                         <option value="">— none —</option>
-                                        {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                        {projects.map((p) => (
+                                            <optgroup key={p.id} label={p.title}>
+                                                <option value={p.id}>{p.title}</option>
+                                                {milestones.filter((m) => m.parent_id === p.id)
+                                                    .map((m) => <option key={m.id} value={m.id}>◆ {m.title}</option>)}
+                                            </optgroup>
+                                        ))}
                                     </select>
+                                </label>
+                                <label className="block w-44">
+                                    <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Labels</span>
+                                    <input defaultValue={t.labels || ''} placeholder="comma, separated"
+                                        onBlur={(e) => { if (e.target.value !== (t.labels || '')) patch(t.id, { labels: e.target.value || null }); }}
+                                        className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
                                 </label>
                                 <label className="block w-24">
                                     <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Priority</span>
@@ -449,7 +505,7 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
                 </tr>
             )}
             {(subs[t.id] || []).map((st) => (
-                <TaskRows key={st.id} t={st} people={people} patch={patch} projects={projects} allTasks={allTasks}
+                <TaskRows key={st.id} t={st} people={people} patch={patch} projects={projects} milestones={milestones} allTasks={allTasks}
                     subs={subs} onAddSub={onAddSub} depth={depth + 1} expandedId={expandedId} onToggleAny={onToggleAny}
                     onProject={onProject} onMakeDoc={onMakeDoc} onDelete={onDelete} />
             ))}
@@ -457,12 +513,44 @@ function TaskRows({ t, people, patch, projects = [], allTasks = [], subs = {}, o
     );
 }
 
-function ProjectRow({ p, open, patch, onToggle }) {
+/** Pasted URLs on a task — a PR, a ticket, a doc. GitHub/GitLab PRs label themselves. */
+function LinksBlock({ t, patch }) {
+    const links = t.links || [];
+    const add = async (url) => {
+        const link = await api(`/data/tasks/${t.id}/links`, 'POST', { url });
+        if (link?.id) patch(t.id, { links: [...links, link] });
+    };
+    const drop = async (id) => {
+        await api(`/data/tasks/${t.id}/links/${id}`, 'DELETE');
+        patch(t.id, { links: links.filter((l) => l.id !== id) });
+    };
+    return (
+        <div className="mt-3">
+            <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Links</span>
+            {links.map((l) => (
+                <div key={l.id} className="group/lnk flex items-center gap-2 text-xs py-0.5">
+                    <a href={l.url} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline truncate max-w-md">
+                        {l.label || l.url.replace(/^https?:\/\//, '')}
+                    </a>
+                    <button onClick={() => drop(l.id)} className="text-gray-300 dark:text-gray-600 opacity-0 group-hover/lnk:opacity-100 hover:text-red-600">×</button>
+                </div>
+            ))}
+            <input placeholder="Paste a URL ⏎ (a PR, a ticket, a doc)"
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { add(e.target.value.trim()); e.target.value = ''; } }}
+                className="mt-1 w-72 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+        </div>
+    );
+}
+
+function ProjectRow({ p, depth = 0, open, patch, onToggle }) {
     const st = p.status || (p.pct >= 100 ? 'Done' : p.pct > 0 ? 'In progress' : 'Proposed');
     return (
         <tr onClick={onToggle} className="cursor-pointer border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
             <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                <InlineText value={p.title} bold onCommit={(v) => patch(p.id, { title: v }, { debounce: true })} />
+                <div className="flex items-center gap-2" style={depth ? { marginLeft: depth * 20 } : undefined}>
+                    {depth > 0 && <span className="text-gray-300 dark:text-gray-600" title="subproject">↳</span>}
+                    <InlineText value={p.title} bold onCommit={(v) => patch(p.id, { title: v }, { debounce: true })} />
+                </div>
             </td>
             <td className="px-3 py-2"><span className={`text-[11px] px-1.5 py-0.5 rounded ${STATUS_STYLE[st] || STATUS_STYLE.Proposed}`}>{st}</span></td>
             <td className="px-3 py-2">
@@ -478,12 +566,43 @@ function ProjectRow({ p, open, patch, onToggle }) {
     );
 }
 
-function ProjectDetailRow({ p, statuses, people, patch, onMakeDoc, onMoveToTasks, onDelete }) {
+function ProjectDetailRow({ p, statuses, people, patch, onMakeDoc, onMoveToTasks, onDelete,
+    milestones = [], taskCountFor = () => 0, parents = [], onAddMilestone, onRemove }) {
     const set = (changes, opts) => patch(p.id, changes, opts);
     return (
         <tr>
             <td colSpan={4} className="p-0 border-b border-gray-200 dark:border-gray-800">
                 <div className="bg-gray-50 dark:bg-gray-900/50 p-4">
+                    <div className="mb-4">
+                        <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Milestones</span>
+                        {milestones.map((m) => (
+                            <div key={m.id} className="group/ms flex items-center gap-3 py-1 border-b border-gray-100 dark:border-gray-800">
+                                <span className="text-gray-300 dark:text-gray-600">◆</span>
+                                <InlineText value={m.title} done={m.done} onCommit={(v) => patch(m.id, { title: v }, { debounce: true })} />
+                                <span className="text-xs text-gray-400">{taskCountFor(m.id)} task{taskCountFor(m.id) === 1 ? '' : 's'}</span>
+                                <div className="ml-auto flex items-center gap-3">
+                                    <input type="date" value={m.due_date || ''} onChange={(e) => patch(m.id, { due_date: e.target.value || null })}
+                                        title="due" className="border-0 bg-transparent p-0 text-xs text-gray-500 dark:text-gray-400 focus:ring-0" />
+                                    <PctCell t={m} onCommit={(v) => patch(m.id, { pct: v })} />
+                                    <button onClick={() => onRemove(m.id, m.title)} title="delete milestone"
+                                        className="text-gray-300 dark:text-gray-600 opacity-0 group-hover/ms:opacity-100 hover:text-red-600">×</button>
+                                </div>
+                            </div>
+                        ))}
+                        <input placeholder="Add milestone ⏎"
+                            onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { onAddMilestone?.(e.target.value.trim()); e.target.value = ''; } }}
+                            className="mt-1.5 w-56 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-5 mb-4">
+                        <label className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">Part of
+                            <select value={p.parent_id ?? ''} onChange={(e) => set({ parent_id: e.target.value ? Number(e.target.value) : null }, { reload: true })}
+                                title="a project under a project is a subproject"
+                                className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm py-1 focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">— top level —</option>
+                                {parents.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
+                            </select>
+                        </label>
+                    </div>
                     <div className="flex flex-wrap items-center gap-5 mb-4">
                         <label className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">Status
                             <select value={p.status || ''} onChange={(e) => set({ status: e.target.value })}
