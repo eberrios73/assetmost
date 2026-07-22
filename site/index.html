@@ -64,8 +64,8 @@
   .btn-ghost:hover{border-color:#CBD3DB}
 
   /* ---------- hero ---------- */
-  .hero{padding:76px 0 40px}
-  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+  .hero{padding:76px 0 0}
+  .hero-copy{max-width:640px}
   .eyebrow{
     font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
     color:var(--blue-deep);text-transform:uppercase;margin-bottom:20px;font-weight:600;
@@ -113,6 +113,23 @@
     @keyframes draw{to{stroke-dashoffset:0}}
     @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   }
+
+  /* ---------- hero visual: UI shot fades into the diagram ---------- */
+  .heroviz{position:relative;height:220vh}
+  .heroviz-pin{
+    position:sticky;top:0;height:100vh;overflow:hidden;
+    display:flex;align-items:center;
+  }
+  .heroviz-stage{position:relative;width:100%;max-width:1080px;margin:0 auto;padding:0 24px}
+  .hv-shot,.hv-diagram{
+    transition:none;will-change:opacity,transform;
+  }
+  .hv-shot{position:relative}
+  .hv-diagram{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;
+  }
+  .hv-diagram .diagram{width:min(680px,92%)}
 
   /* ---------- problem strip ---------- */
   .strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
@@ -227,6 +244,10 @@
 
   /* ---------- static fallback: small screens & reduced motion ---------- */
   @media(max-width:900px),(prefers-reduced-motion:reduce){
+    .heroviz{height:auto}
+    .heroviz-pin{position:static;height:auto;overflow:visible;display:block;padding:40px 0}
+    .hv-shot{opacity:1 !important;transform:none !important}
+    .hv-diagram{position:static;opacity:1 !important;transform:none !important;margin-top:36px;pointer-events:auto}
     .story{height:auto}
     .story-pin{position:static;height:auto;overflow:visible;display:block;background:var(--canvas)}
     .story-stage{height:auto}
@@ -270,8 +291,8 @@
 
 <!-- HERO -->
 <section class="hero">
-  <div class="wrap hero-grid">
-    <div>
+  <div class="wrap">
+    <div class="hero-copy">
       <div class="eyebrow">IT asset &amp; identity management</div>
       <h1>The four things IT juggles, finally <span class="u">untangled</span>.</h1>
       <p class="lede">People, assets, credentials, and work — and the connections between them. The stuff that usually lives in six spreadsheets and one person's head.</p>
@@ -281,41 +302,56 @@
       </div>
       <div class="cta-note">Single company, self-hosted. <code>git clone</code> and go.</div>
     </div>
+  </div>
+</section>
 
-    <!-- signature: the connection web -->
-    <div class="diagram" aria-label="Diagram: people, assets, credentials and work connected at the center">
-      <svg viewBox="0 0 420 320" role="img">
-        <path class="link" d="M110,70 C180,120 200,130 210,150"/>
-        <path class="link" d="M310,70 C240,120 220,130 210,150"/>
-        <path class="link" d="M110,250 C180,200 200,190 210,170"/>
-        <path class="link" d="M310,250 C240,200 220,190 210,170"/>
-        <path class="link" d="M110,70 C90,160 90,160 110,250"/>
-        <path class="link" d="M310,70 C330,160 330,160 310,250"/>
-        <g class="nodeg">
-          <rect class="center-chip" x="168" y="146" width="84" height="28" rx="8"/>
-          <text class="center-txt" x="210" y="164" text-anchor="middle">connected</text>
-        </g>
-        <g class="nodeg">
-          <rect class="node-box acc" x="26" y="42" width="150" height="56" rx="11"/>
-          <text class="node-label" x="44" y="68">People</text>
-          <text class="node-sub" x="44" y="85">devices · accounts · seats</text>
-        </g>
-        <g class="nodeg">
-          <rect class="node-box" x="244" y="42" width="150" height="56" rx="11"/>
-          <text class="node-label" x="262" y="68">Assets</text>
-          <text class="node-sub" x="262" y="85">tag · room · person</text>
-        </g>
-        <g class="nodeg">
-          <rect class="node-box" x="26" y="222" width="150" height="56" rx="11"/>
-          <text class="node-label" x="44" y="248">Credentials</text>
-          <text class="node-sub" x="44" y="265">vendor · product · seat</text>
-        </g>
-        <g class="nodeg">
-          <rect class="node-box acc" x="244" y="222" width="150" height="56" rx="11"/>
-          <text class="node-label" x="262" y="248">Work</text>
-          <text class="node-sub" x="262" y="265">tasks · docs · runbooks</text>
-        </g>
-      </svg>
+<!-- HERO VISUAL: the product, full width — fading into the connection web -->
+<section class="heroviz" id="heroviz">
+  <div class="heroviz-pin">
+    <div class="heroviz-stage">
+      <div class="hv-shot">
+        <div class="shot">
+          <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <img src="assets/people-profile.png" alt="A staff profile in AssetMost: contact details with the person's logins, licenses, and devices on one screen" loading="eager">
+        </div>
+      </div>
+      <div class="hv-diagram">
+        <!-- signature: the connection web -->
+        <div class="diagram" aria-label="Diagram: people, assets, credentials and work connected at the center">
+          <svg viewBox="0 0 420 320" role="img">
+            <path class="link" d="M110,70 C180,120 200,130 210,150"/>
+            <path class="link" d="M310,70 C240,120 220,130 210,150"/>
+            <path class="link" d="M110,250 C180,200 200,190 210,170"/>
+            <path class="link" d="M310,250 C240,200 220,190 210,170"/>
+            <path class="link" d="M110,70 C90,160 90,160 110,250"/>
+            <path class="link" d="M310,70 C330,160 330,160 310,250"/>
+            <g class="nodeg">
+              <rect class="center-chip" x="168" y="146" width="84" height="28" rx="8"/>
+              <text class="center-txt" x="210" y="164" text-anchor="middle">connected</text>
+            </g>
+            <g class="nodeg">
+              <rect class="node-box acc" x="26" y="42" width="150" height="56" rx="11"/>
+              <text class="node-label" x="44" y="68">People</text>
+              <text class="node-sub" x="44" y="85">devices · accounts · seats</text>
+            </g>
+            <g class="nodeg">
+              <rect class="node-box" x="244" y="42" width="150" height="56" rx="11"/>
+              <text class="node-label" x="262" y="68">Assets</text>
+              <text class="node-sub" x="262" y="85">tag · room · person</text>
+            </g>
+            <g class="nodeg">
+              <rect class="node-box" x="26" y="222" width="150" height="56" rx="11"/>
+              <text class="node-label" x="44" y="248">Credentials</text>
+              <text class="node-sub" x="44" y="265">vendor · product · seat</text>
+            </g>
+            <g class="nodeg">
+              <rect class="node-box acc" x="244" y="222" width="150" height="56" rx="11"/>
+              <text class="node-label" x="262" y="248">Work</text>
+              <text class="node-sub" x="262" y="265">tasks · docs · runbooks</text>
+            </g>
+          </svg>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -540,13 +576,35 @@
     current = i;
   }
 
+  var hv = document.getElementById('heroviz');
+  var hvShot = hv.querySelector('.hv-shot');
+  var hvDiagram = hv.querySelector('.hv-diagram');
+
+  function heroFade(vh) {
+    var q = (window.scrollY - hv.offsetTop) / (hv.offsetHeight - vh);
+    q = Math.max(0, Math.min(1, q));
+    // hold the shot, then crossfade through the middle of the pinned stretch
+    var f = Math.max(0, Math.min(1, (q - 0.3) / 0.5));
+    f = f * f * (3 - 2 * f); // smoothstep
+    hvShot.style.opacity = String(1 - f);
+    hvShot.style.transform = 'scale(' + (1 - f * 0.03) + ')';
+    hvDiagram.style.opacity = String(f);
+    hvDiagram.style.transform = 'scale(' + (1.04 - f * 0.04) + ')';
+  }
+
   var ticking = false;
   function onScroll() {
-    if (!pinned() || ticking) return;
+    if (ticking) return;
     ticking = true;
     requestAnimationFrame(function () {
       ticking = false;
+      if (!pinned()) {
+        hvShot.style.opacity = hvShot.style.transform = '';
+        hvDiagram.style.opacity = hvDiagram.style.transform = '';
+        return;
+      }
       var vh = window.innerHeight;
+      heroFade(vh);
       var p = (window.scrollY - story.offsetTop) / (story.offsetHeight - vh);
       var i = Math.max(0, Math.min(scenes.length - 1, Math.floor(p * scenes.length)));
       setScene(i);
