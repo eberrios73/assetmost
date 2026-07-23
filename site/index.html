@@ -242,31 +242,29 @@
   /* ---------- intake forms showcase ---------- */
   .intake{padding:40px 0 84px}
   .intake .sec-head{text-align:center;margin:0 auto 36px;max-width:56ch}
-  .formshow{position:relative;max-width:560px;margin:0 auto;height:540px}
+  .formshow{position:relative;max-width:1080px;margin:0 auto;overflow:hidden;padding:6px 0 14px}
+  .formshow::before,.formshow::after{
+    content:"";position:absolute;top:0;bottom:0;width:90px;z-index:2;pointer-events:none;
+  }
+  .formshow::before{left:0;background:linear-gradient(90deg,var(--canvas),rgba(246,248,250,0))}
+  .formshow::after{right:0;background:linear-gradient(270deg,var(--canvas),rgba(246,248,250,0))}
+  .form-track{
+    display:flex;gap:24px;align-items:stretch;
+    transition:transform .65s cubic-bezier(.2,.6,.2,1);will-change:transform;
+  }
   .formcard{
-    position:absolute;inset:0;opacity:0;transition:opacity .7s ease;pointer-events:none;
-    background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px;
+    flex:0 0 480px;opacity:.45;transition:opacity .5s ease;pointer-events:none;
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;
     box-shadow:0 18px 40px -28px rgba(20,23,26,.22);
   }
+  .formcard img{display:block;width:100%;height:540px;object-fit:cover;object-position:top}
   .formcard.active{opacity:1;pointer-events:auto}
-  .fc-client{font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--blue-deep);font-weight:600;margin-bottom:4px}
-  .fc-title{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:16px}
-  .fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 12px}
-  .fc-field{display:flex;flex-direction:column;gap:4px}
-  .fc-field.wide{grid-column:1/-1}
-  .fc-field label{font-size:11.5px;font-weight:600;color:var(--muted)}
-  .fc-input{height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;padding:0 9px;font-size:12.5px;color:var(--ink);display:flex;align-items:center;white-space:nowrap;overflow:hidden}
-  .fc-checks{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .fc-check{display:flex;gap:7px;align-items:center;font-size:12px;color:var(--ink)}
-  .fc-check .box{width:13px;height:13px;border-radius:3.5px;background:var(--blue);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:700}
-  .fc-submit{margin-top:18px}
-  .fc-submit .btn-mock{display:inline-block;background:var(--blue);color:#fff;font-size:13px;font-weight:600;border-radius:7px;padding:8px 16px}
-  .fc-out{margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--faint);border-top:1px dashed var(--line);padding-top:10px;line-height:1.5}
+  @media(max-width:560px){.formcard{flex-basis:85vw}}
+  .fc-out{padding:12px 16px 14px;font-family:var(--mono);font-size:11px;color:var(--faint);border-top:1px dashed var(--line);line-height:1.5}
   .fc-out b{color:var(--blue-deep)}
   .formshow-dots{display:flex;gap:8px;justify-content:center;margin-top:20px}
   .formshow-dots button{width:8px;height:8px;border-radius:50%;border:0;background:var(--line);cursor:pointer;padding:0;transition:.25s}
   .formshow-dots button.on{background:var(--blue);transform:scale(1.3)}
-  @media(max-width:560px){.formshow{height:600px}}
 
   /* ---------- closing CTA ---------- */
   .closing{text-align:center;padding:84px 0}
@@ -575,7 +573,7 @@
   <div class="wrap">
     <div class="eyebrow">The whole idea</div>
     <h2>Unbloated features that <em>connect</em>&hellip; anywhere.</h2>
-    <p>Best-in-class tools each know one thing and nothing else, so the connections end up in a spreadsheet, six browser bookmarks with six separate logins, or a person's memory. AssetMost keeps them in the system.</p>
+    <p>Best-in-class tools are great, but they're expensive and built for orgs with 200+ users. AssetMost brings you the best of the best in one convenient package.</p>
     <div class="queries">
       <span class="q"><b>Who</b> has an Adobe seat?</span>
       <span class="q"><b>What's</b> in room 104B?</span>
@@ -602,76 +600,27 @@
     <div class="sec-head">
       <div class="eyebrow">Onboarding intake</div>
       <h2>Every client gets their own form.</h2>
-      <p>AssetMost generates it: one HTML file the client keeps on their desktop. No portal, no server, no login. Fill it in, hit submit, and it writes the structured onboarding email that AssetMost parses. Chaos in, one format out.</p>
+      <p>AssetMost generates it: one HTML file the client keeps on their desktop. No portal, no server, no login. Fill it in, hit submit, and it writes the structured onboarding email that AssetMost parses. Chaos in, order out.</p>
     </div>
     <div class="formshow" id="formshow">
+     <div class="form-track" id="formTrack">
 
       <div class="formcard active">
-        <div class="fc-client">Meridian &amp; Finch LLP</div>
-        <div class="fc-title">New hire request</div>
-        <div class="fc-grid">
-          <div class="fc-field"><label>First name</label><div class="fc-input">Jordan</div></div>
-          <div class="fc-field"><label>Last name</label><div class="fc-input">Reyes</div></div>
-          <div class="fc-field"><label>Position</label><div class="fc-input">Paralegal</div></div>
-          <div class="fc-field"><label>Start date</label><div class="fc-input">2026-08-03</div></div>
-          <div class="fc-field"><label>Cell phone (2FA)</label><div class="fc-input">(555) 014-2288</div></div>
-          <div class="fc-field"><label>Extension</label><div class="fc-input">412</div></div>
-          <div class="fc-field wide"><label>Distro lists</label><div class="fc-input">Staff LA; Litigation</div></div>
-        </div>
-        <div class="fc-checks">
-          <div class="fc-check"><span class="box">✓</span>Add to printers</div>
-          <div class="fc-check"><span class="box">✓</span>Attorney email access</div>
-          <div class="fc-check"><span class="box">✓</span>Add to macros</div>
-          <div class="fc-check"><span class="box">✓</span>Signature block</div>
-        </div>
-        <div class="fc-submit"><span class="btn-mock">Create email</span></div>
+        <img src="assets/form-meridian.png" alt="Meridian &amp; Finch LLP onboarding form filled out, with the structured email preview" loading="lazy">
         <div class="fc-out">→ <b>[NEW-HIRE]</b> Jordan Reyes — Meridian &amp; Finch LLP — starts 2026-08-03</div>
       </div>
 
       <div class="formcard">
-        <div class="fc-client">Plutonic Games</div>
-        <div class="fc-title">New hire request</div>
-        <div class="fc-grid">
-          <div class="fc-field"><label>First name</label><div class="fc-input">Ada</div></div>
-          <div class="fc-field"><label>Last name</label><div class="fc-input">LoveLDAP</div></div>
-          <div class="fc-field"><label>Title</label><div class="fc-input">UI Artist</div></div>
-          <div class="fc-field"><label>Start date</label><div class="fc-input">2026-08-10</div></div>
-          <div class="fc-field"><label>Department</label><div class="fc-input">Art</div></div>
-          <div class="fc-field"><label>Workstation</label><div class="fc-input">Mac laptop</div></div>
-          <div class="fc-field wide"><label>Floating accounts</label><div class="fc-input">artist003; render-farm</div></div>
-        </div>
-        <div class="fc-checks">
-          <div class="fc-check"><span class="box">✓</span>Perforce access</div>
-          <div class="fc-check"><span class="box">✓</span>M365 seat</div>
-          <div class="fc-check"><span class="box">✓</span>Adobe CC pool</div>
-          <div class="fc-check"><span class="box">✓</span>Duo MFA</div>
-        </div>
-        <div class="fc-submit"><span class="btn-mock">Create email</span></div>
+        <img src="assets/form-plutonic.png" alt="Plutonic Games onboarding form with studio-specific fields like floating accounts and Perforce access" loading="lazy">
         <div class="fc-out">→ <b>[NEW-HIRE]</b> Ada LoveLDAP — Plutonic Games — starts 2026-08-10</div>
       </div>
 
       <div class="formcard">
-        <div class="fc-client">Northlake Clinic</div>
-        <div class="fc-title">New hire request</div>
-        <div class="fc-grid">
-          <div class="fc-field"><label>First name</label><div class="fc-input">Priya</div></div>
-          <div class="fc-field"><label>Last name</label><div class="fc-input">Raman</div></div>
-          <div class="fc-field"><label>Role</label><div class="fc-input">Front desk</div></div>
-          <div class="fc-field"><label>Start date</label><div class="fc-input">2026-08-17</div></div>
-          <div class="fc-field"><label>Badge #</label><div class="fc-input">0441</div></div>
-          <div class="fc-field"><label>Location</label><div class="fc-input">Lakeview office</div></div>
-          <div class="fc-field wide"><label>EHR access</label><div class="fc-input">Scheduling only</div></div>
-        </div>
-        <div class="fc-checks">
-          <div class="fc-check"><span class="box">✓</span>Door code</div>
-          <div class="fc-check"><span class="box">✓</span>Phone tree</div>
-          <div class="fc-check"><span class="box">✓</span>Shared mailbox</div>
-          <div class="fc-check"><span class="box">✓</span>Fax queue</div>
-        </div>
-        <div class="fc-submit"><span class="btn-mock">Create email</span></div>
+        <img src="assets/form-northlake.png" alt="Northlake Clinic onboarding form with badge, EHR access, and clinic-specific checkboxes" loading="lazy">
         <div class="fc-out">→ <b>[NEW-HIRE]</b> Priya Raman — Northlake Clinic — starts 2026-08-17</div>
       </div>
 
+     </div>
     </div>
     <div class="formshow-dots" id="formshowDots"></div>
   </div>
@@ -815,10 +764,12 @@
   }
 })();
 
-/* Intake forms showcase: three client variants crossfading. */
+/* Intake forms showcase: peek carousel — active form centered, the
+   neighbors half cut off at the edges. */
 (function () {
   var show = document.getElementById('formshow');
   if (!show) return;
+  var track = document.getElementById('formTrack');
   var cards = Array.prototype.slice.call(show.querySelectorAll('.formcard'));
   var dotsEl = document.getElementById('formshowDots');
   var current = 0, timer = null;
@@ -834,18 +785,26 @@
   var dots = Array.prototype.slice.call(dotsEl.children);
   dots[0].classList.add('on');
 
+  function center() {
+    var card = cards[current];
+    var offset = card.offsetLeft - (show.clientWidth - card.offsetWidth) / 2;
+    track.style.transform = 'translateX(' + (-offset) + 'px)';
+  }
   function go(i) {
     cards[current].classList.remove('active');
     dots[current].classList.remove('on');
     current = i;
     cards[current].classList.add('active');
     dots[current].classList.add('on');
+    center();
   }
   function restart() {
     if (still) return;
     clearInterval(timer);
     timer = setInterval(function () { go((current + 1) % cards.length); }, 3800);
   }
+  window.addEventListener('resize', center);
+  center();
   restart();
 })();
 </script>

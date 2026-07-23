@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New hire request</title>
+<script>
+/* ============================================================
+   PER-CLIENT CONFIG — this block is the only thing you edit.
+   Copy this file per client, adjust fields to their needs.
+   No server, no API: submit builds an email in the requester's
+   own mail client. Data never touches a backend.
+   ============================================================ */
+const FORM = {
+  client: "Northlake Clinic",
+  to: "it@northlakeclinic.example",
+  cc: "",
+  type: "New hire",
+  fields: [
+    { id: "first", label: "First name", type: "text", required: true },
+    { id: "last", label: "Last name", type: "text", required: true },
+    { id: "role", label: "Role", type: "text", required: true },
+    { id: "start", label: "Start date", type: "date", required: true },
+    { id: "badge", label: "Badge #", type: "text" },
+    { id: "location", label: "Location", type: "text" },
+    { id: "ehr", label: "EHR access", type: "textarea", hint: "Modules and level" },
+    { id: "requestedby", label: "Requested by", type: "text", required: true }
+  ],
+  checks: [
+    { id: "door", label: "Door code", def: true },
+    { id: "phone", label: "Phone tree", def: true },
+    { id: "mailbox", label: "Shared mailbox", def: true },
+    { id: "fax", label: "Fax queue", def: true }
+  ]
+};
+/* ============================== end config ============================== */
+</script>
+<style>
+  :root{
+    --ink:#14171A; --muted:#5B6570; --faint:#8A929B;
+    --line:#E4E8ED; --line-soft:#EEF1F4; --surface:#FFF; --canvas:#F6F8FA;
+    --blue:#2F6BE5; --blue-deep:#1E4FB8; --blue-tint:#EAF0FD;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--canvas);color:var(--ink);line-height:1.5;padding:40px 16px}
+  .card{max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:32px;box-shadow:0 18px 40px -28px rgba(20,23,26,.22)}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--blue-deep);font-weight:600;margin-bottom:8px}
+  h1{font-size:26px;letter-spacing:-.02em;margin-bottom:6px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:26px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field.wide{grid-column:1 / -1}
+  label{font-size:13px;font-weight:600}
+  label .req{color:var(--blue);margin-left:2px}
+  .hint{font-size:11.5px;color:var(--faint)}
+  input,textarea{
+    font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);
+    border-radius:8px;background:#fff;color:var(--ink);width:100%;
+  }
+  input:focus,textarea:focus{outline:2px solid var(--blue-tint);border-color:var(--blue)}
+  input.bad,textarea.bad{border-color:#D9534F}
+  textarea{min-height:56px;resize:vertical}
+  .checks{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:9px 16px}
+  .checks label{display:flex;gap:8px;align-items:center;font-weight:500;font-size:13.5px;cursor:pointer}
+  .checks input{width:15px;height:15px;accent-color:var(--blue)}
+  .actions{margin-top:26px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{
+    font:inherit;font-size:14.5px;font-weight:600;border-radius:8px;padding:10px 18px;
+    border:1px solid transparent;cursor:pointer;
+  }
+  .primary{background:var(--blue);color:#fff}
+  .primary:hover{background:var(--blue-deep)}
+  .ghost{background:var(--surface);color:var(--ink);border-color:var(--line)}
+  .ghost:hover{border-color:#CBD3DB}
+  .note{font-size:12px;color:var(--faint);margin-top:14px}
+  .preview{
+    display:none;margin-top:24px;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  }
+  .preview.show{display:block}
+  .preview .bar{background:var(--canvas);border-bottom:1px solid var(--line-soft);
+    padding:8px 14px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .preview pre{
+    padding:14px;font-family:var(--mono);font-size:12.5px;line-height:1.55;
+    white-space:pre-wrap;word-break:break-word;color:var(--ink);
+  }
+  .copied{font-size:13px;color:var(--blue-deep);font-weight:600}
+  @media(max-width:560px){.grid,.checks{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="eyebrow" id="clientLine"></div>
+  <h1 id="title"></h1>
+  <p class="sub">Fill this out and click <b>Create email</b>. It opens in your own mail
+    program with everything structured; nothing is sent or stored anywhere else.</p>
+
+  <form id="f" novalidate>
+    <div class="grid" id="fields"></div>
+    <div class="checks" id="checks"></div>
+    <div class="actions">
+      <button type="submit" class="primary">Create email</button>
+      <button type="button" class="ghost" id="copyBtn">Copy email text</button>
+      <span class="copied" id="copied" hidden>Copied.</span>
+    </div>
+    <p class="note">Sends to <span id="toLine" style="font-family:var(--mono)"></span> from your
+      own mailbox. Do not include passwords; credentials are generated during provisioning.</p>
+  </form>
+
+  <div class="preview" id="preview">
+    <div class="bar" id="pvSubject"></div>
+    <pre id="pvBody"></pre>
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  $('clientLine').textContent = FORM.client;
+  $('title').textContent = FORM.type + ' request';
+  document.title = FORM.type + ' request — ' + FORM.client;
+  $('toLine').textContent = FORM.to;
+
+  // build inputs from config
+  var fieldsEl = $('fields');
+  FORM.fields.forEach(function (f) {
+    var wrap = document.createElement('div');
+    wrap.className = 'field' + (f.type === 'textarea' ? ' wide' : '');
+    var lab = document.createElement('label');
+    lab.htmlFor = 'in-' + f.id;
+    lab.textContent = f.label;
+    if (f.required) { var r = document.createElement('span'); r.className = 'req'; r.textContent = '*'; lab.appendChild(r); }
+    wrap.appendChild(lab);
+    var input = document.createElement(f.type === 'textarea' ? 'textarea' : 'input');
+    if (f.type !== 'textarea') input.type = f.type;
+    input.id = 'in-' + f.id;
+    wrap.appendChild(input);
+    if (f.hint) { var h = document.createElement('div'); h.className = 'hint'; h.textContent = f.hint; wrap.appendChild(h); }
+    fieldsEl.appendChild(wrap);
+  });
+  var checksEl = $('checks');
+  FORM.checks.forEach(function (c) {
+    var lab = document.createElement('label');
+    var input = document.createElement('input');
+    input.type = 'checkbox'; input.id = 'ck-' + c.id; input.checked = !!c.def;
+    lab.appendChild(input);
+    lab.appendChild(document.createTextNode(c.label));
+    checksEl.appendChild(lab);
+  });
+
+  function build() {
+    // validate
+    var ok = true, first = null;
+    FORM.fields.forEach(function (f) {
+      var el = $('in-' + f.id);
+      var bad = !!(f.required && !el.value.trim());
+      el.classList.toggle('bad', bad);
+      if (bad) { ok = false; first = first || el; }
+    });
+    if (!ok) { first.focus(); return null; }
+
+    var name = ($('in-first') ? $('in-first').value.trim() : '') + ' ' +
+               ($('in-last') ? $('in-last').value.trim() : '');
+    var start = $('in-start') ? $('in-start').value : '';
+    var subject = '[' + FORM.type.toUpperCase().replace(/\s+/g, '-') + '] ' +
+      name.trim() + ' — ' + FORM.client + (start ? ' — starts ' + start : '');
+
+    var lines = [];
+    lines.push('=== ' + FORM.type.toUpperCase() + ' REQUEST (v1) ===');
+    lines.push('Client: ' + FORM.client);
+    FORM.fields.forEach(function (f) {
+      var v = $('in-' + f.id).value.trim();
+      if (v) lines.push(f.label + ': ' + v.replace(/\r?\n/g, ' / '));
+    });
+    FORM.checks.forEach(function (c) {
+      lines.push(c.label + ': ' + ($('ck-' + c.id).checked ? 'Yes' : 'No'));
+    });
+    lines.push('=== END REQUEST ===');
+    return { subject: subject, body: lines.join('\r\n') };
+  }
+
+  function preview(msg) {
+    $('pvSubject').textContent = 'To: ' + FORM.to + '   Subject: ' + msg.subject;
+    $('pvBody').textContent = msg.body;
+    $('preview').classList.add('show');
+  }
+
+  $('f').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var msg = build();
+    if (!msg) return;
+    preview(msg);
+    var url = 'mailto:' + encodeURIComponent(FORM.to) +
+      '?subject=' + encodeURIComponent(msg.subject) +
+      (FORM.cc ? '&cc=' + encodeURIComponent(FORM.cc) : '') +
+      '&body=' + encodeURIComponent(msg.body);
+    window.location.href = url;
+  });
+
+  $('copyBtn').addEventListener('click', function () {
+    var msg = build();
+    if (!msg) return;
+    preview(msg);
+    var text = 'To: ' + FORM.to + '\nSubject: ' + msg.subject + '\n\n' + msg.body;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+      .then(function () {
+        $('copied').hidden = false;
+        setTimeout(function () { $('copied').hidden = true; }, 2000);
+      })
+      .catch(function () { /* preview is on screen; user can select it */ });
+  });
+})();
+</script>
+</body>
+</html>
