@@ -86,59 +86,8 @@
   .cta-note{font-size:13px;color:var(--faint);margin-top:16px}
   .cta-note code{font-family:var(--mono);background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--ink)}
 
-  /* ---------- connection diagram (the signature) ---------- */
-  .diagram{
-    background:var(--surface);border:1px solid var(--line);border-radius:16px;
-    padding:26px;box-shadow:0 1px 0 rgba(20,23,26,.02),0 18px 40px -28px rgba(20,23,26,.22);
-  }
-  .diagram svg{width:100%;height:auto;display:block}
-  .node-label{font-family:var(--sans);font-weight:700;font-size:14px;fill:var(--ink)}
-  .node-sub{font-family:var(--mono);font-size:10px;fill:var(--faint);letter-spacing:.02em}
-  .link{stroke:var(--blue);stroke-width:1.5;fill:none;opacity:.55;
-    stroke-dasharray:6 5;}
-  .node-box{fill:#fff;stroke:var(--line);stroke-width:1.25}
-  .node-box.acc{fill:var(--blue-tint);stroke:#D6E3FB}
-  .center-chip{fill:var(--blue);}
-  .center-txt{font-family:var(--sans);font-weight:700;font-size:12px;fill:#fff}
-  @media(prefers-reduced-motion:no-preference){
-    .link{stroke-dashoffset:200;animation:draw 1.1s ease forwards}
-    .link:nth-child(2){animation-delay:.05s}
-    .link:nth-child(3){animation-delay:.12s}
-    .link:nth-child(4){animation-delay:.19s}
-    .link:nth-child(5){animation-delay:.26s}
-    .link:nth-child(6){animation-delay:.33s}
-    .nodeg{opacity:0;animation:pop .5s ease forwards}
-    .nodeg:nth-child(7){animation-delay:.30s}
-    .nodeg:nth-child(8){animation-delay:.40s}
-    .nodeg:nth-child(9){animation-delay:.50s}
-    .nodeg:nth-child(10){animation-delay:.60s}
-    .nodeg:nth-child(11){animation-delay:.20s}
-    @keyframes draw{to{stroke-dashoffset:0}}
-    @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-  }
-
-  /* ---------- hero visual: UI shot fades into the diagram ---------- */
-  .heroviz{position:relative;height:220vh}
-  .heroviz-pin{
-    position:sticky;top:0;height:100vh;overflow:hidden;
-    display:flex;align-items:center;
-  }
-  .heroviz-stage{position:relative;width:100%;max-width:1080px;margin:0 auto;padding:0 24px}
-  .hv-shot,.hv-diagram{
-    transition:none;will-change:opacity,transform;
-  }
-  .hv-shot{position:relative}
-  .hv-diagram{
-    position:absolute;inset:0;display:flex;flex-direction:column;gap:22px;
-    align-items:center;justify-content:center;
-    opacity:0;pointer-events:none;
-  }
-  .hv-diagram .diagram{width:min(680px,92%)}
-  .hv-caption{
-    font-family:var(--mono);font-size:13.5px;letter-spacing:.03em;color:var(--muted);
-  }
-  .hv-caption b{color:var(--blue-deep);font-weight:600}
-  .equator{stroke:#C7D7F8;stroke-width:1.25;stroke-dasharray:2 6;fill:none}
+  /* ---------- hero panel ---------- */
+  .hero-panel{padding:48px 0 8px}
 
   /* ---------- problem strip ---------- */
   .strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
@@ -305,10 +254,6 @@
 
   /* ---------- static fallback: small screens & reduced motion ---------- */
   @media(max-width:900px),(prefers-reduced-motion:reduce){
-    .heroviz{height:auto}
-    .heroviz-pin{position:static;height:auto;overflow:visible;display:block;padding:40px 0}
-    .hv-shot{opacity:1 !important;transform:none !important}
-    .hv-diagram{position:static;opacity:1 !important;transform:none !important;margin-top:36px;pointer-events:auto}
     .story{height:auto}
     .story-pin{position:static;height:auto;overflow:visible;display:block;background:var(--canvas)}
     .story-stage{height:auto}
@@ -371,12 +316,10 @@
   </div>
 </section>
 
-<!-- HERO VISUAL: the product, full width — fading into the connection web -->
-<section class="heroviz" id="heroviz">
-  <div class="heroviz-pin">
-    <div class="heroviz-stage">
-      <div class="hv-shot">
-      <div class="ws-panel">
+<!-- HERO PANEL: the workspace, front and center -->
+<section class="hero-panel">
+  <div class="wrap">
+    <div class="ws-panel">
       <div class="ws-pill">
         <div class="avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"/></svg></div>
         <b>IT Team</b><span>one workspace</span>
@@ -439,45 +382,6 @@
           <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M3 7l9 6 9-6"/></svg></div>
         </div>
         <div class="clock">9:41 AM</div>
-      </div>
-    </div>
-      </div>
-      <div class="hv-diagram">
-        <!-- signature: the compass — four cardinals, one equator -->
-        <div class="diagram" aria-label="Compass diagram: People north, Assets east, Projects south, Docs west, connected on the equator">
-          <svg viewBox="0 0 480 340" role="img">
-            <path class="equator" d="M10,170 H470"/>
-            <path class="link" d="M240,74 C240,110 240,125 240,154"/>
-            <path class="link" d="M322,170 H284"/>
-            <path class="link" d="M240,266 C240,230 240,215 240,186"/>
-            <path class="link" d="M158,170 H196"/>
-            <g class="nodeg">
-              <rect class="center-chip" x="198" y="156" width="84" height="28" rx="8"/>
-              <text class="center-txt" x="240" y="174" text-anchor="middle">connected</text>
-            </g>
-            <g class="nodeg">
-              <rect class="node-box acc" x="165" y="16" width="150" height="56" rx="11"/>
-              <text class="node-label" x="183" y="42">People</text>
-              <text class="node-sub" x="183" y="59">devices · accounts · seats</text>
-            </g>
-            <g class="nodeg">
-              <rect class="node-box" x="324" y="142" width="150" height="56" rx="11"/>
-              <text class="node-label" x="342" y="168">Assets</text>
-              <text class="node-sub" x="342" y="185">tag · room · person</text>
-            </g>
-            <g class="nodeg">
-              <rect class="node-box acc" x="165" y="268" width="150" height="56" rx="11"/>
-              <text class="node-label" x="183" y="294">Projects</text>
-              <text class="node-sub" x="183" y="311">milestones · tasks · timeline</text>
-            </g>
-            <g class="nodeg">
-              <rect class="node-box" x="6" y="142" width="150" height="56" rx="11"/>
-              <text class="node-label" x="24" y="168">Docs</text>
-              <text class="node-sub" x="24" y="185">sops · runbooks · incidents</text>
-            </g>
-          </svg>
-        </div>
-        <div class="hv-caption">The four cardinals of IT — <b>unified at the equator</b>.</div>
       </div>
     </div>
   </div>
@@ -715,35 +619,14 @@
     current = i;
   }
 
-  var hv = document.getElementById('heroviz');
-  var hvShot = hv.querySelector('.hv-shot');
-  var hvDiagram = hv.querySelector('.hv-diagram');
-
-  function heroFade(vh) {
-    var q = (window.scrollY - hv.offsetTop) / (hv.offsetHeight - vh);
-    q = Math.max(0, Math.min(1, q));
-    // hold the shot, then crossfade through the middle of the pinned stretch
-    var f = Math.max(0, Math.min(1, (q - 0.3) / 0.5));
-    f = f * f * (3 - 2 * f); // smoothstep
-    hvShot.style.opacity = String(1 - f);
-    hvShot.style.transform = 'scale(' + (1 - f * 0.03) + ')';
-    hvDiagram.style.opacity = String(f);
-    hvDiagram.style.transform = 'scale(' + (1.04 - f * 0.04) + ')';
-  }
-
   var ticking = false;
   function onScroll() {
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(function () {
       ticking = false;
-      if (!pinned()) {
-        hvShot.style.opacity = hvShot.style.transform = '';
-        hvDiagram.style.opacity = hvDiagram.style.transform = '';
-        return;
-      }
+      if (!pinned()) return;
       var vh = window.innerHeight;
-      heroFade(vh);
       var p = (window.scrollY - story.offsetTop) / (story.offsetHeight - vh);
       var i = Math.max(0, Math.min(scenes.length - 1, Math.floor(p * scenes.length)));
       setScene(i);
