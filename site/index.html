@@ -126,10 +126,16 @@
   }
   .hv-shot{position:relative}
   .hv-diagram{
-    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    position:absolute;inset:0;display:flex;flex-direction:column;gap:22px;
+    align-items:center;justify-content:center;
     opacity:0;pointer-events:none;
   }
   .hv-diagram .diagram{width:min(680px,92%)}
+  .hv-caption{
+    font-family:var(--mono);font-size:13.5px;letter-spacing:.03em;color:var(--muted);
+  }
+  .hv-caption b{color:var(--blue-deep);font-weight:600}
+  .equator{stroke:#C7D7F8;stroke-width:1.25;stroke-dasharray:2 6;fill:none}
 
   /* ---------- problem strip ---------- */
   .strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
@@ -316,41 +322,41 @@
         </div>
       </div>
       <div class="hv-diagram">
-        <!-- signature: the connection web -->
-        <div class="diagram" aria-label="Diagram: people, assets, credentials and work connected at the center">
-          <svg viewBox="0 0 420 320" role="img">
-            <path class="link" d="M110,70 C180,120 200,130 210,150"/>
-            <path class="link" d="M310,70 C240,120 220,130 210,150"/>
-            <path class="link" d="M110,250 C180,200 200,190 210,170"/>
-            <path class="link" d="M310,250 C240,200 220,190 210,170"/>
-            <path class="link" d="M110,70 C90,160 90,160 110,250"/>
-            <path class="link" d="M310,70 C330,160 330,160 310,250"/>
+        <!-- signature: the compass — four cardinals, one equator -->
+        <div class="diagram" aria-label="Compass diagram: People north, Assets east, Work south, Credentials west, connected on the equator">
+          <svg viewBox="0 0 480 340" role="img">
+            <path class="equator" d="M10,170 H470"/>
+            <path class="link" d="M240,74 C240,110 240,125 240,154"/>
+            <path class="link" d="M322,170 H284"/>
+            <path class="link" d="M240,266 C240,230 240,215 240,186"/>
+            <path class="link" d="M158,170 H196"/>
             <g class="nodeg">
-              <rect class="center-chip" x="168" y="146" width="84" height="28" rx="8"/>
-              <text class="center-txt" x="210" y="164" text-anchor="middle">connected</text>
+              <rect class="center-chip" x="198" y="156" width="84" height="28" rx="8"/>
+              <text class="center-txt" x="240" y="174" text-anchor="middle">connected</text>
             </g>
             <g class="nodeg">
-              <rect class="node-box acc" x="26" y="42" width="150" height="56" rx="11"/>
-              <text class="node-label" x="44" y="68">People</text>
-              <text class="node-sub" x="44" y="85">devices · accounts · seats</text>
+              <rect class="node-box acc" x="165" y="16" width="150" height="56" rx="11"/>
+              <text class="node-label" x="183" y="42">People</text>
+              <text class="node-sub" x="183" y="59">devices · accounts · seats</text>
             </g>
             <g class="nodeg">
-              <rect class="node-box" x="244" y="42" width="150" height="56" rx="11"/>
-              <text class="node-label" x="262" y="68">Assets</text>
-              <text class="node-sub" x="262" y="85">tag · room · person</text>
+              <rect class="node-box" x="324" y="142" width="150" height="56" rx="11"/>
+              <text class="node-label" x="342" y="168">Assets</text>
+              <text class="node-sub" x="342" y="185">tag · room · person</text>
             </g>
             <g class="nodeg">
-              <rect class="node-box" x="26" y="222" width="150" height="56" rx="11"/>
-              <text class="node-label" x="44" y="248">Credentials</text>
-              <text class="node-sub" x="44" y="265">vendor · product · seat</text>
+              <rect class="node-box acc" x="165" y="268" width="150" height="56" rx="11"/>
+              <text class="node-label" x="183" y="294">Work</text>
+              <text class="node-sub" x="183" y="311">tasks · docs · runbooks</text>
             </g>
             <g class="nodeg">
-              <rect class="node-box acc" x="244" y="222" width="150" height="56" rx="11"/>
-              <text class="node-label" x="262" y="248">Work</text>
-              <text class="node-sub" x="262" y="265">tasks · docs · runbooks</text>
+              <rect class="node-box" x="6" y="142" width="150" height="56" rx="11"/>
+              <text class="node-label" x="24" y="168">Credentials</text>
+              <text class="node-sub" x="24" y="185">vendor · product · seat</text>
             </g>
           </svg>
         </div>
+        <div class="hv-caption">The four cardinals of IT — <b>unified at the equator</b>.</div>
       </div>
     </div>
   </div>
