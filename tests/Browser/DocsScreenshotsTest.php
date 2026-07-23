@@ -63,8 +63,8 @@ class DocsScreenshotsTest extends DuskTestCase
             $browser->visit('/people')
                 ->waitForText('Add Staff', 10)
                 ->pause(800);
-            $this->clickText($browser, 'Ben Carter');
-            $browser->waitForText('bcarter@plutonicgames.com', 10)
+            $this->clickText($browser, 'Jensen Wattage');
+            $browser->waitForText('jwattage@plutonicgames.com', 10)
                 ->pause(500)
                 ->screenshot('02-people-staff');
 
@@ -136,8 +136,8 @@ class DocsScreenshotsTest extends DuskTestCase
             $browser->visit('/people')->pause(800);
             $this->clickText($browser, 'Staff');
             $browser->waitForText('Add Staff', 10)->pause(600);
-            $this->clickText($browser, 'Ben Carter');
-            $browser->waitForText('bcarter@plutonicgames.com', 10)
+            $this->clickText($browser, 'Jensen Wattage');
+            $browser->waitForText('jwattage@plutonicgames.com', 10)
                 ->pause(500)
                 ->screenshot('14-people-dark');
             $browser->script('document.documentElement.classList.remove("dark"); localStorage.setItem("theme","light");');
