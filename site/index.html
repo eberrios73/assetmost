@@ -234,6 +234,50 @@
   .q{font-family:var(--mono);font-size:13px;color:#D5DBE2;background:#22262B;border:1px solid #2E343B;border-radius:8px;padding:9px 14px}
   .q b{color:#fff;font-weight:600}
 
+  /* ---------- one workspace (glass cards on wallpaper) ---------- */
+  .workspace{padding:84px 0 0}
+  .workspace .sec-head{text-align:center;margin:0 auto 40px;max-width:56ch}
+  .ws-panel{
+    position:relative;max-width:1060px;margin:0 auto;border:1px solid var(--line);
+    border-radius:18px;box-shadow:0 20px 48px rgba(15,23,42,.12);overflow:hidden;
+    background:url('assets/wallpaper.jpg') center / cover no-repeat;
+    padding:18px 24px 60px;
+  }
+  .ws-pill{display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,.55);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.7);border-radius:999px;padding:6px 14px 6px 6px;
+    box-shadow:0 4px 16px rgba(15,23,42,.08)}
+  .ws-pill .avatar{width:30px;height:30px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center}
+  .ws-pill b{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0f172a}
+  .ws-pill span{font-size:12px;color:#64748b}
+  .ws-stage{position:relative;padding:36px 0 64px}
+  .ws-links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .ws-cards{position:relative;display:flex;gap:18px;justify-content:center}
+  .ws-card{box-sizing:border-box;flex:1 1 0;min-width:0;max-width:240px;
+    background:linear-gradient(160deg, rgba(255,255,255,.42), rgba(255,255,255,.16));
+    backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);
+    border:1px solid rgba(255,255,255,.85);border-radius:14px;
+    box-shadow:0 16px 40px rgba(15,23,42,.14), inset 0 1px 0 rgba(255,255,255,.9), inset 0 -12px 24px rgba(255,255,255,.12);
+    padding:14px 16px 13px;display:flex;flex-direction:column;gap:6px}
+  .ws-card h3{font-size:16px;font-weight:700;letter-spacing:-.01em;margin:0}
+  .ws-card .sub{font-size:12.5px;color:#475569;line-height:1.5;font-family:var(--mono)}
+  .ws-card svg{display:block;width:100%;margin-top:6px}
+  .ws-dock{position:absolute;left:0;right:0;bottom:0;height:46px;background:rgba(255,255,255,.45);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.6);
+    display:flex;align-items:center;padding:0 18px}
+  .ws-dock .icons{display:flex;gap:10px;align-items:center;margin:0 auto}
+  .ws-dock .ic{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.7);
+    border:1px solid rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;color:var(--blue);
+    box-shadow:0 2px 8px rgba(15,23,42,.08)}
+  .ws-dock .clock{position:absolute;right:18px;font-size:12px;font-weight:600;color:#475569}
+
+  /* ---------- tickets ---------- */
+  .tickets{padding:84px 0 8px;text-align:center}
+  .tickets h2{font-size:32px;letter-spacing:-.025em;font-weight:800;margin-bottom:12px}
+  .tickets p{color:var(--muted);font-size:16.5px;max-width:52ch;margin:0 auto 20px;line-height:1.6}
+  .outlook-pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--blue-deep);
+    background:var(--blue-tint);border:1px solid #D6E3FB;padding:7px 14px;border-radius:999px}
+
   /* ---------- closing CTA ---------- */
   .closing{text-align:center;padding:84px 0}
   .closing h2{font-size:32px;letter-spacing:-.025em;font-weight:800;margin-bottom:12px}
@@ -275,6 +319,11 @@
     h1{font-size:40px}
     .navlinks .hide-sm{display:none}
     .oss-pill{display:none}
+  }
+  @media(max-width:900px){
+    .ws-cards{flex-wrap:wrap}
+    .ws-card{flex:1 1 40%;max-width:none}
+    .ws-links{display:none}
   }
 </style>
 </head>
@@ -528,6 +577,94 @@
   </div>
 </section>
 
+<!-- ONE WORKSPACE -->
+<section class="workspace">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">One workspace</div>
+      <h2>Four cardinals, one desk.</h2>
+      <p>People, assets, projects, and docs — and every connection between them, in one place.</p>
+    </div>
+    <div class="ws-panel">
+      <div class="ws-pill">
+        <div class="avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"/></svg></div>
+        <b>IT Team</b><span>one workspace</span>
+      </div>
+      <div class="ws-stage">
+        <svg class="ws-links" fill="none" aria-hidden="true"></svg>
+        <div class="ws-cards">
+          <div class="ws-card">
+            <h3>People</h3>
+            <div class="sub">devices · accounts · seats</div>
+            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
+              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
+              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
+              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
+              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
+              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="ws-card">
+            <h3>Assets</h3>
+            <div class="sub">tag · room · person</div>
+            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
+              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
+              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
+              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
+              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
+              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="ws-card">
+            <h3>Projects</h3>
+            <div class="sub">milestones · tasks · timeline</div>
+            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
+              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
+              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
+              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
+              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
+              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="ws-card">
+            <h3>Docs</h3>
+            <div class="sub">sops · runbooks · incidents</div>
+            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
+              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
+              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
+              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
+              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
+              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="ws-dock">
+        <div class="icons">
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></svg></div>
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></svg></div>
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></svg></div>
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></svg></div>
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M3 7l9 6 9-6"/></svg></div>
+        </div>
+        <div class="clock">9:41 AM</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TICKETS -->
+<section class="tickets">
+  <div class="wrap">
+    <h2>Wait — where are the tickets?</h2>
+    <p>In your inbox, where they already live. AssetMost tickets run right in Outlook — triage, assign, and close them without a separate app, another login, or a new UI. Nothing new to learn.</p>
+    <div class="outlook-pill">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+      Runs in Outlook
+    </div>
+  </div>
+</section>
+
 <!-- CLOSING CTA -->
 <section class="closing">
   <div class="wrap">
@@ -621,6 +758,52 @@
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
   onScroll();
+})();
+
+/* Workspace panel: draw node-graph links between the glass cards.
+   Ported from the Claude Design component's computeLinks(). */
+(function () {
+  var stage = document.querySelector('.ws-stage');
+  if (!stage) return;
+  var svg = stage.querySelector('.ws-links');
+  var cards = Array.prototype.slice.call(stage.querySelectorAll('.ws-card'));
+
+  function draw() {
+    if (window.innerWidth <= 900) { svg.innerHTML = ''; return; }
+    var wrap = stage.getBoundingClientRect();
+    var rects = cards.map(function (el) {
+      var r = el.getBoundingClientRect();
+      return { cx: r.left - wrap.left + r.width / 2, top: r.top - wrap.top, bottom: r.bottom - wrap.top };
+    });
+    // [from, to, side, depth]
+    var pairs = [
+      [0, 1, 'down', 34], [1, 2, 'down', 34], [2, 3, 'down', 34],
+      [0, 2, 'up', 30], [1, 3, 'up', 30],
+      [0, 3, 'down', 64]
+    ];
+    var paths = '', dotsSvg = '', seen = {};
+    pairs.forEach(function (p) {
+      var A = rects[p[0]], B = rects[p[1]], side = p[2], depth = p[3];
+      var yA = side === 'down' ? A.bottom : A.top;
+      var yB = side === 'down' ? B.bottom : B.top;
+      var dy = side === 'down' ? depth : -depth;
+      // offset ports slightly so multiple links don't stack on one point
+      var oxA = side === 'up' ? 24 : (p[1] - p[0] > 1 ? -30 : 26);
+      var oxB = side === 'up' ? -24 : (p[1] - p[0] > 1 ? 30 : -26);
+      var x1 = A.cx + oxA, x2 = B.cx + oxB;
+      paths += '<path d="M ' + x1 + ' ' + yA + ' C ' + x1 + ' ' + (yA + dy) + ', ' + x2 + ' ' + (yB + dy) + ', ' + x2 + ' ' + yB +
+        '" stroke="' + (side === 'up' ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.9)') + '" stroke-width="2.5" fill="none"/>';
+      [[x1, yA], [x2, yB]].forEach(function (pt) {
+        var k = Math.round(pt[0]) + ',' + Math.round(pt[1]);
+        if (!seen[k]) { seen[k] = 1; dotsSvg += '<circle cx="' + pt[0] + '" cy="' + pt[1] + '" r="4.5" fill="#fff" stroke="rgba(255,255,255,0.9)" stroke-width="2"/>'; }
+      });
+    });
+    svg.innerHTML = paths + dotsSvg;
+  }
+
+  window.addEventListener('resize', draw);
+  setTimeout(draw, 60);
+  setTimeout(draw, 500);
 })();
 </script>
 
