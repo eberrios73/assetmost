@@ -104,6 +104,10 @@ Route::middleware('auth')->group(function () {
     // /m365 was its own screen; Microsoft is now one identity provider among three.
     Route::get('/m365', fn () => redirect()->route('settings.index'))->name('m365.index');
 
+    // The power bar's resolver — one query, every kind of target.
+    Route::get('/data/palette-search', [\App\Http\Controllers\PaletteController::class, 'search']);
+    Route::get('/data/palette-render', [\App\Http\Controllers\PaletteController::class, 'render']);
+
     // JSON data endpoints (infinite scroll + detail)
     $dc = \App\Http\Controllers\DataController::class;
     Route::get('/data/devices', [$dc, 'devices']);

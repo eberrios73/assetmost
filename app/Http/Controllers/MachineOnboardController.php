@@ -263,6 +263,34 @@ class MachineOnboardController extends Controller
         return array_map(fn ($blocks) => implode("\n\n", $blocks), $out);
     }
 
+    /**
+     * The power bar's tap into the same engine the SOP bootstrap uses: render one
+     * registry command against an explicit device — @target supplies the context
+     * the ambient SOP device normally would. Returns per-platform scripts (only
+     * the ones the command defines), or null if the command doesn't exist.
+     */
+    public static function renderForDevice(string $command, string $args, \App\Models\Device $device): ?array
+    {
+        $companyId = $device->company_id;
+        $s = self::registry($companyId)->first(fn ($x) => strtolower($x->command) === strtolower($command));
+        if (! $s) return null;
+
+        $ctx = [
+            'ASSET_TAG' => $device->asset_tag ?: "device-{$device->id}",
+            'BASE_URL' => rtrim(config('app.url'), '/'),
+            'TOKEN' => '{TOKEN}',   // onboarding-only; stays a placeholder here
+            'REPO' => rtrim($device->company?->installers_url ?? '', '/'),
+            'DOMAIN' => $device->company?->domain,
+            'LOCAL_DOMAIN' => $device->company?->local_domain,
+        ];
+        $out = [];
+        foreach (['mac', 'windows', 'linux'] as $p) {
+            $block = self::renderSnippet($s, $args, $ctx, $p);
+            if ($block !== null) $out[$p] = $block;
+        }
+        return $out + ['label' => $s->label];
+    }
+
     /** Active registry commands for a company. Same-named commands: the company
      *  row OVERRIDES the shipped one, blank fields falling back to it — an empty
      *  stub saved under Commands must not shadow a working shipped command. */
