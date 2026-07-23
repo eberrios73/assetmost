@@ -63,7 +63,11 @@ export default function Index() {
     useEffect(() => { loadSpaces(); }, []);
     // default to the first space once spaces load (if none remembered / stale)
     useEffect(() => {
-        if (spaces.length && !spaces.some((s) => sameId(s.id, spaceId))) chooseSpace(spaces[0].id);
+        // Align to a real space WITHOUT chooseSpace: that's the user-switch path and
+        // nulls the selection — which silently killed every first-visit deep link.
+        if (spaces.length && !spaces.some((s) => sameId(s.id, spaceId))) {
+            setSpaceId(spaces[0].id); setLast(spaceScope, spaces[0].id); collapseInit.current = false;
+        }
     }, [spaces]);
     useEffect(() => { if (spaceId) loadTree(); }, [spaceId]);
     // first visit (no saved state): start with folders collapsed so you land on the top level
@@ -73,10 +77,14 @@ export default function Index() {
             setCollapsed(s); persistCollapsed(s); collapseInit.current = true;
         }
     }, [tree]);
-    // open ?page=ID (deep-link, e.g. after "Make doc"); otherwise restore the last page viewed
+    // open ?page=ID (deep-link, e.g. after "Make doc"); otherwise restore the last page viewed.
+    // The deep link is one-shot: scope re-runs (the space resolving after mount) used to
+    // re-read an already-consumed URL, null the selection, and leave the editor holding a
+    // dead save closure — the deep-linked doc never autosaved.
+    const deepLink = useRef(new URLSearchParams(window.location.search).get('page'));
     useEffect(() => {
-        const p = new URLSearchParams(window.location.search).get('page');
-        setSelectedId(p ? Number(p) : getLast(scope));
+        const p = deepLink.current; deepLink.current = null;
+        setSelectedId((cur) => (p ? Number(p) : (getLast(scope) ?? cur)));
     }, [scope]);
     useEffect(() => {
         if (!selectedId) { setPage(null); return; }
@@ -117,10 +125,15 @@ export default function Index() {
     // Optimistic lock: every save carries the rev we loaded. A stale buffer
     // (second tab, the Onboarding SOP view) gets a conflict banner instead of
     // silently resurrecting deleted content.
+    // Through a ref: the editor captures this closure once per mount, and state
+    // captured then can go stale — the ref always names the doc on screen.
+    const selectedIdRef = useRef(null);
+    useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
     const saveBody = async (html) => {
         if (conflict) return;   // don't fight a known conflict; the banner decides
+        if (!selectedIdRef.current) return;
         setStatus('Saving…');
-        const r = await api(`/data/docs/${selectedId}`, 'PATCH', { body: html, rev: revRef.current });
+        const r = await api(`/data/docs/${selectedIdRef.current}`, 'PATCH', { body: html, rev: revRef.current });
         if (r?.conflict) { setConflict({ mine: html }); setStatus(''); return; }
         if (r?.rev) revRef.current = r.rev;
         setStatus('Saved');

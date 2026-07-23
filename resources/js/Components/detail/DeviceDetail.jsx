@@ -1,5 +1,6 @@
 import Tabs from '@/Components/Tabs';
 import Field, { useJson } from '@/Components/detail/Field';
+import ReferencedIn from '@/Components/ReferencedIn';
 
 export default function DeviceDetail({ d }) {
     return (
@@ -7,6 +8,7 @@ export default function DeviceDetail({ d }) {
             <div className="mb-4">
                 <h2 className="text-lg font-medium text-gray-800 dark:text-gray-100">{d.asset_tag || d.computer_name}</h2>
                 <p className="text-sm text-gray-500">{d.type} · {d.brand} {d.model}</p>
+                <ReferencedIn type="device" id={d.id} />
             </div>
             <div className="flex-1 min-h-0">
                 <Tabs tabs={[

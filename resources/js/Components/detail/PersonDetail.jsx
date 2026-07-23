@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Tabs from '@/Components/Tabs';
+import ReferencedIn from '@/Components/ReferencedIn';
 import Field, { useJson } from '@/Components/detail/Field';
 import LoginsTable from '@/Components/detail/LoginsTable';
 import LicensesTable from '@/Components/detail/LicensesTable';
@@ -27,6 +28,7 @@ export default function PersonDetail({ u, onChanged }) {
                     <Field label="Role" value={u.role} />
                     <Field label="Active" value={u.active ? 'Yes' : 'No'} />
                 </dl>
+                <ReferencedIn type="person" id={u.id} />
             </div>
             <div className="flex-1 min-h-0">
                 <Tabs

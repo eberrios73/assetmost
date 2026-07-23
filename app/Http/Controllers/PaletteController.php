@@ -98,6 +98,27 @@ class PaletteController extends Controller
         return response()->json($rendered);
     }
 
+    /**
+     * Backlinks: everything that @-mentions this record. Only sources the viewer
+     * can see come back — the doc query runs under the company global scope.
+     */
+    public function refs(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'type' => 'required|in:'.implode(',', \App\Support\ObjectRefSync::TYPES),
+            'id' => 'required|integer',
+        ]);
+        $edges = \App\Models\ObjectRef::query()
+            ->where(['to_type' => $data['type'], 'to_id' => $data['id']])->get();
+
+        $out = [];
+        $docIds = $edges->where('from_type', 'doc')->pluck('from_id');
+        foreach (DocPage::query()->whereIn('id', $docIds)->get(['id', 'title', 'category']) as $doc) {
+            $out[] = ['type' => 'doc', 'id' => $doc->id, 'label' => $doc->title, 'sub' => $doc->category ?: 'doc'];
+        }
+        return response()->json(['refs' => $out]);
+    }
+
     /** asset_tag doubles as hostname; the company's local domain completes it. */
     private function fqdn(Device $d): ?string
     {

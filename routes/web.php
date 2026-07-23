@@ -107,6 +107,7 @@ Route::middleware('auth')->group(function () {
     // The power bar's resolver — one query, every kind of target.
     Route::get('/data/palette-search', [\App\Http\Controllers\PaletteController::class, 'search']);
     Route::get('/data/palette-render', [\App\Http\Controllers\PaletteController::class, 'render']);
+    Route::get('/data/refs', [\App\Http\Controllers\PaletteController::class, 'refs']);
 
     // JSON data endpoints (infinite scroll + detail)
     $dc = \App\Http\Controllers\DataController::class;

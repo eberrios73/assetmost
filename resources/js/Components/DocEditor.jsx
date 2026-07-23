@@ -433,6 +433,35 @@ const CodeBlockWithCopy = CodeBlock.extend({
     },
 });
 
+// --- @-mentions -------------------------------------------------------------
+// A durable reference to a record: type + id survive in the HTML as
+// data-ref="device:12", so renames don't rot the link and object_refs can index
+// it on save. "/" acts, "@" targets — this is the target half of the grammar.
+const ObjRef = Node.create({
+    name: 'objRef',
+    group: 'inline',
+    inline: true,
+    atom: true,
+    addAttributes() {
+        return { rtype: { default: null }, rid: { default: null }, label: { default: '' } };
+    },
+    parseHTML() {
+        return [{
+            tag: 'span[data-ref]',
+            getAttrs: (el) => {
+                const [rtype, rid] = (el.getAttribute('data-ref') || ':').split(':');
+                return { rtype, rid: Number(rid), label: el.textContent.replace(/^@/, '') };
+            },
+        }];
+    },
+    renderHTML({ node }) {
+        return ['span', {
+            'data-ref': `${node.attrs.rtype}:${node.attrs.rid}`,
+            class: 'obj-ref',
+        }, `@${node.attrs.label}`];
+    },
+});
+
 // seeded docs are markdown; once saved they're HTML. Detect and normalize to HTML.
 const toHtml = (body) => {
     if (!body) return '';
@@ -632,6 +661,7 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
     const [refs, setRefs] = useState([]);         // runbook references: [{slug, name}]
     const [installers, setInstallers] = useState([]);   // indexed installers share
     const [snippets, setSnippets] = useState([]);       // the commands registry
+    const [atResults, setAtResults] = useState([]);     // live inventory hits for the @ menu
     const saveTimer = useRef(null);
     const menuRef = useRef(null);
 
@@ -647,6 +677,18 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
             .then((r) => r.json()).then((d) => setSnippets(Array.isArray(d) ? d : [])).catch(() => {});
     }, []);
 
+    // The @ menu searches live while you type — same resolver as the power bar.
+    useEffect(() => {
+        if (menu?.mode !== 'at' || menu.query.length < 2) { setAtResults([]); return; }
+        const t = setTimeout(() => {
+            fetch(`/data/palette-search?q=${encodeURIComponent(menu.query)}`, { headers: { Accept: 'application/json' } })
+                .then((r) => r.json())
+                .then((d) => setAtResults(d.results || []))
+                .catch(() => setAtResults([]));
+        }, 150);
+        return () => clearTimeout(t);
+    }, [menu?.mode, menu?.query]);
+
     // One menu entry per command (company overrides shipped) — also the pill set.
     const activeSnippets = mergeSnippets(snippets.filter((s) => s.active));
     useEffect(() => {
@@ -661,6 +703,7 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
             CodeBlockWithCopy,
             SopStep,
             CmdPills,
+            ObjRef,
             JoinSubLists,
             Placeholder.configure({ placeholder: "Type '/' for commands, or just start writing…" }),
             Table.configure({ resizable: true }),
@@ -735,6 +778,14 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
         if (form) {
             const coords = ed.view.coordsAtPos($from.pos);
             return setMenu({ mode: 'form', query: form[1].trim().toLowerCase(), from: $from.pos - form[0].length, to: $from.pos, x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
+        }
+        // "@word" — a target: search the inventory, drop a durable reference pill.
+        // Mid-word @ (an email address) never triggers: needs start-or-space before.
+        const at = textBefore.match(/(?:^|\s)@([\w .-]*)$/);
+        if (at) {
+            const coords = ed.view.coordsAtPos($from.pos);
+            return setMenu({ mode: 'at', query: at[1].toLowerCase(), from: $from.pos - at[1].length - 1, to: $from.pos,
+                x: coords.left, y: coords.bottom, yTop: coords.top, index: 0 });
         }
         // "/word" — commands and runbook references.
         const m = textBefore.match(/(?:^|\s)\/(\w*)$/);
@@ -820,6 +871,20 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
                 self: true, more: true, run: (e) => asSubstep(e, { from: menu.from, to: menu.to }, `/mdm ${menu.query} `) });
             items = picks;
         }
+    } else if (menu?.mode === 'at') {
+        // Targets, straight from the power bar's resolver.
+        items = atResults.map((r) => ({
+            key: `at:${r.type}:${r.id}`,
+            label: `@${r.label}`,
+            hint: [r.type, r.sub].filter(Boolean).join(' · '),
+            self: true,
+            run: (e) => e.chain().focus()
+                .deleteRange({ from: menu.from, to: menu.to })
+                .insertContentAt(menu.from, [
+                    { type: 'objRef', attrs: { rtype: r.type, rid: r.id, label: r.label } },
+                    { type: 'text', text: ' ' },
+                ]).run(),
+        }));
     } else if (menu?.mode === 'form') {
         // /form <new|edit> <kind>: the step's generated task carries the record form —
         // new creates, edit picks an existing record and updates it. Both in the

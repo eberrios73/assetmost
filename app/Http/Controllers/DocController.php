@@ -280,6 +280,7 @@ class DocController extends Controller
             'category' => $data['category'] ?? null,
             'updated_by' => auth()->id(),
         ]);
+        \App\Support\ObjectRefSync::sync('doc', $page->id, $page->body);
         return response()->json(['id' => $page->id], 201);
     }
 
@@ -351,6 +352,10 @@ class DocController extends Controller
             }
         }
         $page->update($data + ['updated_by' => auth()->id()]);
+        // The mention edges follow the content — see ObjectRefSync.
+        if (array_key_exists('body', $data)) {
+            \App\Support\ObjectRefSync::sync('doc', $page->id, $page->body);
+        }
 
         // If this page IS a workflow, editing the document is editing the runbook —
         // re-import the steps from the body now, so the wizard follows the doc without
@@ -373,6 +378,7 @@ class DocController extends Controller
     public function destroy(DocPage $page): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);
+        \App\Support\ObjectRefSync::forget('doc', $page->id);
         $page->delete(); // children cascade to null parent (become root)
         return response()->json(['ok' => true]);
     }
