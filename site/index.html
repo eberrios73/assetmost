@@ -239,6 +239,35 @@
   .outlook-pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--blue-deep);
     background:var(--blue-tint);border:1px solid #D6E3FB;padding:7px 14px;border-radius:999px}
 
+  /* ---------- intake forms showcase ---------- */
+  .intake{padding:40px 0 84px}
+  .intake .sec-head{text-align:center;margin:0 auto 36px;max-width:56ch}
+  .formshow{position:relative;max-width:560px;margin:0 auto;height:540px}
+  .formcard{
+    position:absolute;inset:0;opacity:0;transition:opacity .7s ease;pointer-events:none;
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px;
+    box-shadow:0 18px 40px -28px rgba(20,23,26,.22);
+  }
+  .formcard.active{opacity:1;pointer-events:auto}
+  .fc-client{font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--blue-deep);font-weight:600;margin-bottom:4px}
+  .fc-title{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:16px}
+  .fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 12px}
+  .fc-field{display:flex;flex-direction:column;gap:4px}
+  .fc-field.wide{grid-column:1/-1}
+  .fc-field label{font-size:11.5px;font-weight:600;color:var(--muted)}
+  .fc-input{height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;padding:0 9px;font-size:12.5px;color:var(--ink);display:flex;align-items:center;white-space:nowrap;overflow:hidden}
+  .fc-checks{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .fc-check{display:flex;gap:7px;align-items:center;font-size:12px;color:var(--ink)}
+  .fc-check .box{width:13px;height:13px;border-radius:3.5px;background:var(--blue);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:700}
+  .fc-submit{margin-top:18px}
+  .fc-submit .btn-mock{display:inline-block;background:var(--blue);color:#fff;font-size:13px;font-weight:600;border-radius:7px;padding:8px 16px}
+  .fc-out{margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--faint);border-top:1px dashed var(--line);padding-top:10px;line-height:1.5}
+  .fc-out b{color:var(--blue-deep)}
+  .formshow-dots{display:flex;gap:8px;justify-content:center;margin-top:20px}
+  .formshow-dots button{width:8px;height:8px;border-radius:50%;border:0;background:var(--line);cursor:pointer;padding:0;transition:.25s}
+  .formshow-dots button.on{background:var(--blue);transform:scale(1.3)}
+  @media(max-width:560px){.formshow{height:600px}}
+
   /* ---------- closing CTA ---------- */
   .closing{text-align:center;padding:84px 0}
   .closing h2{font-size:32px;letter-spacing:-.025em;font-weight:800;margin-bottom:12px}
@@ -567,6 +596,87 @@
   </div>
 </section>
 
+<!-- INTAKE FORMS -->
+<section class="intake">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Onboarding intake</div>
+      <h2>Every client gets their own form.</h2>
+      <p>AssetMost generates it: one HTML file the client keeps on their desktop. No portal, no server, no login. Fill it in, hit submit, and it writes the structured onboarding email that AssetMost parses. Chaos in, one format out.</p>
+    </div>
+    <div class="formshow" id="formshow">
+
+      <div class="formcard active">
+        <div class="fc-client">Meridian &amp; Finch LLP</div>
+        <div class="fc-title">New hire request</div>
+        <div class="fc-grid">
+          <div class="fc-field"><label>First name</label><div class="fc-input">Jordan</div></div>
+          <div class="fc-field"><label>Last name</label><div class="fc-input">Reyes</div></div>
+          <div class="fc-field"><label>Position</label><div class="fc-input">Paralegal</div></div>
+          <div class="fc-field"><label>Start date</label><div class="fc-input">2026-08-03</div></div>
+          <div class="fc-field"><label>Cell phone (2FA)</label><div class="fc-input">(555) 014-2288</div></div>
+          <div class="fc-field"><label>Extension</label><div class="fc-input">412</div></div>
+          <div class="fc-field wide"><label>Distro lists</label><div class="fc-input">Staff LA; Litigation</div></div>
+        </div>
+        <div class="fc-checks">
+          <div class="fc-check"><span class="box">✓</span>Add to printers</div>
+          <div class="fc-check"><span class="box">✓</span>Attorney email access</div>
+          <div class="fc-check"><span class="box">✓</span>Add to macros</div>
+          <div class="fc-check"><span class="box">✓</span>Signature block</div>
+        </div>
+        <div class="fc-submit"><span class="btn-mock">Create email</span></div>
+        <div class="fc-out">→ <b>[NEW-HIRE]</b> Jordan Reyes — Meridian &amp; Finch LLP — starts 2026-08-03</div>
+      </div>
+
+      <div class="formcard">
+        <div class="fc-client">Plutonic Games</div>
+        <div class="fc-title">New hire request</div>
+        <div class="fc-grid">
+          <div class="fc-field"><label>First name</label><div class="fc-input">Ada</div></div>
+          <div class="fc-field"><label>Last name</label><div class="fc-input">LoveLDAP</div></div>
+          <div class="fc-field"><label>Title</label><div class="fc-input">UI Artist</div></div>
+          <div class="fc-field"><label>Start date</label><div class="fc-input">2026-08-10</div></div>
+          <div class="fc-field"><label>Department</label><div class="fc-input">Art</div></div>
+          <div class="fc-field"><label>Workstation</label><div class="fc-input">Mac laptop</div></div>
+          <div class="fc-field wide"><label>Floating accounts</label><div class="fc-input">artist003; render-farm</div></div>
+        </div>
+        <div class="fc-checks">
+          <div class="fc-check"><span class="box">✓</span>Perforce access</div>
+          <div class="fc-check"><span class="box">✓</span>M365 seat</div>
+          <div class="fc-check"><span class="box">✓</span>Adobe CC pool</div>
+          <div class="fc-check"><span class="box">✓</span>Duo MFA</div>
+        </div>
+        <div class="fc-submit"><span class="btn-mock">Create email</span></div>
+        <div class="fc-out">→ <b>[NEW-HIRE]</b> Ada LoveLDAP — Plutonic Games — starts 2026-08-10</div>
+      </div>
+
+      <div class="formcard">
+        <div class="fc-client">Northlake Clinic</div>
+        <div class="fc-title">New hire request</div>
+        <div class="fc-grid">
+          <div class="fc-field"><label>First name</label><div class="fc-input">Priya</div></div>
+          <div class="fc-field"><label>Last name</label><div class="fc-input">Raman</div></div>
+          <div class="fc-field"><label>Role</label><div class="fc-input">Front desk</div></div>
+          <div class="fc-field"><label>Start date</label><div class="fc-input">2026-08-17</div></div>
+          <div class="fc-field"><label>Badge #</label><div class="fc-input">0441</div></div>
+          <div class="fc-field"><label>Location</label><div class="fc-input">Lakeview office</div></div>
+          <div class="fc-field wide"><label>EHR access</label><div class="fc-input">Scheduling only</div></div>
+        </div>
+        <div class="fc-checks">
+          <div class="fc-check"><span class="box">✓</span>Door code</div>
+          <div class="fc-check"><span class="box">✓</span>Phone tree</div>
+          <div class="fc-check"><span class="box">✓</span>Shared mailbox</div>
+          <div class="fc-check"><span class="box">✓</span>Fax queue</div>
+        </div>
+        <div class="fc-submit"><span class="btn-mock">Create email</span></div>
+        <div class="fc-out">→ <b>[NEW-HIRE]</b> Priya Raman — Northlake Clinic — starts 2026-08-17</div>
+      </div>
+
+    </div>
+    <div class="formshow-dots" id="formshowDots"></div>
+  </div>
+</section>
+
 <!-- CLOSING CTA -->
 <section class="closing">
   <div class="wrap">
@@ -703,6 +813,40 @@
   } else {
     svg.classList.add('on');
   }
+})();
+
+/* Intake forms showcase: three client variants crossfading. */
+(function () {
+  var show = document.getElementById('formshow');
+  if (!show) return;
+  var cards = Array.prototype.slice.call(show.querySelectorAll('.formcard'));
+  var dotsEl = document.getElementById('formshowDots');
+  var current = 0, timer = null;
+  var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  cards.forEach(function (_, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Show form ' + (i + 1));
+    b.addEventListener('click', function () { go(i); restart(); });
+    dotsEl.appendChild(b);
+  });
+  var dots = Array.prototype.slice.call(dotsEl.children);
+  dots[0].classList.add('on');
+
+  function go(i) {
+    cards[current].classList.remove('active');
+    dots[current].classList.remove('on');
+    current = i;
+    cards[current].classList.add('active');
+    dots[current].classList.add('on');
+  }
+  function restart() {
+    if (still) return;
+    clearInterval(timer);
+    timer = setInterval(function () { go((current + 1) % cards.length); }, 3800);
+  }
+  restart();
 })();
 </script>
 
