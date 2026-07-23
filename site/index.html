@@ -65,7 +65,10 @@
 
   /* ---------- hero ---------- */
   .hero{padding:76px 0 0}
-  .hero-copy{max-width:640px}
+  .hero-copy{max-width:760px;margin:0 auto;text-align:center}
+  .hero-copy .lede{margin-left:auto;margin-right:auto}
+  .hero-copy .cta-row{justify-content:center}
+  @media(max-width:640px){.hb{display:none}}
   .eyebrow{
     font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
     color:var(--blue-deep);text-transform:uppercase;margin-bottom:20px;font-weight:600;
@@ -356,9 +359,9 @@
 <section class="hero">
   <div class="wrap">
     <div class="hero-copy">
-      <div class="eyebrow">IT asset &amp; identity management</div>
-      <h1>IT in four simple <span class="u">channels</span>.</h1>
-      <p class="lede">People, assets, projects, and docs — the cardinal points of IT — and the connections between them, managed by one app. Forget the spreadsheets. Forget the SaaS apps.</p>
+      <div class="eyebrow">Four pillars, one system</div>
+      <h1>Everything your team juggles,<br class="hb"> in one connected system.</h1>
+      <p class="lede">People, assets, docs, and projects. Every connection between them, in one place.</p>
       <div class="cta-row">
         <a href="https://github.com/eberrios73/assetmost" class="btn btn-primary">Get the open-source version</a>
         <a href="guide.html" class="btn btn-ghost">Read the user guide</a>
