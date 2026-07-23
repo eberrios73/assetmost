@@ -73,38 +73,38 @@ class PlutonicGamesSeeder extends Seeder
             'password' => Hash::make('password'), 'active' => true,
         ]);
         $sam->managedCompanies()->sync([$co->id]);
-        $maya   = $mk(['name' => 'Maya',   'last' => 'Chen',      'username' => 'mchen',    'email' => 'maya@plutonicgames.com',   'title' => 'Art Director',       'department' => 'Art']);
-        $diego  = $mk(['name' => 'Diego',  'last' => 'Fuentes',   'username' => 'dfuentes', 'email' => 'diego@plutonicgames.com',  'title' => 'Environment Artist', 'department' => 'Art']);
-        $priya  = $mk(['name' => 'Priya',  'last' => 'Natarajan', 'username' => 'priyan',   'email' => 'priya@plutonicgames.com',  'title' => 'Character Artist',   'department' => 'Art']);
-        $marcus = $mk(['name' => 'Marcus', 'last' => 'Lee',       'username' => 'mlee',     'email' => 'marcus@plutonicgames.com', 'title' => 'Technical Artist',   'department' => 'Art']);
-        $tom    = $mk(['name' => 'Tom',    'last' => 'Okafor',    'username' => 'tokafor',  'email' => 'tom@plutonicgames.com',    'title' => 'Gameplay Engineer',  'department' => 'Engineering']);
-        $lena   = $mk(['name' => 'Lena',   'last' => 'Kovacs',    'username' => 'lkovacs',  'email' => 'lena@plutonicgames.com',   'title' => 'Engine Programmer',  'department' => 'Engineering']);
-        $jordan = $mk(['name' => 'Jordan', 'last' => 'Blake',     'username' => 'jblake',   'email' => 'jordan@plutonicgames.com', 'title' => 'Producer',           'department' => 'Production']);
-        $aisha  = $mk(['name' => 'Aisha',  'last' => 'Williams',  'username' => 'awilliams','email' => 'aisha@plutonicgames.com',  'title' => 'QA Lead',            'department' => 'QA']);
-        $erin   = $mk(['name' => 'Erin',   'last' => "O'Neil",    'username' => 'eoneil',   'email' => 'erin@plutonicgames.com',   'title' => 'Office Manager',     'department' => 'Operations']);
+        $maya   = $mk(['name' => 'Jony',   'last' => 'IPv6',      'username' => 'jipv6',    'email' => 'jipv6@plutonicgames.com',   'title' => 'Art Director',       'department' => 'Art']);
+        $diego  = $mk(['name' => 'Jeff',   'last' => 'Bezel',     'username' => 'jbezel',   'email' => 'jbezel@plutonicgames.com',  'title' => 'Environment Artist', 'department' => 'Art']);
+        $priya  = $mk(['name' => 'Sundar', 'last' => 'Pixel',     'username' => 'spixel',   'email' => 'spixel@plutonicgames.com',  'title' => 'Character Artist',   'department' => 'Art']);
+        $marcus = $mk(['name' => 'Lisa',   'last' => 'Sudo',      'username' => 'lsudo',    'email' => 'lsudo@plutonicgames.com', 'title' => 'Technical Artist',   'department' => 'Art']);
+        $tom    = $mk(['name' => 'Bill',   'last' => 'Doors',     'username' => 'bdoors',   'email' => 'bdoors@plutonicgames.com',    'title' => 'Gameplay Engineer',  'department' => 'Engineering']);
+        $lena   = $mk(['name' => 'Less',   'last' => 'Moore',     'username' => 'lmoore',   'email' => 'lmoore@plutonicgames.com',   'title' => 'Engine Programmer',  'department' => 'Engineering']);
+        $jordan = $mk(['name' => 'Elon',   'last' => 'Tusk',      'username' => 'etusk',    'email' => 'etusk@plutonicgames.com', 'title' => 'Producer',           'department' => 'Production']);
+        $aisha  = $mk(['name' => 'Sheryl', 'last' => 'Sandbox',   'username' => 'ssandbox', 'email' => 'ssandbox@plutonicgames.com',  'title' => 'QA Lead',            'department' => 'QA']);
+        $erin   = $mk(['name' => 'Grace',  'last' => 'Hotspot',   'username' => 'ghotspot', 'email' => 'ghotspot@plutonicgames.com',   'title' => 'Office Manager',     'department' => 'Operations']);
 
         // The rest of a ~30-person studio. [first, last, username, title, department]
         $roster = [
-            ['Noor',   'Haddad',    'nhaddad',   'Concept Artist',      'Art'],
-            ['Felix',  'Grant',     'fgrant',    'Animator',            'Art'],
-            ['Yuki',   'Tanaka',    'ytanaka',   'Animator',            'Art'],
-            ['Carla',  'Mendes',    'cmendes',   'UI Artist',           'Art'],
-            ['Ben',    'Carter',    'bcarter',   'Graphics Programmer', 'Engineering'],
-            ['Ivy',    'Zhou',      'izhou',     'Tools Programmer',    'Engineering'],
-            ['Owen',   'Park',      'opark',     'Tools Programmer',    'Engineering'],
-            ['Dmitri', 'Volkov',    'dvolkov',   'Backend Engineer',    'Engineering'],
-            ['Hana',   'Suzuki',    'hsuzuki',   'Build Engineer',      'Engineering'],
-            ['Ravi',   'Shah',      'rshah',     'Lead Game Designer',  'Design'],
-            ['Tessa',  'Morgan',    'tmorgan',   'Level Designer',      'Design'],
-            ['Cole',   'Bennett',   'cbennett',  'Game Designer',       'Design'],
-            ['Luis',   'Herrera',   'lherrera',  'QA Tester',           'QA'],
-            ['Ingrid', 'Bergström', 'ibergstrom','QA Tester',           'QA'],
-            ['Kofi',   'Mensah',    'kmensah',   'QA Tester',           'QA'],
-            ['Dana',   'Whitfield', 'dwhitfield','Associate Producer',  'Production'],
-            ['Theo',   'Laurent',   'tlaurent',  'Sound Designer',      'Audio'],
-            ['June',   'Park',      'jpark',     'Composer',            'Audio'],
-            ['Zoe',    'Castillo',  'zcastillo', 'Community Manager',   'Marketing'],
-            ['Adam',   'Novak',     'anovak',    'Marketing Manager',   'Marketing'],
+            ['Steve',  'Blobs',      'sblobs',     'Concept Artist',      'Art'],
+            ['Larry',  'Pager',      'lpager',     'Animator',            'Art'],
+            ['Sergey', 'Grin',       'sgrin',      'Animator',            'Art'],
+            ['Ada',    'LoveLDAP',   'aloveldap',  'UI Artist',           'Art'],
+            ['Jensen', 'Wattage',    'jwattage',   'Graphics Programmer', 'Engineering'],
+            ['Sam',    'Alt-Tab',    'salttab',    'Tools Programmer',    'Engineering'],
+            ['Michael','Deli',       'mdeli',      'Tools Programmer',    'Engineering'],
+            ['Peter',  'Shell',      'pshell',     'Backend Engineer',    'Engineering'],
+            ['Linus',  'Torvault',   'ltorvault',  'Build Engineer',      'Engineering'],
+            ['Nolan',  'Bushwell',   'nbushwell',  'Lead Game Designer',  'Design'],
+            ['Alan',   'Touring',    'atouring',   'Level Designer',      'Design'],
+            ['Steve',  'Wozzup',     'swozzup',    'Game Designer',       'Design'],
+            ['Moore',  'Orless',     'morless',    'QA Tester',           'QA'],
+            ['Tim',    'Cork',       'tcork',      'QA Tester',           'QA'],
+            ['Larry',  'Sellison',   'lsellison',  'QA Tester',           'QA'],
+            ['Satya',  'Nutella',    'snutella',   'Associate Producer',  'Production'],
+            ['Vint',   'Surf',       'vsurf',      'Sound Designer',      'Audio'],
+            ['Tim',    'Burners-CD', 'tburnerscd', 'Composer',            'Audio'],
+            ['Jack',   'Doorkey',    'jdoorkey',   'Community Manager',   'Marketing'],
+            ['Mark',   'Zuckerborg', 'mzuckerborg','Marketing Manager',   'Marketing'],
         ];
         $team = [];   // username => User, for the wider roster
         foreach ($roster as [$first, $lastName, $uname, $title, $dept]) {
@@ -254,7 +254,7 @@ class PlutonicGamesSeeder extends Seeder
             $licHelix->logins()->attach($l->id);
         }
         // Rider seats — 3 of 3 consumed: an exhausted license is a demo state worth having
-        foreach ([$tom, $lena, $team['bcarter']] as $person) {
+        foreach ([$tom, $lena, $team['jwattage']] as $person) {
             $l = $login(['login_name' => "Rider — {$person->username}", 'login_id' => $person->email,
                 'login_pass' => 'Fixture-Rider-' . $person->username, 'vendor_id' => $vendor['JetBrains']->id,
                 'product_id' => $product['Rider']->id, 'sharing' => 'personal']);
