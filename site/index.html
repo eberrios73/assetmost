@@ -103,25 +103,30 @@
   .strip .before{font-family:var(--mono);font-size:13px;color:var(--faint)}
 
   /* ---------- story intro ---------- */
-  .story-intro{padding:72px 0 8px}
+  .story-intro{padding:48px 0 0}
   .story-intro .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
-  .lifeline svg{width:100%;height:auto;display:block}
-  .lifeline .ll-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-deep);font-weight:600;margin-bottom:4px}
-  .lifeline .ll-row+.ll-row{margin-top:26px}
-  .lifeline .ll-label{font-family:var(--mono);font-size:10.5px;fill:var(--faint);letter-spacing:.02em}
-  .lifeline .ll-label.end{fill:var(--blue-deep);font-weight:600}
-  /* draw in when revealed; fully visible when reveals are off */
-  .lifeline.reveal .flow{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.1s ease .25s}
-  .lifeline.reveal.in .flow{stroke-dashoffset:0}
-  .lifeline.reveal circle,.lifeline.reveal .ll-label,.lifeline.reveal .arrow{opacity:0;transition:opacity .45s ease}
-  .lifeline.reveal.in circle,.lifeline.reveal.in .ll-label,.lifeline.reveal.in .arrow{opacity:1}
-  .lifeline.reveal.in circle:nth-of-type(1),.lifeline.reveal.in .ll-label:nth-of-type(1){transition-delay:.25s}
-  .lifeline.reveal.in circle:nth-of-type(2),.lifeline.reveal.in .ll-label:nth-of-type(2){transition-delay:.42s}
-  .lifeline.reveal.in circle:nth-of-type(3),.lifeline.reveal.in .ll-label:nth-of-type(3){transition-delay:.59s}
-  .lifeline.reveal.in circle:nth-of-type(4),.lifeline.reveal.in .ll-label:nth-of-type(4){transition-delay:.76s}
-  .lifeline.reveal.in circle:nth-of-type(5),.lifeline.reveal.in .ll-label:nth-of-type(5){transition-delay:.93s}
-  .lifeline.reveal.in circle:nth-of-type(6),.lifeline.reveal.in .ll-label:nth-of-type(6){transition-delay:1.1s}
-  .lifeline.reveal.in .arrow{transition-delay:1.2s}
+  .lifeline{
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:22px 24px;box-shadow:0 1px 0 rgba(20,23,26,.02),0 18px 40px -28px rgba(20,23,26,.22);
+  }
+  .lifeline .ll-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-deep);font-weight:600;margin-bottom:12px}
+  .lifeline .ll-row+.ll-row{margin-top:20px;padding-top:20px;border-top:1px solid var(--line-soft)}
+  .ll-track{display:flex;align-items:center}
+  .ll-chip{
+    font-family:var(--mono);font-size:11px;white-space:nowrap;
+    padding:5px 10px;border:1px solid var(--line);background:#fff;border-radius:8px;color:var(--muted);
+  }
+  .ll-chip.endpt{background:var(--blue-tint);border-color:#D6E3FB;color:var(--blue-deep);font-weight:600}
+  .ll-link{flex:1;min-width:8px;border-top:2px dashed #C7D7F8;margin:0 6px}
+  .ll-arrow{flex:none;color:#9DB9F2;display:flex;margin-right:4px}
+  .lifeline.reveal .ll-chip{opacity:0;transform:translateY(8px);transition:opacity .45s ease,transform .45s ease}
+  .lifeline.reveal.in .ll-chip{opacity:1;transform:none}
+  .lifeline.reveal.in .ll-chip:nth-child(1){transition-delay:.05s}
+  .lifeline.reveal.in .ll-chip:nth-child(3){transition-delay:.17s}
+  .lifeline.reveal.in .ll-chip:nth-child(5){transition-delay:.29s}
+  .lifeline.reveal.in .ll-chip:nth-child(7){transition-delay:.41s}
+  .lifeline.reveal.in .ll-chip:nth-child(9){transition-delay:.53s}
+  .lifeline.reveal.in .ll-chip:nth-child(12){transition-delay:.65s}
   @media(max-width:900px){.story-intro .wrap{grid-template-columns:1fr;gap:30px}}
   .sec-head{max-width:56ch}
   .sec-head .eyebrow{margin-bottom:14px}
@@ -142,7 +147,7 @@
   .scene{
     position:absolute;inset:0;
     display:grid;grid-template-columns:.72fr 1.28fr;gap:52px;align-items:center;
-    max-width:1080px;margin:0 auto;padding:0 24px;
+    max-width:1080px;margin:0 auto;padding:0 24px clamp(48px,14vh,140px);
     opacity:0;visibility:hidden;pointer-events:none;
     transition:opacity .5s ease,visibility 0s linear .5s;
   }
@@ -460,41 +465,11 @@
     <div class="lifeline" aria-label="Lifecycles: a person from onboard to offboard, a device from intake to e-waste">
       <div class="ll-row">
         <div class="ll-kicker">A person</div>
-        <svg viewBox="0 0 460 92" fill="none">
-          <path class="flow" pathLength="1" d="M12,40 H434" stroke="#9DB9F2" stroke-width="2" stroke-linecap="round"/>
-          <path class="arrow" d="M440,33 L450,40 L440,47" stroke="#9DB9F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="12" cy="40" r="6" fill="#2F6BE5"/>
-          <circle cx="96" cy="40" r="5" fill="#fff" stroke="#2F6BE5" stroke-width="1.5"/>
-          <circle cx="180" cy="40" r="5" fill="#fff" stroke="#2F6BE5" stroke-width="1.5"/>
-          <circle cx="264" cy="40" r="5" fill="#fff" stroke="#2F6BE5" stroke-width="1.5"/>
-          <circle cx="348" cy="40" r="5" fill="#fff" stroke="#2F6BE5" stroke-width="1.5"/>
-          <circle cx="434" cy="40" r="6" fill="#fff" stroke="#2F6BE5" stroke-width="2"/>
-          <text class="ll-label end" x="6" y="68">Onboard</text>
-          <text class="ll-label" x="96" y="68" text-anchor="middle">Accounts</text>
-          <text class="ll-label" x="180" y="68" text-anchor="middle">Seats</text>
-          <text class="ll-label" x="264" y="68" text-anchor="middle">Hardware</text>
-          <text class="ll-label" x="348" y="68" text-anchor="middle">Work</text>
-          <text class="ll-label end" x="448" y="68" text-anchor="end">Offboard</text>
-        </svg>
+        <div class="ll-track"><span class="ll-chip endpt">Onboard</span><span class="ll-link"></span><span class="ll-chip">Accounts</span><span class="ll-link"></span><span class="ll-chip">Seats</span><span class="ll-link"></span><span class="ll-chip">Hardware</span><span class="ll-link"></span><span class="ll-chip">Work</span><span class="ll-link"></span><span class="ll-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span><span class="ll-chip endpt">Offboard</span></div>
       </div>
       <div class="ll-row">
         <div class="ll-kicker">A device</div>
-        <svg viewBox="0 0 460 92" fill="none">
-          <path class="flow" pathLength="1" d="M12,40 H434" stroke="#9DB9F2" stroke-width="2" stroke-linecap="round"/>
-          <path class="arrow" d="M440,33 L450,40 L440,47" stroke="#9DB9F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="12" cy="40" r="6" fill="#2F6BE5"/>
-          <circle cx="96" cy="40" r="5" fill="#fff" stroke="#2F6BE5" stroke-width="1.5"/>
-          <circle cx="180" cy="40" r="5" fill="#fff" stroke="#2F6BE5" stroke-width="1.5"/>
-          <circle cx="264" cy="40" r="5" fill="#fff" stroke="#2F6BE5" stroke-width="1.5"/>
-          <circle cx="348" cy="40" r="5" fill="#fff" stroke="#2F6BE5" stroke-width="1.5"/>
-          <circle cx="434" cy="40" r="6" fill="#fff" stroke="#2F6BE5" stroke-width="2"/>
-          <text class="ll-label end" x="6" y="68">Intake</text>
-          <text class="ll-label" x="96" y="68" text-anchor="middle">Tagged</text>
-          <text class="ll-label" x="180" y="68" text-anchor="middle">Assigned</text>
-          <text class="ll-label" x="264" y="68" text-anchor="middle">In service</text>
-          <text class="ll-label" x="348" y="68" text-anchor="middle">Retired</text>
-          <text class="ll-label end" x="448" y="68" text-anchor="end">E-waste</text>
-        </svg>
+        <div class="ll-track"><span class="ll-chip endpt">Intake</span><span class="ll-link"></span><span class="ll-chip">Tagged</span><span class="ll-link"></span><span class="ll-chip">Assigned</span><span class="ll-link"></span><span class="ll-chip">In service</span><span class="ll-link"></span><span class="ll-chip">Retired</span><span class="ll-link"></span><span class="ll-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span><span class="ll-chip endpt">E-waste</span></div>
       </div>
     </div>
   </div>
