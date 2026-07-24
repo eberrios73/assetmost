@@ -40,6 +40,7 @@ export default function Index() {
     const [navTab, setNavTab] = useState('docs');   // docs | templates | commands
     const [snips, setSnips] = useState([]);
     const [selSnipId, setSelSnipId] = useState(null);
+    const [selTplKey, setSelTplKey] = useState(null);
     const [searchQ, setSearchQ] = useState('');
     const [searchResults, setSearchResults] = useState(null);
     const searchTimer = useRef(null);
@@ -255,11 +256,11 @@ export default function Index() {
                 </div>
             ) : navTab === 'templates' ? (
                 <div className="flex-1 overflow-y-auto py-1">
-                    <p className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400">Every new page starts from one of these. Pick one to create a page in {space?.name || 'this space'}.</p>
+                    <p className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400">Every new page starts from one of these. Pick one to see exactly what it seeds — create pages from + New on the Docs tab.</p>
                     {DOC_TEMPLATES.map((t) => (
-                        <button key={t.key} onClick={() => newPage(null, t.key)}
+                        <button key={t.key} onClick={() => setSelTplKey(t.key)}
                             title={t.hint}
-                            className="group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800">
+                            className={`group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selTplKey === t.key ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}>
                             <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
                             <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{t.label}</span>
                             <CategoryBadge category={t.category} />
@@ -308,6 +309,25 @@ export default function Index() {
         selSnip
             ? <SnippetEditor key={selSnip.id} snippet={selSnip} api={api} onChanged={loadSnips} onDeleted={() => { setSelSnipId(null); loadSnips(); }} />
             : <div className="h-full flex items-center justify-center text-gray-400 text-sm">Pick a command on the left, or create one.</div>
+    ) : navTab === 'templates' ? (
+        (() => {
+            const tpl = DOC_TEMPLATES.find((t) => t.key === selTplKey);
+            if (!tpl) return <div className="h-full flex items-center justify-center text-gray-400 text-sm">Pick a template on the left — this is what every new page starts from.</div>;
+            return (
+                <div className="max-w-3xl mx-auto">
+                    <div className="mb-1 flex items-center gap-3">
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{tpl.label}</h1>
+                        <CategoryBadge category={tpl.category} />
+                    </div>
+                    <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">{tpl.hint} — every new {tpl.label} page starts from this scaffold.</p>
+                    {tpl.body
+                        ? <div className="prose prose-sm dark:prose-invert max-w-none rounded-lg border border-gray-200 dark:border-gray-800 p-5"
+                            dangerouslySetInnerHTML={{ __html: buildDocBody(tpl.key, '', {}) }} />
+                        : <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-800 p-8 text-center text-sm text-gray-400">A truly blank page — no scaffold.</div>}
+                    <p className="mt-3 text-xs text-gray-400">Templates ship with the app for now. To start a page from one, use <strong>+ New</strong> on the Docs tab.</p>
+                </div>
+            );
+        })()
     ) : page ? (
         <div className="max-w-3xl mx-auto">
             {page.current_id && (
