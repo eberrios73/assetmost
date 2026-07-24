@@ -30,16 +30,25 @@ export default function PasskeyNudge() {
     };
 
     return (
-        <div className="flex items-center gap-3 border-b border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-blue-500/10 px-4 py-2 text-sm">
-            {done ? (
-                <span className="text-green-700 dark:text-green-400">✓ Passkey saved — next time, just tap.</span>
-            ) : (
-                <>
-                    <span className="text-gray-700 dark:text-gray-200">🔑 Skip the password next time — set up a passkey for this device.</span>
-                    <button onClick={enroll} className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700">Set it up</button>
-                    <button onClick={later} className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Later</button>
-                </>
-            )}
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+            <div className="w-[420px] max-w-[90vw] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-2xl text-center">
+                {done ? (
+                    <p className="text-green-700 dark:text-green-400 text-sm font-medium">✓ Passkey saved — next time, just tap.</p>
+                ) : (
+                    <>
+                        <div className="text-3xl mb-2">🔑</div>
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Skip the password next time</h2>
+                        <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">
+                            Set up a passkey and this device signs you in with a tap — Touch ID, Face ID, or your security key.
+                            Your password keeps working as the fallback.
+                        </p>
+                        <div className="mt-5 flex justify-center gap-3">
+                            <button onClick={enroll} className="rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">Set it up</button>
+                            <button onClick={later} className="rounded-md border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Later</button>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 }
