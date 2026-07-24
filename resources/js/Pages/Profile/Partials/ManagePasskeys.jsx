@@ -17,7 +17,7 @@ export default function ManagePasskeys({ className = '' }) {
     const add = async () => {
         setMsg(null);
         try { await registerPasskey(name || undefined); setName(''); setMsg('Passkey added.'); load(); }
-        catch { setMsg('Could not add the passkey.'); }
+        catch (e) { setMsg(`Could not add: ${e?.name || ''} ${e?.message || JSON.stringify(e).slice(0, 120)}`); }
     };
     const revoke = async (id) => {
         await fetch(`/webauthn/credentials/${id}`, { method: 'DELETE', credentials: 'same-origin',
