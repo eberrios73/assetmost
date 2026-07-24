@@ -25,6 +25,14 @@ Route::middleware('throttle:30,1')->group(function () {
     Route::post('/onboard/key', [$mo, 'storeKey']);
 });
 
+// Passkey assertion: guests use it to sign in, signed-in users to unlock the
+// accounts gate — so it lives outside the auth wall, throttled like login.
+Route::middleware('throttle:20,1')->group(function () {
+    $waGuest = \App\Http\Controllers\WebAuthnController::class;
+    Route::get('/webauthn/login/options', [$waGuest, 'loginOptions']);
+    Route::post('/webauthn/login', [$waGuest, 'login']);
+});
+
 Route::middleware('auth')->group(function () {
     Route::post('/switch-company', function (\Illuminate\Http\Request $r) {
         $id = $r->input('company_id');
@@ -102,6 +110,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/installers-config', [$sc, 'installersConfig']);
     Route::post('/settings/installers-path', [$sc, 'saveInstallersPath']);
     Route::post('/settings/installers-scan', [$sc, 'scanInstallers']);
+    // Passkeys: enrollment + management (signed-in); login/gate options live in guest routes below.
+    $wa = \App\Http\Controllers\WebAuthnController::class;
+    Route::get('/webauthn/credentials', [$wa, 'index']);
+    Route::get('/webauthn/register/options', [$wa, 'registerOptions']);
+    Route::post('/webauthn/register', [$wa, 'register']);
+    Route::delete('/webauthn/credentials/{credential}', [$wa, 'destroy']);
+
     Route::post('/settings/landlord/users', [$sc, 'storeLandlordUser']);
     Route::patch('/settings/landlord/users/{user}', [$sc, 'updateLandlordUser']);
     // /m365 was its own screen; Microsoft is now one identity provider among three.
