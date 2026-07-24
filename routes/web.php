@@ -78,6 +78,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/data/tasks/{task}', [$task, 'destroy']);
     Route::post('/data/tasks/{task}/links', [$task, 'storeLink']);
     Route::delete('/data/tasks/{task}/links/{link}', [$task, 'destroyLink']);
+    Route::get('/data/tasks/{task}/comments', [$task, 'comments']);
+    Route::post('/data/tasks/{task}/comments', [$task, 'storeComment']);
+    Route::delete('/data/tasks/{task}/comments/{comment}', [$task, 'destroyComment']);
 
     // Legacy single-entity paths -> their new group
     foreach (['devices' => 'assets', 'rooms' => 'assets', 'locations' => 'assets',

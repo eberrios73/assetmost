@@ -147,6 +147,40 @@ class TaskController extends Controller
         return $data;
     }
 
+    /** The task's log: flat, stamped, append-only. Fetched when the drawer opens. */
+    public function comments(Task $task): JsonResponse
+    {
+        return response()->json($task->comments()->with('author:id,name,last')->get()
+            ->map(fn ($c) => $this->commentRow($c)));
+    }
+
+    public function storeComment(Request $request, Task $task): JsonResponse
+    {
+        abort_if(auth()->user()?->role === 'User', 403);
+        $data = $request->validate(['body' => 'required|string|max:2000']);
+        $c = $task->comments()->create(['user_id' => auth()->id(), 'body' => $data['body']]);
+        return response()->json($this->commentRow($c->load('author:id,name,last')), 201);
+    }
+
+    /** Typo cleanup, not history editing: only your own line, and admins. */
+    public function destroyComment(Task $task, \App\Models\TaskComment $comment): JsonResponse
+    {
+        abort_unless($comment->task_id === $task->id, 404);
+        abort_unless($comment->user_id === auth()->id() || auth()->user()->isAdmin(), 403);
+        $comment->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    private function commentRow(\App\Models\TaskComment $c): array
+    {
+        return [
+            'id' => $c->id, 'body' => $c->body,
+            'author' => trim(($c->author->name ?? '').' '.($c->author->last ?? '')) ?: '—',
+            'mine' => $c->user_id === auth()->id(),
+            'at' => $c->created_at->toDateTimeString(),
+        ];
+    }
+
     /** Attach a pasted URL (a PR, a ticket, a doc). */
     public function storeLink(Request $request, Task $task): JsonResponse
     {

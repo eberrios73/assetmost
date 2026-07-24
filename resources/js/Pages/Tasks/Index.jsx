@@ -443,6 +443,7 @@ function TaskRows({ t, people, patch, projects = [], milestones = [], allTasks =
                             )}
                             <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>
                             <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
+                            <CommentsLog taskId={t.id} />
                             <LinksBlock t={t} patch={patch} />
                             <div className="mt-3 flex flex-wrap items-end gap-3">
                                 <label className="block w-52">
@@ -510,6 +511,46 @@ function TaskRows({ t, people, patch, projects = [], milestones = [], allTasks =
                     onProject={onProject} onMakeDoc={onMakeDoc} onDelete={onDelete} />
             ))}
         </>
+    );
+}
+
+/**
+ * The task log: flat, stamped, append-only. Not a thread — you append facts
+ * ("waiting on vendor"), each stamped with who and when. The audit trail of
+ * why a task is still open; Notes stays the freeform scratchpad.
+ */
+function CommentsLog({ taskId }) {
+    const [items, setItems] = useState(null);
+    useEffect(() => { api(`/data/tasks/${taskId}/comments`).then((d) => setItems(Array.isArray(d) ? d : [])); }, [taskId]);
+
+    const add = async (body) => {
+        const c = await api(`/data/tasks/${taskId}/comments`, 'POST', { body });
+        if (c?.id) setItems((xs) => [...xs, c]);
+    };
+    const drop = async (id) => {
+        await api(`/data/tasks/${taskId}/comments/${id}`, 'DELETE');
+        setItems((xs) => xs.filter((x) => x.id !== id));
+    };
+    const when = (at) => {
+        const d = new Date(at.replace(' ', 'T'));
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    };
+
+    return (
+        <div className="mt-3">
+            <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Log</span>
+            {items === null ? <div className="text-xs text-gray-400 py-1">…</div> : items.map((c) => (
+                <div key={c.id} className="group/log flex items-baseline gap-2 py-0.5 text-sm">
+                    <span className="text-gray-700 dark:text-gray-200">{c.body}</span>
+                    <span className="shrink-0 text-xs text-gray-400">— {c.author}, {when(c.at)}</span>
+                    {c.mine && <button onClick={() => drop(c.id)} title="delete"
+                        className="text-gray-300 dark:text-gray-600 opacity-0 group-hover/log:opacity-100 hover:text-red-600">×</button>}
+                </div>
+            ))}
+            <input placeholder="Add to the log ⏎ (who + when stamps itself)"
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { add(e.target.value.trim()); e.target.value = ''; } }}
+                className="mt-1 w-80 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+        </div>
     );
 }
 

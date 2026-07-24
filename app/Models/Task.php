@@ -55,6 +55,11 @@ class Task extends Model
         return $this->hasMany(TaskLink::class)->orderBy('id');
     }
 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(TaskComment::class)->orderBy('id');
+    }
+
     public function isProject(): bool { return $this->kind === self::PROJECT; }
     public function isMilestone(): bool { return $this->kind === self::MILESTONE; }
 }
