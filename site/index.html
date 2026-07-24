@@ -102,32 +102,6 @@
   .strip p{color:var(--muted);font-size:16px;max-width:52ch}
   .strip .before{font-family:var(--mono);font-size:13px;color:var(--faint)}
 
-  /* ---------- story intro ---------- */
-  .story-intro{padding:48px 0 0}
-  .story-intro .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
-  .lifeline{
-    background:var(--surface);border:1px solid var(--line);border-radius:16px;
-    padding:22px 24px;box-shadow:0 1px 0 rgba(20,23,26,.02),0 18px 40px -28px rgba(20,23,26,.22);
-  }
-  .lifeline .ll-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-deep);font-weight:600;margin-bottom:12px}
-  .lifeline .ll-row+.ll-row{margin-top:20px;padding-top:20px;border-top:1px solid var(--line-soft)}
-  .ll-track{display:flex;align-items:center}
-  .ll-chip{
-    font-family:var(--mono);font-size:11px;white-space:nowrap;
-    padding:5px 10px;border:1px solid var(--line);background:#fff;border-radius:8px;color:var(--muted);
-  }
-  .ll-chip.endpt{background:var(--blue-tint);border-color:#D6E3FB;color:var(--blue-deep);font-weight:600}
-  .ll-link{flex:1;min-width:8px;border-top:2px dashed #C7D7F8;margin:0 6px}
-  .ll-arrow{flex:none;color:#9DB9F2;display:flex;margin-right:4px}
-  .lifeline.reveal .ll-chip{opacity:0;transform:translateY(8px);transition:opacity .45s ease,transform .45s ease}
-  .lifeline.reveal.in .ll-chip{opacity:1;transform:none}
-  .lifeline.reveal.in .ll-chip:nth-child(1){transition-delay:.05s}
-  .lifeline.reveal.in .ll-chip:nth-child(3){transition-delay:.17s}
-  .lifeline.reveal.in .ll-chip:nth-child(5){transition-delay:.29s}
-  .lifeline.reveal.in .ll-chip:nth-child(7){transition-delay:.41s}
-  .lifeline.reveal.in .ll-chip:nth-child(9){transition-delay:.53s}
-  .lifeline.reveal.in .ll-chip:nth-child(12){transition-delay:.65s}
-  @media(max-width:900px){.story-intro .wrap{grid-template-columns:1fr;gap:30px}}
   .sec-head{max-width:56ch}
   .sec-head .eyebrow{margin-bottom:14px}
   .sec-head h2{font-size:34px;letter-spacing:-.025em;font-weight:800;line-height:1.1;margin-bottom:14px}
@@ -453,28 +427,6 @@
   </div>
 </section>
 
-<!-- STORY INTRO -->
-<section class="story-intro">
-  <div class="wrap">
-    <div class="sec-head">
-      <div class="eyebrow">A tour in seven screens</div>
-      <h2>Meet Justin Sudo.</h2>
-      <p>Follow one person through the system: everything he holds, everything it costs, and the work it created. Keep scrolling; the story plays in place.</p>
-      <div class="scroll-hint">scroll ↓</div>
-    </div>
-    <div class="lifeline" aria-label="Lifecycles: a person from onboard to offboard, a device from intake to e-waste">
-      <div class="ll-row">
-        <div class="ll-kicker">A person</div>
-        <div class="ll-track"><span class="ll-chip endpt">Onboard</span><span class="ll-link"></span><span class="ll-chip">Accounts</span><span class="ll-link"></span><span class="ll-chip">Seats</span><span class="ll-link"></span><span class="ll-chip">Hardware</span><span class="ll-link"></span><span class="ll-chip">Work</span><span class="ll-link"></span><span class="ll-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span><span class="ll-chip endpt">Offboard</span></div>
-      </div>
-      <div class="ll-row">
-        <div class="ll-kicker">A device</div>
-        <div class="ll-track"><span class="ll-chip endpt">Intake</span><span class="ll-link"></span><span class="ll-chip">Tagged</span><span class="ll-link"></span><span class="ll-chip">Assigned</span><span class="ll-link"></span><span class="ll-chip">In service</span><span class="ll-link"></span><span class="ll-chip">Retired</span><span class="ll-link"></span><span class="ll-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span><span class="ll-chip endpt">E-waste</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- THE STORY (pinned) -->
 <section class="story" id="story">
   <div class="story-pin">
@@ -484,7 +436,7 @@
         <div class="s-copy">
           <span class="tag">1 · People</span>
           <h3>One person, one screen.</h3>
-          <p>Justin's profile is the hub: his contact card, plus every login, license seat, and device he holds. Connected, not scattered.</p>
+          <p>Meet Justin Sudo. Justin's profile is the hub: his contact card, plus every login, license seat, and device he holds. Connected, not scattered.</p>
           <ul>
             <li>Logins, licenses, devices as tabs on the person</li>
             <li>Search, department filters, column-header sorting</li>
@@ -853,7 +805,7 @@
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (!('IntersectionObserver' in window)) return;
   var targets = document.querySelectorAll(
-    '.story-intro .sec-head, .story-intro .lifeline, .strip .wrap, .thesis .wrap, ' +
+    '.strip .wrap, .thesis .wrap, ' +
     '.intake .sec-head, .formshow, .formshow-dots, .tickets .wrap, .closing .wrap'
   );
   var io = new IntersectionObserver(function (entries) {
