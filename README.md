@@ -50,4 +50,4 @@ Set `ASSETMOST_EDITION=single` (one company) or `multi` (company switcher) in `.
 
 ## License
 
-[MIT](LICENSE)
+[AGPL-3.0](LICENSE)
