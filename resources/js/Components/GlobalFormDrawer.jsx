@@ -3,6 +3,7 @@ import RecordModal from '@/Components/RecordModal';
 import SearchSelect from '@/Components/SearchSelect';
 import { ENTITIES } from '@/entities';
 import { onRecordForm } from '@/lib/formBus';
+import { RunCard } from '@/Components/OnboardingSetup';
 
 const FORM_ENTITY = { device: 'devices', person: 'people', account: 'accounts', location: 'locations' };
 
@@ -18,15 +19,31 @@ export default function GlobalFormDrawer() {
     const [editRec, setEditRec] = useState(null);
 
     useEffect(() => onRecordForm((s) => {
-        if (!s || !FORM_ENTITY[s.kind]) return;
+        if (!s || (s.kind !== 'workflow-run' && !FORM_ENTITY[s.kind])) return;
         setEditRec(null);
         setSpec({ mode: s.mode === 'edit' ? 'edit' : 'new', ...s });
     }), []);
 
     if (!spec) return null;
+    const close = () => { setSpec(null); setEditRec(null); };
+
+    // A workflow run is a form like any other — it just runs a wizard, not a record.
+    if (spec.kind === 'workflow-run') {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={close}>
+                <div onClick={(e) => e.stopPropagation()}
+                    className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-xl">
+                    <RunCard workflowId={spec.workflowId} />
+                    <div className="mt-3 text-right">
+                        <button onClick={close} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Close</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const entity = ENTITIES[FORM_ENTITY[spec.kind]];
     if (!entity) return null;
-    const close = () => { setSpec(null); setEditRec(null); };
 
     if (spec.mode === 'edit' && !editRec) {
         return (

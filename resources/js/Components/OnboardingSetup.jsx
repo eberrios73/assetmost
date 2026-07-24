@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { openRecordForm } from '@/lib/formBus';
 import { usePage } from '@inertiajs/react';
 import AddButton from '@/Components/ui/AddButton';
 import { MultiPicker } from '@/Components/RecordModal';
@@ -125,10 +126,11 @@ export default function OnboardingSetup({ workflow, onChanged }) {
     const importDoc = async (pageId) => { if (!pageId) return; await api(`/data/workflows/${wfId}/parse-doc`, 'POST', { page_id: pageId }); load(); };
     const toggleActive = async () => { await api(`/data/workflows/${wfId}`, 'PATCH', { active: !wf.active }); load(); onChanged?.(); };
 
-    // Only the tabs this workflow can use: people wizards run, devices script.
-    const tabs = wf?.wizard ? [['run', 'Run'], ['steps', 'SOP']]
-        : wf?.type === 'device' ? [['steps', 'SOP'], ['script', 'Script']]
-        : [['steps', 'SOP']];
+    // Every SOP shows the SAME tabs. Contextual tabs read smart and demo
+    // confusing — people don't carry the concept, so the page never changes
+    // shape. Running a people-workflow is an ACTION: the on-demand drawer,
+    // summoned from the Run button, same as every other form in the app.
+    const tabs = [['steps', 'SOP'], ['script', 'Script']];
     // Same underline style as the sub-tabs, so the app has one tab language.
     const tabBar = (
         <div className="flex">
@@ -147,10 +149,14 @@ export default function OnboardingSetup({ workflow, onChanged }) {
         <div className="max-w-3xl">
             <div className="mb-4 flex items-end justify-between gap-3 border-b border-gray-200 dark:border-gray-800">
                 {tabBar}
-                {saved && <span className="pb-2 text-xs text-green-600">{saved}</span>}
+                <div className="flex items-center gap-2 pb-1">
+                    {saved && <span className="text-xs text-green-600">{saved}</span>}
+                    {wf.wizard && (
+                        <button onClick={() => openRecordForm({ mode: 'run', kind: 'workflow-run', workflowId: wfId })}
+                            className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">▶ Run</button>
+                    )}
+                </div>
             </div>
-
-            {tab === 'run' && wf.wizard && <RunCard workflowId={wfId} />}
 
             {tab === 'steps' && (
                 <div>
@@ -297,7 +303,7 @@ function ScriptPanel({ wf }) {
  * becomes a created credential in the registry plus a task), pick floating
  * accounts, hit run. Atomic server-side: abandonment leaves nothing behind.
  */
-function RunCard({ workflowId }) {
+export function RunCard({ workflowId }) {
     const empty = { first: '', last: '', username: '', email: '', title: '', department: '', start_date: '' };
     const [form, setForm] = useState(empty);
     const [vendorIds, setVendorIds] = useState([]);
