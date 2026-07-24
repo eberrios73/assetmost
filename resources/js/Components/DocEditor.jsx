@@ -11,6 +11,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import CodeBlock from '@tiptap/extension-code-block';
+import Image from '@tiptap/extension-image';
 import { marked } from 'marked';
 import { useEffect, useRef, useState } from 'react';
 import { openRecordForm } from '@/lib/formBus';
@@ -705,6 +706,7 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
             CmdPills,
             ObjRef,
             JoinSubLists,
+            Image.configure({ inline: false }),
             Placeholder.configure({ placeholder: "Type '/' for commands, or just start writing…" }),
             Table.configure({ resizable: true }),
             TableRow,
@@ -715,6 +717,23 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
         editorProps: {
             attributes: { class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[65vh] pb-24' },
             handlePaste: (view, event) => {
+                // A pasted screenshot uploads to the server and lands inline —
+                // never base64 into the body.
+                const img = [...(event.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+                if (img) {
+                    const file = img.getAsFile();
+                    if (!file) return false;
+                    const form = new FormData();
+                    form.append('image', file);
+                    const xsrf = decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
+                    fetch('/data/uploads', {
+                        method: 'POST', credentials: 'same-origin',
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf },
+                        body: form,
+                    }).then((r) => (r.ok ? r.json() : null))
+                        .then((d) => { if (d?.url) editor?.chain().focus().setImage({ src: d.url }).run(); });
+                    return true;
+                }
                 if (event.clipboardData?.getData('text/html')) return false;   // already rich
                 const text = event.clipboardData?.getData('text/plain') || '';
                 if (!looksLikeMarkdown(text)) return false;
