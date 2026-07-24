@@ -257,7 +257,7 @@ export default function Index() {
                 <div className="flex-1 overflow-y-auto py-1">
                     <p className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400">Every new page starts from one of these. Pick one to create a page in {space?.name || 'this space'}.</p>
                     {DOC_TEMPLATES.map((t) => (
-                        <button key={t.key} onClick={() => { setNavTab('docs'); newPage(null, t.key); }}
+                        <button key={t.key} onClick={() => newPage(null, t.key)}
                             title={t.hint}
                             className="group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800">
                             <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
