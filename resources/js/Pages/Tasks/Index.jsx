@@ -538,7 +538,7 @@ function CommentsLog({ taskId }) {
 
     return (
         <div className="mt-3">
-            <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Log</span>
+            <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Updates</span>
             {items === null ? <div className="text-xs text-gray-400 py-1">…</div> : items.map((c) => (
                 <div key={c.id} className="group/log flex items-baseline gap-2 py-0.5 text-sm">
                     <span className="text-gray-700 dark:text-gray-200">{c.body}</span>
@@ -547,7 +547,7 @@ function CommentsLog({ taskId }) {
                         className="text-gray-300 dark:text-gray-600 opacity-0 group-hover/log:opacity-100 hover:text-red-600">×</button>}
                 </div>
             ))}
-            <input placeholder="Add to the log ⏎ (who + when stamps itself)"
+            <input placeholder="What happened? ⏎ — e.g. waiting on vendor"
                 onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { add(e.target.value.trim()); e.target.value = ''; } }}
                 className="mt-1 w-80 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
         </div>
