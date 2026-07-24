@@ -98,7 +98,7 @@ class WebAuthnController extends Controller
             'user_id' => $request->user()->id,
             'credential_id' => rtrim(strtr(base64_encode($source->publicKeyCredentialId), '+/', '-_'), '='),
             'public_key' => $serializer->serialize($source, 'json'),
-            'name' => $data['name'] ?: 'Passkey '.Str::upper(Str::random(4)),
+            'name' => ($data['name'] ?? null) ?: 'Passkey '.Str::upper(Str::random(4)),
             'sign_count' => $source->counter,
         ]);
         return response()->json(['id' => $row->id, 'name' => $row->name], 201);
