@@ -19,7 +19,19 @@ const VERBS = {
     web:  { hint: "Device's web UI", target: 'machine' },
     info: { hint: 'Quick facts', target: 'any' },
     task: { hint: 'New task, stay put', target: 'none' },
+    help: { hint: 'This cheatsheet', target: 'none' },
 };
+
+const HELP = [
+    ['/rdp @501', 'Remote Desktop — downloads a pre-filled .rdp'],
+    ['/ssh @501', 'opens Terminal on the machine'],
+    ['/vnc @501', 'screen sharing'],
+    ['/web @501', "the device's own web UI"],
+    ['/info @maya', 'quick facts — person or machine'],
+    ['/task order toner', 'new task without leaving'],
+    ['/wifi Guest pw @501', 'any registry command, rendered for that machine'],
+    ['plain text', 'find anything, Enter jumps to it'],
+];
 
 // `/wifi Guest secret @501` → verb wifi, args "Guest secret", target "501".
 // Args and target are separate on purpose: args map onto the command's params,
@@ -89,6 +101,7 @@ export default function PowerBar() {
     };
 
     const run = async (r) => {
+        if (verb === 'help') return setNote({ kind: 'help' });
         // /task needs no target — the whole rest is the title.
         if (verb === 'task') {
             const title = args || rest || q.replace(/^\/task\s*/i, '').trim();
@@ -201,6 +214,17 @@ export default function PowerBar() {
                                 className="ml-auto rounded border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-[11px] text-gray-500 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600">Copy</button>
                         </div>
                         <pre className="max-h-48 overflow-auto rounded-md bg-gray-900 p-3 font-mono text-[11.5px] leading-relaxed text-gray-100">{note.text}</pre>
+                    </div>
+                )}
+                {note?.kind === 'help' && (
+                    <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3 text-sm">
+                        {HELP.map(([cmd, what]) => (
+                            <div key={cmd} className="flex gap-3 py-0.5">
+                                <code className="w-44 shrink-0 font-mono text-[12px] text-blue-600 dark:text-blue-400">{cmd}</code>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{what}</span>
+                            </div>
+                        ))}
+                        <div className="mt-1.5 text-[11px] text-gray-400">/ acts · @ targets — targets can be a tag, a number, or a name.</div>
                     </div>
                 )}
                 {(note?.kind === 'ok' || note?.kind === 'err') && (
