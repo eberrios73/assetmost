@@ -3,6 +3,7 @@ import { Node } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -36,6 +37,14 @@ const ObjRef = Node.create({
     },
 });
 
+// A link ends where its URL ends: not inclusive, so typing after it is plain
+// text again ("you can paste the link but you can't get out" — now you can).
+// Click opens in a new tab; edit with the keyboard or by clicking beside it.
+const NotesLink = Link.extend({ inclusive: () => false }).configure({
+    openOnClick: true, autolink: true,
+    HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
+});
+
 const xsrf = () => decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || '');
 
 // Legacy notes are plain text; the canvas speaks HTML. Escape and paragraph
@@ -66,7 +75,8 @@ export default function NotesCanvas({ value, onCommit }) {
 
     const editor = useEditor({
         extensions: [
-            StarterKit.configure({ heading: { levels: [3] } }),
+            StarterKit.configure({ heading: { levels: [3] }, link: false }),
+            NotesLink,
             ObjRef,
             Image.configure({ inline: false }),
             Placeholder.configure({ placeholder: 'Notes — paste links or screenshots, @ mentions the inventory…' }),
