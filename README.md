@@ -21,7 +21,7 @@ Built with Laravel + Inertia + React. Multi-tenant, server-side scoped, with a N
 
 ## Stack
 
-Laravel 13 · Inertia · React 18 · Tailwind CSS · TipTap · MySQL/MariaDB · Vite
+Laravel 13 · Inertia · React 18 · Tailwind CSS · TipTap · PostgreSQL · Vite
 
 ## Architecture notes
 
@@ -39,7 +39,7 @@ npm install
 cp .env.example .env
 php artisan key:generate
 
-# point .env at a MySQL/MariaDB database, then:
+# point .env at a PostgreSQL database, then:
 php artisan migrate
 
 npm run build       # or: npm run dev
