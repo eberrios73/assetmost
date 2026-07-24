@@ -36,7 +36,7 @@ export default function Login({ status, canResetPassword }) {
                 <button type="button"
                     onClick={(e) => { const b=e.currentTarget; assertPasskey().then(() => (window.location = '/')).catch(() => { b.textContent = 'No passkey here yet — use your password below'; }); }}
                     className="mb-4 w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500 hover:text-blue-600">
-                    🔑 Sign in with a passkey
+                    Sign in with a passkey
                 </button>
             )}
             <form onSubmit={submit}>

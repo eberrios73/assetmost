@@ -37,7 +37,7 @@ export default function PasswordGate({ endpoint = '/data/accounts-unlock', title
                     <button type="button"
                         onClick={() => assertPasskey(true).then(onUnlocked).catch((e) => setError(e?.message || 'Passkey not recognized — use your password, then re-enroll it in Profile.'))}
                         className="mb-3 w-full rounded-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500 hover:text-blue-600">
-                        🔑 Unlock with your passkey
+                        Unlock with your passkey
                     </button>
                 )}
                 <input type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)}

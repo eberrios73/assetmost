@@ -36,7 +36,7 @@ export default function PasskeyNudge() {
                     <p className="text-green-700 dark:text-green-400 text-sm font-medium">✓ Passkey saved — next time, just tap.</p>
                 ) : (
                     <>
-                        <div className="text-3xl mb-2">🔑</div>
+                        <img src="/passkey-192.png" alt="" className="mx-auto mb-3 h-16 w-auto" />
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Skip the password next time</h2>
                         <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">
                             Set up a passkey and this device signs you in with a tap — Touch ID, Face ID, or your security key.

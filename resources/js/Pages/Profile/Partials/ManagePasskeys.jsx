@@ -38,7 +38,7 @@ export default function ManagePasskeys({ className = '' }) {
             <div className="mt-4 space-y-2">
                 {keys.map((k) => (
                     <div key={k.id} className="flex items-center gap-3 text-sm">
-                        <span className="text-gray-800 dark:text-gray-200">🔑 {k.name}</span>
+                        <span className="text-gray-800 dark:text-gray-200">{k.name}</span>
                         <span className="text-xs text-gray-400">added {k.created_at}{k.last_used_at ? ` · last used ${k.last_used_at}` : ''}</span>
                         <button onClick={() => revoke(k.id)} className="ml-auto text-xs text-gray-400 hover:text-red-600">revoke</button>
                     </div>
