@@ -92,12 +92,18 @@
   .shot img{display:block;width:100%;height:auto}
   .shot-caption{font-size:13px;color:var(--faint);margin:10px 0 22px;font-family:var(--mono)}
 
-  footer{border-top:1px solid var(--line);background:var(--surface)}
-  footer .wrap{padding:38px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
-  footer .brand{font-size:16px}
-  footer .fnote{font-size:13px;color:var(--faint)}
-  footer .fnote a{color:var(--muted)}
-  footer .fnote a:hover{color:var(--ink)}
+  footer{border-top:1px solid var(--line);background:var(--surface);margin-top:40px}
+  .foot-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:44px;padding:46px 24px 38px}
+  .foot-brand .brand{font-size:17px;margin-bottom:10px}
+  .foot-brand p{color:var(--muted);font-size:14px;max-width:30ch;margin-bottom:14px}
+  .foot-col h4{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:12px}
+  .foot-col a{display:block;color:var(--muted);font-size:14px;padding:4px 0}
+  .foot-col a:hover{color:var(--ink)}
+  .foot-bottom{border-top:1px solid var(--line-soft)}
+  .foot-bottom .wrap{padding:16px 24px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--faint)}
+  .foot-bottom .tag{font-family:var(--mono)}
+  @media(max-width:700px){.foot-grid{grid-template-columns:1fr;gap:28px}}
 
   @media(max-width:920px){
     .layout{grid-template-columns:1fr;gap:32px}
@@ -338,9 +344,30 @@
 </div>
 
 <footer>
-  <div class="wrap">
-    <div class="brand">Asset<b style="color:var(--blue)">Most</b></div>
-    <div class="fnote">Untangle your IT. · <a href="https://github.com/eberrios73/assetmost">GitHub</a> · <a href="index.html">Home</a> · AGPL open source</div>
+  <div class="wrap foot-grid">
+    <div class="foot-brand">
+      <div class="brand">Asset<b style="color:var(--blue)">Most</b></div>
+      <p>The four cardinals of IT, unified. Self-hosted, unbloated, open source.</p>
+      <span class="oss-pill">AGPL &middot; open source</span>
+    </div>
+    <div class="foot-col">
+      <h4>Product</h4>
+      <a href="index.html#story">The tour</a>
+      <a href="index.html">Home</a>
+      <a href="https://github.com/eberrios73/assetmost">Download</a>
+    </div>
+    <div class="foot-col">
+      <h4>Open source</h4>
+      <a href="https://github.com/eberrios73/assetmost">GitHub</a>
+      <a href="https://github.com/eberrios73/assetmost/issues">Issues</a>
+      <a href="https://github.com/eberrios73/assetmost/blob/main/LICENSE">License (AGPL-3.0)</a>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <div class="wrap">
+      <span>&copy; 2026 AssetMost</span>
+      <span class="tag">Chaos in, order out.</span>
+    </div>
   </div>
 </footer>
 
