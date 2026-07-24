@@ -266,10 +266,10 @@ export default function Index() {
                             <span className="block mt-0.5 text-xs text-gray-500 dark:text-gray-400">{t.hint}</span>
                             {/* the template itself, shrunk: what "blank" actually seeds */}
                             {t.body ? (
-                                <span className="pointer-events-none relative mt-2 block max-h-36 overflow-hidden rounded-md border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/40 px-2.5 py-1.5">
+                                <span className="pointer-events-none relative mt-2 block max-h-20 overflow-hidden rounded-md border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/40 px-2.5 py-1.5">
                                     <span className="prose prose-xs dark:prose-invert block origin-top-left scale-[.8] text-[11px] leading-snug text-gray-600 dark:text-gray-300"
                                         dangerouslySetInnerHTML={{ __html: buildDocBody(t.key, '', {}) }} />
-                                    <span className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white dark:from-gray-900 to-transparent" />
+                                    <span className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white dark:from-gray-900 to-transparent" />
                                 </span>
                             ) : (
                                 <span className="mt-2 block rounded-md border border-dashed border-gray-200 dark:border-gray-800 px-2.5 py-3 text-center text-[11px] text-gray-400">truly blank</span>
