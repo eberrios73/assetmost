@@ -11,7 +11,14 @@ function TplIcon({ iconKey }) {
 /** Dropdown that picks a doc template. onPick(templateKey). */
 export default function TemplateMenu({ label = 'New', glyph = null, onPick, compact = false, className = '' }) {
     const [open, setOpen] = useState(false);
+    const [customs, setCustoms] = useState([]);
     const ref = useRef(null);
+    // The company's own templates ride along in every menu — fetched on first open.
+    useEffect(() => {
+        if (!open || customs.length) return;
+        fetch('/data/doc-templates', { headers: { Accept: 'application/json' } })
+            .then((r) => r.json()).then((d) => setCustoms(Array.isArray(d) ? d : [])).catch(() => {});
+    }, [open]);
     useEffect(() => {
         const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
         document.addEventListener('mousedown', onDoc);
@@ -31,6 +38,13 @@ export default function TemplateMenu({ label = 'New', glyph = null, onPick, comp
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
                             <TplIcon iconKey={tpl.iconKey} />
                             <span><span className="block">{tpl.label}</span><span className="block text-xs text-gray-400">{tpl.hint}</span></span>
+                        </button>
+                    ))}
+                    {customs.map((c) => (
+                        <button key={`custom-${c.id}`} onClick={() => { setOpen(false); onPick(`custom:${c.id}`, c); }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <DocIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                            <span><span className="block">{c.label}</span><span className="block text-xs text-gray-400">{c.hint || 'Company template'}</span></span>
                         </button>
                     ))}
                 </div>

@@ -3,6 +3,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppShell from '@/Layouts/AppShell';
 import DocEditor from '@/Components/DocEditor';
+import TemplateViewer from '@/Components/TemplateViewer';
 import OnboardingSetup from '@/Components/OnboardingSetup';
 import TemplateMenu from '@/Components/TemplateMenu';
 import { buildDocBody, templateCategory, DOC_TEMPLATES, DOC_CATEGORIES, CATEGORY_STYLE } from '@/docTemplates';
@@ -41,6 +42,8 @@ export default function Index() {
     const [snips, setSnips] = useState([]);
     const [selSnipId, setSelSnipId] = useState(null);
     const [selTplKey, setSelTplKey] = useState(null);
+    const [customTpls, setCustomTpls] = useState([]);
+    const loadTpls = () => api('/data/doc-templates').then((d) => setCustomTpls(Array.isArray(d) ? d : []));
     const [searchQ, setSearchQ] = useState('');
     const [searchResults, setSearchResults] = useState(null);
     const searchTimer = useRef(null);
@@ -61,7 +64,7 @@ export default function Index() {
     const loadSpaces = () => api('/data/spaces').then(setSpaces);
     const loadTree = () => api(`/data/docs${spaceId ? `?space=${spaceId}` : ''}`).then(setTree);
 
-    useEffect(() => { loadSpaces(); }, []);
+    useEffect(() => { loadSpaces(); loadTpls(); }, []);
     // default to the first space once spaces load (if none remembered / stale)
     useEffect(() => {
         // Align to a real space WITHOUT chooseSpace: that's the user-switch path and
@@ -96,8 +99,11 @@ export default function Index() {
             });
     }, [selectedId]);
 
-    const newPage = async (parentId = null, templateKey = 'freeform') => {
-        const { id } = await api('/data/docs', 'POST', {
+    const newPage = async (parentId = null, templateKey = 'freeform', custom = null) => {
+        const { id } = await api('/data/docs', 'POST', custom ? {
+            parent_id: parentId, space_id: spaceId, title: `New ${custom.label}`,
+            body: custom.body || '<p></p>', category: custom.category || null,
+        } : {
             parent_id: parentId, space_id: spaceId, title: NEW_TITLES[templateKey] || 'Untitled',
             body: buildDocBody(templateKey, '', { owner: me }), category: templateCategory(templateKey),
         });
@@ -266,12 +272,32 @@ export default function Index() {
                             <CategoryBadge category={t.category} />
                         </button>
                     ))}
+                    {customTpls.length > 0 && <div className="mt-2 px-3 py-1 text-[11px] uppercase tracking-wide text-gray-400">This company's</div>}
+                    {customTpls.map((c) => (
+                        <button key={`c${c.id}`} onClick={() => setSelTplKey(`custom:${c.id}`)}
+                            className={`group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800 ${selTplKey === `custom:${c.id}` ? 'bg-blue-50 dark:bg-blue-500/10' : ''}`}>
+                            <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                            <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{c.label}</span>
+                            <CategoryBadge category={c.category} />
+                        </button>
+                    ))}
+                    <div className="px-3 pt-2">
+                        <input placeholder="New template name ⏎"
+                            onKeyDown={async (e) => {
+                                if (e.key === 'Enter' && e.target.value.trim()) {
+                                    const t = await api('/data/doc-templates', 'POST', { label: e.target.value.trim() });
+                                    e.target.value = ''; await loadTpls();
+                                    if (t?.id) setSelTplKey(`custom:${t.id}`);
+                                }
+                            }}
+                            className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                    </div>
                 </div>
             ) : (
                 <>
                     <div className="px-3 py-2 flex items-center justify-between">
                         <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pages</span>
-                        <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k) => newPage(selectedId ?? null, k)}
+                        <TemplateMenu label="New" glyph={<PlusIcon />} onPick={(k, c) => newPage(selectedId ?? null, k, c)}
                             className="text-xs rounded-md bg-blue-600 text-white px-2 py-1 hover:bg-blue-700 inline-flex items-center gap-1" />
                     </div>
                     <div className="px-3 pb-2 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
@@ -311,6 +337,33 @@ export default function Index() {
             : <div className="h-full flex items-center justify-center text-gray-400 text-sm">Pick a command on the left, or create one.</div>
     ) : navTab === 'templates' ? (
         (() => {
+            if (selTplKey?.startsWith('custom:')) {
+                const c = customTpls.find((x) => `custom:${x.id}` === selTplKey);
+                if (!c) return null;
+                const patch = (data) => api(`/data/doc-templates/${c.id}`, 'PATCH', data).then(loadTpls);
+                return (
+                    <div className="max-w-3xl mx-auto">
+                        <div className="mb-3 flex items-center gap-3">
+                            <input defaultValue={c.label} onBlur={(e) => e.target.value !== c.label && patch({ label: e.target.value })}
+                                className="flex-1 border-0 bg-transparent p-0 text-3xl font-bold text-gray-900 dark:text-white focus:ring-0" />
+                            <select defaultValue={c.category || ''} onChange={(e) => patch({ category: e.target.value || null })}
+                                className="rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm py-1">
+                                <option value="">— category —</option>
+                                {DOC_CATEGORIES.map((x) => <option key={x} value={x}>{x}</option>)}
+                            </select>
+                            <button onClick={async () => { if (confirm(`Delete template "${c.label}"?`)) { await api(`/data/doc-templates/${c.id}`, 'DELETE'); setSelTplKey(null); loadTpls(); } }}
+                                className="text-sm text-gray-400 hover:text-red-600">Delete</button>
+                        </div>
+                        <input defaultValue={c.hint || ''} placeholder="One-line hint shown in the + New menu"
+                            onBlur={(e) => e.target.value !== (c.hint || '') && patch({ hint: e.target.value || null })}
+                            className="mb-4 w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm" />
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-5">
+                            <TemplateViewer key={c.id} html={c.body || '<p></p>'} editable onSave={(html) => patch({ body: html })} />
+                        </div>
+                        <p className="mt-3 text-xs text-gray-400">This template belongs to the active company and appears in every + New menu.</p>
+                    </div>
+                );
+            }
             const tpl = DOC_TEMPLATES.find((t) => t.key === selTplKey);
             if (!tpl) return <div className="h-full flex items-center justify-center text-gray-400 text-sm">Pick a template on the left — this is what every new page starts from.</div>;
             return (
@@ -321,8 +374,7 @@ export default function Index() {
                     </div>
                     <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">{tpl.hint} — every new {tpl.label} page starts from this scaffold.</p>
                     {tpl.body
-                        ? <div className="prose prose-sm dark:prose-invert max-w-none rounded-lg border border-gray-200 dark:border-gray-800 p-5"
-                            dangerouslySetInnerHTML={{ __html: buildDocBody(tpl.key, '', {}) }} />
+                        ? <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-5"><TemplateViewer html={buildDocBody(tpl.key, '', {})} /></div>
                         : <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-800 p-8 text-center text-sm text-gray-400">A truly blank page — no scaffold.</div>}
                     <p className="mt-3 text-xs text-gray-400">Templates ship with the app for now. To start a page from one, use <strong>+ New</strong> on the Docs tab.</p>
                 </div>

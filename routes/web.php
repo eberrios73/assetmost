@@ -61,6 +61,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/data/snippets', [$sn, 'store']);
     Route::patch('/data/snippets/{snippet}', [$sn, 'update']);
     Route::delete('/data/snippets/{snippet}', [$sn, 'destroy']);
+    // Custom doc templates (Docs > Templates): shipped ones live in the app.
+    $tpl = \App\Http\Controllers\DocTemplateController::class;
+    Route::get('/data/doc-templates', [$tpl, 'index']);
+    Route::post('/data/doc-templates', [$tpl, 'store']);
+    Route::patch('/data/doc-templates/{template}', [$tpl, 'update']);
+    Route::delete('/data/doc-templates/{template}', [$tpl, 'destroy']);
     Route::post('/data/docs/{page}/new-version', [$doc, 'newVersion']);
     Route::post('/data/docs/{page}/promote', [$doc, 'promote']);
     Route::post('/data/docs', [$doc, 'store']);

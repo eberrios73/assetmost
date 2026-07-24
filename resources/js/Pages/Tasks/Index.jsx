@@ -145,9 +145,12 @@ export default function Index() {
 
     // Turn a task/project into a doc: create a page from a template (seeded with
     // its notes/details) and open it in the Docs wiki.
-    const makeDoc = async (rec, templateKey) => {
+    const makeDoc = async (rec, templateKey, custom = null) => {
         const background = rec.notes || rec.details || '';
-        const { id } = await api('/data/docs', 'POST', {
+        const { id } = await api('/data/docs', 'POST', custom ? {
+            title: rec.title, category: custom.category || null,
+            body: (background ? `<h2>Background</h2><p>${background}</p>` : '') + (custom.body || '<p></p>'),
+        } : {
             title: rec.title, body: buildDocBody(templateKey, background), category: templateCategory(templateKey),
         });
         router.visit(`/docs?page=${id}`);
@@ -502,7 +505,7 @@ function TaskRows({ t, people, patch, projects = [], milestones = [], allTasks =
                                     <input placeholder="Add subtask ⏎"
                                         onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { onAddSub?.(t.id, e.target.value.trim(), t.week); e.target.value = ''; } }}
                                         className="w-40 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-2 focus:border-blue-500 focus:ring-blue-500" />
-                                    <TemplateMenu label="Make doc" glyph={<DocGlyph />} onPick={(k) => onMakeDoc(t, k)}
+                                    <TemplateMenu label="Make doc" glyph={<DocGlyph />} onPick={(k, c) => onMakeDoc(t, k, c)}
                                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600" />
                                 </div>
                             </div>
@@ -635,7 +638,7 @@ function ProjectDetailRow({ p, statuses, people, patch, onMakeDoc, onMoveToTasks
                             <PctCell t={p} onCommit={(v) => set({ pct: v })} />
                         </div>
                         <div className="ml-auto flex items-center gap-2">
-                            <TemplateMenu label="Make doc" glyph={<DocGlyph />} compact onPick={(k) => onMakeDoc(p, k)} />
+                            <TemplateMenu label="Make doc" glyph={<DocGlyph />} compact onPick={(k, c) => onMakeDoc(p, k, c)} />
                             <button onClick={onMoveToTasks} className="px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600">↩ To tasks</button>
                             <button onClick={onDelete} className="px-2.5 py-1 text-xs rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-red-600">× Delete</button>
                         </div>
