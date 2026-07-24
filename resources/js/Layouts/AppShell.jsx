@@ -9,7 +9,7 @@ import PowerBar from '@/Components/PowerBar';
 /** Fields for the inline "Add company" in the switcher. */
 const COMPANY_FIELDS = [
     { key: 'name', label: 'Name', required: true },
-    // Drives asset tags (HC -> PG-WS-1001). Required, because a company without one
+    // Drives asset tags (PG -> PG-WS-1001). Required, because a company without one
     // can't issue a tag and you'd only discover that at first device intake.
     { key: 'tag_prefix', label: 'Tag prefix (e.g. PG)', required: true, maxLength: 4 },
     { key: 'domain', label: 'Email domain' },
