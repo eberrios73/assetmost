@@ -972,13 +972,19 @@ export default function DocEditor({ pageId, initialBody, onSave, osDefault = '',
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf },
                 body: JSON.stringify({ editor_id: editorIdRef.current, release }),
+                // keepalive: a release fired from a closing tab must survive it —
+                // otherwise the dead session haunts the doc for 90s and the lock
+                // warning nags you about yourself.
+                keepalive: release,
             }).then((r) => r.json())
                 .then((d) => { if (!stop && !release) setEditedBy(d.others?.[0] ?? null); })
                 .catch(() => {});
         };
         beat();
         const t = setInterval(() => beat(), 45000);
-        return () => { stop = true; clearInterval(t); beat(true); };
+        const bye = () => beat(true);
+        window.addEventListener('pagehide', bye);
+        return () => { stop = true; clearInterval(t); window.removeEventListener('pagehide', bye); beat(true); };
     }, [pageId]);
 
     // /form substep buttons bubble up from the node views; they summon the

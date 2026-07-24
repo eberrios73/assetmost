@@ -346,7 +346,7 @@ export default function Index() {
             {page.workflow_type ? (
                 // A workflow page carries its whole engine surface here too — the same
                 // Info | SOP | Script tabs as the onboarding side. One page, one look.
-                <OnboardingSetup key={page.id} workflow={{ id: page.id }} onChanged={loadTree} />
+                <OnboardingSetup key={page.id} workflow={{ id: page.id }} onChanged={loadTree} inDocs />
             ) : (
                 <>
                     {conflict && (

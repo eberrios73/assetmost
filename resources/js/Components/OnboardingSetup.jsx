@@ -72,7 +72,7 @@ const api = async (url, method = 'GET', body) => {
  *   Script — device workflows: the bootstrap script this SOP produces.
  * The `workflow` summary comes from the left-column list (Workspace).
  */
-export default function OnboardingSetup({ workflow, onChanged }) {
+export default function OnboardingSetup({ workflow, onChanged, inDocs = false }) {
     const wfId = workflow.id;
     const { auth } = usePage().props;
     const me = [auth?.user?.name, auth?.user?.last].filter(Boolean).join(' ');
@@ -169,9 +169,11 @@ export default function OnboardingSetup({ workflow, onChanged }) {
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                             Listed in Onboarding
                         </label>
-                        <a href={`/docs?page=${wf.id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0" title="This workflow IS a Docs page — version it, retire it, or file it there">
-                            Open in Docs
-                        </a>
+                        {!inDocs && (
+                            <a href={`/docs?page=${wf.id}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0" title="This workflow IS a Docs page — version it, retire it, or file it there">
+                                Open in Docs
+                            </a>
+                        )}
                     </div>
                     {conflict && (
                         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-500/10 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
