@@ -90,6 +90,21 @@ class LandlordTest extends TestCase
         $this->actingAs($admin)->patchJson("/data/companies/{$this->tenantA->id}", ['name' => 'Renamed A'])->assertOk();
     }
 
+    public function test_a_new_company_is_born_with_its_doc_set(): void
+    {
+        $super = $this->user(Access::SUPER_ADMIN, true);
+        $id = $this->actingAs($super)->postJson('/data/companies', [
+            'name' => 'Fresh MSP Client', 'tag_prefix' => 'FC',
+        ])->assertCreated()->json('id');
+
+        $titles = \App\Models\DocPage::withoutGlobalScopes()
+            ->where('company_id', $id)->pluck('title');
+        foreach (['Network Topology', 'Backup Topology & Procedure', 'Restore Procedure',
+                  'Server Access & Emergency Contacts', 'ISP & Circuits', 'Employee onboarding'] as $must) {
+            $this->assertTrue($titles->contains($must), "missing: {$must}");
+        }
+    }
+
     // ---- People filing ----
 
     public function test_nobody_files_a_person_into_a_company_they_cannot_see(): void

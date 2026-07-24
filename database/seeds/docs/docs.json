@@ -1,90 +1,360 @@
 [
-  {
-    "title": "Adopt a Retail Mac into ABM (Apple Configurator)",
-    "category": "SOP",
-    "steps": [
-      {
-        "id": "20079edf",
-        "title": "Check the Mac qualifies",
-        "category": "other",
-        "offset_days": 0,
-        "why": "",
-        "instructions": "Apple silicon or a T2 chip, macOS 12.0.1 or later. Older Intel Macs without T2 cannot be adopted - keep them on /mdm Jamf manual.",
-        "done_when": "Model confirmed eligible.",
-        "record": "",
-        "automatable": false,
-        "subtasks": []
-      },
-      {
-        "id": "b97b1853",
-        "title": "Prepare the iPhone",
-        "category": "other",
-        "offset_days": 0,
-        "why": "",
-        "instructions": "Install Apple Configurator from the App Store. Sign in with the Managed Apple ID.",
-        "done_when": "Configurator open and signed in.",
-        "record": "",
-        "automatable": false,
-        "subtasks": []
-      },
-      {
-        "id": "4a61e299",
-        "title": "Preset auto-assignment in ABM (one time)",
-        "category": "other",
-        "offset_days": 0,
-        "why": "",
-        "instructions": "ABM > Settings > Device Management Settings > Devices added by Apple Configurator > assign to the Jamf server. With this set, adopted Macs skip manual assignment.",
-        "done_when": "",
-        "record": "",
-        "automatable": false,
-        "subtasks": []
-      },
-      {
-        "id": "2d837a36",
-        "title": "Erase the Mac to Setup Assistant",
-        "category": "other",
-        "offset_days": 0,
-        "why": "",
-        "instructions": "New in box: just power on. Used: System Settings > General > Transfer or Reset > Erase All Content and Settings. Join Wi-Fi during setup.",
-        "done_when": "Mac sits at the country/region pane.",
-        "record": "",
-        "automatable": false,
-        "subtasks": []
-      },
-      {
-        "id": "78cf6dfb",
-        "title": "Pair with the iPhone",
-        "category": "other",
-        "offset_days": 0,
-        "why": "",
-        "instructions": "Hold the iPhone near the Mac at the country/region pane. The Mac shows a pairing animation; scan it with the iPhone camera in Configurator.",
-        "done_when": "Device visible in ABM > Devices, assigned to Jamf.",
-        "record": "",
-        "automatable": false,
-        "subtasks": []
-      },
-      {
-        "id": "567a5a64",
-        "title": "Restart Setup Assistant and enroll",
-        "category": "other",
-        "offset_days": 0,
-        "why": "",
-        "instructions": "Erase again if setup went past the region pane. This time the Remote Management screen appears and the Mac enrolls into Jamf. From now on this Mac uses /mdm Jamf auto in the Workstation SOP.",
-        "done_when": "Mac shows in Jamf as managed.",
-        "record": "",
-        "automatable": false,
-        "subtasks": []
-      }
-    ],
-    "meta": {
-      "why": "Retail-bought Macs have no Apple Business Manager record, so zero-touch enrollment (ADE) can never happen. Adoption gives the Mac an ABM record - after this it enrolls like a business-bought machine, on every future rebuild.",
-      "how": "Pair the erased Mac with an iPhone running Apple Configurator at Setup Assistant; ABM records the device; Jamf takes it from there.",
-      "tools": "iPhone (iOS 15+) with the Apple Configurator app\niPhone signed in with a Managed Apple ID - Administrator or Device Enrollment Manager role\nWi-Fi both devices can reach",
-      "safety": "The Mac must be erased - adoption only works from Setup Assistant. Back up anything on it first.\n30-day provisional period: the device can be released from ABM during it. Keep the Mac in IT hands until enrollment is confirmed.",
-      "os": "macOS",
-      "owner": "Enrique Berrios",
-      "version": "1.0",
-      "status": "Draft"
-    }
+ {
+  "title": "Adopt a Retail Mac into ABM (Apple Configurator)",
+  "category": "SOP",
+  "steps": [
+   {
+    "id": "20079edf",
+    "title": "Check the Mac qualifies",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Apple silicon or a T2 chip, macOS 12.0.1 or later. Older Intel Macs without T2 cannot be adopted - keep them on /mdm Jamf manual.",
+    "done_when": "Model confirmed eligible.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "b97b1853",
+    "title": "Prepare the iPhone",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Install Apple Configurator from the App Store. Sign in with the Managed Apple ID.",
+    "done_when": "Configurator open and signed in.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "4a61e299",
+    "title": "Preset auto-assignment in ABM (one time)",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "ABM > Settings > Device Management Settings > Devices added by Apple Configurator > assign to the Jamf server. With this set, adopted Macs skip manual assignment.",
+    "done_when": "",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "2d837a36",
+    "title": "Erase the Mac to Setup Assistant",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "New in box: just power on. Used: System Settings > General > Transfer or Reset > Erase All Content and Settings. Join Wi-Fi during setup.",
+    "done_when": "Mac sits at the country/region pane.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "78cf6dfb",
+    "title": "Pair with the iPhone",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Hold the iPhone near the Mac at the country/region pane. The Mac shows a pairing animation; scan it with the iPhone camera in Configurator.",
+    "done_when": "Device visible in ABM > Devices, assigned to Jamf.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "567a5a64",
+    "title": "Restart Setup Assistant and enroll",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Erase again if setup went past the region pane. This time the Remote Management screen appears and the Mac enrolls into Jamf. From now on this Mac uses /mdm Jamf auto in the Workstation SOP.",
+    "done_when": "Mac shows in Jamf as managed.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   }
+  ],
+  "meta": {
+   "why": "Retail-bought Macs have no Apple Business Manager record, so zero-touch enrollment (ADE) can never happen. Adoption gives the Mac an ABM record - after this it enrolls like a business-bought machine, on every future rebuild.",
+   "how": "Pair the erased Mac with an iPhone running Apple Configurator at Setup Assistant; ABM records the device; Jamf takes it from there.",
+   "tools": "iPhone (iOS 15+) with the Apple Configurator app\niPhone signed in with a Managed Apple ID - Administrator or Device Enrollment Manager role\nWi-Fi both devices can reach",
+   "safety": "The Mac must be erased - adoption only works from Setup Assistant. Back up anything on it first.\n30-day provisional period: the device can be released from ABM during it. Keep the Mac in IT hands until enrollment is confirmed.",
+   "os": "macOS",
+   "owner": "Enrique Berrios",
+   "version": "1.0",
+   "status": "Draft"
   }
+ },
+ {
+  "title": "Network Topology",
+  "category": "Reference",
+  "steps": [
+   {
+    "id": "9a91776c",
+    "title": "Internet handoff",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Who terminates the circuit, where the demarc lives, what the gateway is.",
+    "done_when": "Modem/ONT model, public IP or PPPoE noted.",
+    "record": "Gateway device as an asset; WAN details in its notes.",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "6346beb3",
+    "title": "Core switching & routing",
+    "category": "other",
+    "offset_days": 0,
+    "why": "A topology nobody can follow at 2am is decoration.",
+    "instructions": "Every switch and router: name, location, uplinks. @-mention the devices so this doc stays wired to inventory.",
+    "done_when": "Every port that matters is accounted for.",
+    "record": "Switches @-mentioned from inventory.",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "7beff197",
+    "title": "Wireless",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "SSIDs, which VLAN each lands on, where the controller lives.",
+    "done_when": "All SSIDs listed with their purpose.",
+    "record": "Controller/APs @-mentioned.",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "63e55e7f",
+    "title": "VLANs & subnets",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "The table: VLAN id, name, subnet, gateway, DHCP source.",
+    "done_when": "Every subnet in use appears here.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "e410e806",
+    "title": "Diagram",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Paste the topology diagram right here - screenshots land inline.",
+    "done_when": "Diagram reflects current state.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   }
+  ]
+ },
+ {
+  "title": "Backup Topology & Procedure",
+  "category": "SOP",
+  "steps": [
+   {
+    "id": "d8f3fb34",
+    "title": "What gets backed up",
+    "category": "other",
+    "offset_days": 0,
+    "why": "An unlisted system is an unprotected system.",
+    "instructions": "The complete list: servers, shares, databases, mailboxes, endpoints - and explicitly what does NOT.",
+    "done_when": "Nothing in production is unaccounted for.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "a48b5433",
+    "title": "Where backups go",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Targets and tiers: local NAS, offsite, cloud. Retention per tier. 3-2-1 or the documented reason why not.",
+    "done_when": "Every tier has a named destination and retention.",
+    "record": "Backup targets @-mentioned as assets.",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "068513b5",
+    "title": "Schedule & monitoring",
+    "category": "other",
+    "offset_days": 0,
+    "why": "A backup that fails silently is a rumor.",
+    "instructions": "When each job runs, where failures alert, who sees the alert.",
+    "done_when": "A failed job pages a human within 24h.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "985e1809",
+    "title": "Verification cadence",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "How often test-restores happen and who does them.",
+    "done_when": "Last verification date recorded below.",
+    "record": "Date + operator, every time.",
+    "automatable": false,
+    "subtasks": []
+   }
+  ]
+ },
+ {
+  "title": "Restore Procedure",
+  "category": "SOP",
+  "steps": [
+   {
+    "id": "8cf35db5",
+    "title": "Declare and scope",
+    "category": "other",
+    "offset_days": 0,
+    "why": "Restores done in panic skip steps.",
+    "instructions": "What is lost? File, server, site? Who declares an incident?",
+    "done_when": "Scope written down before touching anything.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "84a7b44e",
+    "title": "Locate the recovery point",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Which tier holds the newest good copy; how far back is acceptable.",
+    "done_when": "RPO decision recorded.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "2bd339d8",
+    "title": "Restore",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "The actual commands/console steps per system - fill these in per client.",
+    "done_when": "Data back, integrity spot-checked.",
+    "record": "What was restored, from which point, by whom.",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "349b93d2",
+    "title": "Post-restore",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Verify services, tell the affected humans, write down what broke the original.",
+    "done_when": "Users confirm; root cause noted in an incident page.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   }
+  ]
+ },
+ {
+  "title": "Server Access & Emergency Contacts",
+  "category": "Reference",
+  "steps": [
+   {
+    "id": "db2d5af8",
+    "title": "Who to call at 2am",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Primary and backup humans, with real phone numbers. Client-side contact too.",
+    "done_when": "Two humans reachable for every system.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "dbcfa8fe",
+    "title": "Where access lives",
+    "category": "other",
+    "offset_days": 0,
+    "why": "This doc points AT credentials; it never contains them.",
+    "instructions": "Which registry accounts open what - @-mention the break-glass accounts; passwords stay in the registry, never here.",
+    "done_when": "Every critical system maps to a registry account.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "736f7d78",
+    "title": "Physical access",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Building, server room, alarm codes owner - who holds keys.",
+    "done_when": "",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "74524e8c",
+    "title": "Escalation paths",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Vendor support lines and contract numbers for when it is beyond us.",
+    "done_when": "Every vendor with a support contract listed.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   }
+  ]
+ },
+ {
+  "title": "ISP & Circuits",
+  "category": "Reference",
+  "steps": [
+   {
+    "id": "a3ab4147",
+    "title": "Circuits",
+    "category": "other",
+    "offset_days": 0,
+    "why": "The outage call needs the circuit ID, not a guess.",
+    "instructions": "Provider, circuit ID, service address, bandwidth, static IPs - per site.",
+    "done_when": "Every site has its circuit documented.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "e5f7f582",
+    "title": "Support & SLA",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "Provider support number, account number, SLA terms, escalation contact.",
+    "done_when": "",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   },
+   {
+    "id": "7388404e",
+    "title": "Failover",
+    "category": "other",
+    "offset_days": 0,
+    "why": "",
+    "instructions": "What happens when the primary dies - LTE backup, second circuit, or documented nothing.",
+    "done_when": "Failover tested or honestly marked untested.",
+    "record": "",
+    "automatable": false,
+    "subtasks": []
+   }
+  ]
+ }
 ]

@@ -948,6 +948,10 @@ class DataController extends Controller
         $data['tag_prefix'] = strtoupper($data['tag_prefix']);
         // Counter starts at 1001 per the tag scheme; see the asset-tag migration.
         $company = \App\Models\Company::create($data + ['active' => true, 'tag_next' => 1001]);
+        // A company is born with its doc set — runbooks, on/offboarding, and the
+        // infrastructure docs (topology, backups, restore, contacts, circuits).
+        // Empty is fine; present is required. Idempotent, so re-runs are safe.
+        \Illuminate\Support\Facades\Artisan::call('workflows:seed', ['--company' => $company->id]);
         return response()->json($company, 201);
     }
 
