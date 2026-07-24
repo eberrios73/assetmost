@@ -47,11 +47,11 @@ routes, migrations) ports as-is.
 - `users.can_login` backfill: only active IT Admin/SuperAdmin with passwords.
 - Sharing flags: itmgr-held + role-named logins → `shared`; artist00N pooled.
 - Accounts backfill: 34 identities, 82 linked logins, 40 assignments; artist00N
-  Domain+Microsoft pairs merged; typo'd `itmgr@clientdomain.com` account folded in.
-- Typos normalized in `logins.login_id` (clientdomain, clientdomain, clientdomain…,
+  Domain+Microsoft pairs merged; a typo'd `itmgr@` account folded in.
+- Typos normalized in `logins.login_id` (misspelled client domains…,
   pictuerplaen…, bare `@pictureplane`, login_name `Microsot`).
 - 11 duplicate login rows deactivated `[duplicate of #id]`.
-- PENDING (user runs): locations dedupe (keep LA id 1 + site id 4 as shared);
+- PENDING (user runs): locations dedupe (keep the two shared sites);
   deactivate 32 orphaned onboarding stubs.
 
 ## Still to build (both branches eventually)
