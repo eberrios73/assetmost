@@ -443,8 +443,10 @@ function TaskRows({ t, people, patch, projects = [], milestones = [], allTasks =
                             )}
                             <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>
                             <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
-                            <CommentsLog taskId={t.id} />
-                            <LinksBlock t={t} patch={patch} />
+                            <div className="mt-3 grid grid-cols-2 gap-x-6">
+                                <CommentsLog taskId={t.id} />
+                                <LinksBlock t={t} patch={patch} />
+                            </div>
                             <div className="mt-3 flex flex-wrap items-end gap-3">
                                 <label className="block w-52">
                                     <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Project / milestone</span>
@@ -537,7 +539,7 @@ function CommentsLog({ taskId }) {
     };
 
     return (
-        <div className="mt-3">
+        <div>
             <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Updates</span>
             {items === null ? <div className="text-xs text-gray-400 py-1">…</div> : items.map((c) => (
                 <div key={c.id} className="group/log flex items-baseline gap-2 py-0.5 text-sm">
@@ -549,7 +551,7 @@ function CommentsLog({ taskId }) {
             ))}
             <input placeholder="What happened? ⏎ — e.g. waiting on vendor"
                 onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { add(e.target.value.trim()); e.target.value = ''; } }}
-                className="mt-1 w-80 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                className="mt-1 w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
         </div>
     );
 }
@@ -566,7 +568,7 @@ function LinksBlock({ t, patch }) {
         patch(t.id, { links: links.filter((l) => l.id !== id) });
     };
     return (
-        <div className="mt-3">
+        <div>
             <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Links</span>
             {links.map((l) => (
                 <div key={l.id} className="group/lnk flex items-center gap-2 text-xs py-0.5">
@@ -578,7 +580,7 @@ function LinksBlock({ t, patch }) {
             ))}
             <input placeholder="Paste a URL ⏎ (a PR, a ticket, a doc)"
                 onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { add(e.target.value.trim()); e.target.value = ''; } }}
-                className="mt-1 w-72 rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
+                className="mt-1 w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
         </div>
     );
 }
