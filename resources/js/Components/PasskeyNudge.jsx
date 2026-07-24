@@ -10,12 +10,14 @@ import { registerPasskey, passkeysSupported } from '@/lib/webauthn';
  */
 export default function PasskeyNudge() {
     const { auth } = usePage().props;
+    // Session-scoped: Later quiets it until the next sign-in. The only
+    // permanent dismissal is enrolling — that's the point of the ask.
     const dismissKey = `assetmost:passkey-nudge:${auth?.user?.id}`;
     const [show, setShow] = useState(false);
     const [done, setDone] = useState(false);
 
     useEffect(() => {
-        if (!auth?.user || !passkeysSupported() || localStorage.getItem(dismissKey)) return;
+        if (!auth?.user || !passkeysSupported() || sessionStorage.getItem(dismissKey)) return;
         fetch('/webauthn/credentials', { headers: { Accept: 'application/json' } })
             .then((r) => r.json())
             .then((keys) => { if (Array.isArray(keys) && keys.length === 0) setShow(true); })
@@ -23,7 +25,7 @@ export default function PasskeyNudge() {
     }, []);
 
     if (!show) return null;
-    const later = () => { localStorage.setItem(dismissKey, '1'); setShow(false); };
+    const later = () => { sessionStorage.setItem(dismissKey, '1'); setShow(false); };
     const enroll = async () => {
         try { await registerPasskey('This device'); setDone(true); setTimeout(() => setShow(false), 2500); }
         catch { /* they cancelled the sheet; keep the banner */ }
