@@ -119,15 +119,15 @@
   .story-pin.night{background:var(--ink)}
   .story-stage{position:relative;width:100%;height:100%}
   .story-title{
-    position:absolute;top:clamp(76px,10vh,120px);left:0;right:0;text-align:center;z-index:4;
-    font-size:22px;font-weight:800;letter-spacing:-.015em;color:var(--ink);
+    position:absolute;top:clamp(72px,9vh,110px);left:0;right:0;text-align:center;z-index:4;
+    font-size:clamp(30px,3.6vw,46px);font-weight:800;letter-spacing:-.025em;color:var(--ink);
     transition:color .6s ease;
   }
-  .story-title .story-sub{display:block;font-size:14px;font-weight:500;color:var(--muted);margin-top:4px;transition:color .6s ease}
+  .story-title .story-sub{display:block;font-size:clamp(15px,1.4vw,18px);font-weight:500;color:var(--muted);margin-top:8px;letter-spacing:0;transition:color .6s ease}
   .night .story-title{color:#fff}
   .night .story-title .story-sub{color:#AEB6C0}
   .scene{
-    position:absolute;inset:0;top:clamp(96px,11vh,140px);
+    position:absolute;inset:0;top:clamp(160px,20vh,240px);
     display:grid;grid-template-columns:.72fr 1.28fr;gap:52px;align-items:center;
     max-width:1080px;margin:0 auto;padding:0 24px 40px;
     opacity:0;visibility:hidden;pointer-events:none;
@@ -153,6 +153,8 @@
   .s-media .shot{transform:scale(1.025);transition:transform .65s cubic-bezier(.2,.6,.2,1)}
   .scene.active .s-media .shot{transform:scale(1)}
 
+  /* the finale hugs the bottom of the stage so the dark handoff to the thesis is tight */
+  .scene[data-night]{align-content:end;padding-bottom:7vh}
   .night .s-copy h3{color:#fff}
   .night .s-copy p{color:#AEB6C0}
   .night .s-copy li{color:#D5DBE2}
@@ -189,7 +191,7 @@
 
   /* ---------- thesis ---------- */
   .thesis{background:var(--ink);color:#fff}
-  .thesis .wrap{padding:74px 24px;text-align:center}
+  .thesis .wrap{padding:52px 24px 74px;text-align:center}
   .thesis .eyebrow{color:#8FB2F5}
   .thesis h2{font-size:36px;letter-spacing:-.03em;font-weight:800;line-height:1.15;max-width:22ch;margin:16px auto 0}
   .thesis h2 em{font-style:normal;color:#8FB2F5}
