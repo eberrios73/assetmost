@@ -2,6 +2,7 @@ import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
+import { assertPasskey, passkeysSupported } from '@/lib/webauthn';
 import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -31,6 +32,13 @@ export default function Login({ status, canResetPassword }) {
                 </div>
             )}
 
+            {passkeysSupported() && (
+                <button type="button"
+                    onClick={() => assertPasskey().then(() => (window.location = '/')).catch(() => {})}
+                    className="mb-4 w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500 hover:text-blue-600">
+                    🔑 Sign in with a passkey
+                </button>
+            )}
             <form onSubmit={submit}>
                 <div>
                     <InputLabel htmlFor="email" value="Email" />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { assertPasskey, passkeysSupported } from '@/lib/webauthn';
 
 /**
  * THE gate for sensitive screens: re-enter your own password to proceed.
@@ -32,6 +33,13 @@ export default function PasswordGate({ endpoint = '/data/accounts-unlock', title
                 <svg className="mx-auto mb-3 h-8 w-8 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a5 5 0 00-5 5v3H6a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2v-9a2 2 0 00-2-2h-1V6a5 5 0 00-5-5zm3 8H9V6a3 3 0 016 0v3z" /></svg>
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1">{title}</h3>
                 {reason && <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{reason}</p>}
+                {passkeysSupported() && (
+                    <button type="button"
+                        onClick={() => assertPasskey(true).then(onUnlocked).catch(() => {})}
+                        className="mb-3 w-full rounded-md border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-blue-500 hover:text-blue-600">
+                        🔑 Unlock with your passkey
+                    </button>
+                )}
                 <input type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)}
                     placeholder="Your password"
                     className="w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm focus:border-blue-500 focus:ring-blue-500 mb-2" />
