@@ -218,6 +218,9 @@
         <li>Use the row icons to <b>copy</b> the credential, <b>reveal</b> it, <b>edit</b>, comment, or delete it.</li>
       </ol>
       <div class="tip"><b>Reading a row:</b> "Workstation — PG-WS-1004 · PLUTONIC\jsudo · Domain" means Justin's domain account on that workstation — the login connects the person to the machine.</div>
+
+      <h3>What is a credential for?</h3>
+      <p>Every login answers that question exactly one way: it points at a <b>device</b> (the admin account on <code>PG-SR-1031</code>), at a <b>product</b> (a seat in Creative Cloud), at a <b>vendor</b> (the domain-registrar account, no seats involved), or at <b>nothing</b>, which is what a person's own directory identity looks like (<code>PLUTONIC\jsudo</code>). Keeping that answer in a real column is what makes everything countable later. The alternative is what old inventories do: invent fake vendors named "Servers" and "Wifi" to hold credentials that never had a home.</p>
     </section>
 
     <!-- ============================================================ -->
@@ -229,6 +232,9 @@
         <img src="assets/licenses.png" alt="License seats on a person: product, vendor, amount, renewal date" loading="lazy">
       </div>
       <div class="shot-caption">Seats with real renewal dates and amounts — budget answers without a spreadsheet.</div>
+      <h3>Vendor, product, license, seat</h3>
+      <p>Licensing flows one direction. The <b>vendor</b> is who you buy from (Adobe). The <b>product</b> is what it is (Creative Cloud). The <b>license</b> is what you bought (25 seats, renews in January). A <b>seat</b> is an account consuming one. Available is arithmetic: seats bought minus seats consumed. One account can hold seats on several licenses, and a pooled account like <code>artist003</code> consumes exactly one seat no matter who holds it this month.</p>
+      <p>Products stay separate from licenses on purpose: "Creative Cloud" is a catalog fact, "25 seats renewing in January" is your purchase. Two companies buying the same product are two licenses, one product.</p>
     </section>
 
     <!-- ============================================================ -->
@@ -246,6 +252,13 @@
         <li>Click <b>+ Add Account</b> to register a shared or service credential.</li>
         <li>Assign it to the person currently holding it; reassign when it changes hands.</li>
       </ol>
+
+      <h3>Personal, pooled, shared</h3>
+      <p>Every account carries a sharing mode. <b>Personal</b> belongs to one person. <b>Pooled</b> is a floating seat like <code>artist003</code>: one holder at a time, and reassigning it is a swap, not a rename. <b>Shared</b> is genuinely plural: a support mailbox with ten people attached is correct, not a mess to clean up.</p>
+      <p>The modes make compliance checkable instead of tribal. A license-consuming seat with more than one holder is a violation; a shared mailbox with ten is fine. AssetMost can tell the difference because the difference lives in a column.</p>
+
+      <h3>A user need not be a human</h3>
+      <p>The identity that registered your domains, your Apple ID, and thirty other vendor accounts is real even though it isn't a person. Give it its own person record (say, <code>itops@plutonicgames.com</code>) and let it hold those logins. The vendor-side account strings stay exactly what they are: you can't rename an Apple ID, and you don't need to.</p>
     </section>
 
     <!-- ============================================================ -->
@@ -299,6 +312,13 @@
         <li>Click <b>+ Add Device</b> to intake hardware; <b>Edit</b> to update specs or move it.</li>
         <li>Under <b>Locations</b>, each site lists its rooms — assign devices to a room so "what's in 104B?" has an answer.</li>
       </ol>
+
+      <h3>How asset tags work</h3>
+      <p><code>PG-LT-1007</code> reads: company prefix, type code, number. The tag doubles as the hostname wherever the machine has one, so the sticker and the network agree. Numbers come from one per-company counter that starts at 1001 and <b>never reuses a number</b>: a sticker on a shelf can never collide with a new machine. Gaps are normal and meaningless.</p>
+      <p>And nothing parses the tag. Type and company are real columns, so counting is exact ("workstations in service" is a filter, not a sticker hunt) and reclassifying a machine breaks nothing. Device types themselves are a short fixed list with the two-letter codes you see in tags: Workstation, Laptop, Server, Storage, Network, Printer, Phone, Tablet, Monitor, Peripheral, Infrastructure, Game Console. Not free text, which is how an inventory ends up with thirteen spellings of "hard drive."</p>
+
+      <h3>Rooms make audits real</h3>
+      <p>Give every device a room and the audit stops being memory: open the room's device list, read the stickers, match. Two answers fall out for free: on the list but not in the room (missing), and in the room but not on the list (unrecorded).</p>
     </section>
 
     <!-- ============================================================ -->
