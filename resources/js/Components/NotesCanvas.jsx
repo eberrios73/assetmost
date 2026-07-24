@@ -70,8 +70,13 @@ const uploadImage = async (file) => {
 export default function NotesCanvas({ value, onCommit }) {
     const [menu, setMenu] = useState(null);        // { query, from, to, x, y }
     const [results, setResults] = useState([]);
+    const [idx, setIdx] = useState(0);
     const saveTimer = useRef(null);
     const fetchTimer = useRef(null);
+    // The editor captures its handlers once — refs keep them seeing the present.
+    const menuRef = useRef(null); useEffect(() => { menuRef.current = menu; }, [menu]);
+    const resultsRef = useRef([]); useEffect(() => { resultsRef.current = results; setIdx(0); }, [results]);
+    const idxRef = useRef(0); useEffect(() => { idxRef.current = idx; }, [idx]);
 
     const editor = useEditor({
         extensions: [
@@ -84,6 +89,15 @@ export default function NotesCanvas({ value, onCommit }) {
         content: toHtml(value),
         editorProps: {
             attributes: { class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[72px] rounded-md border border-gray-200 dark:border-gray-700 dark:bg-gray-800 px-3 py-2 text-sm' },
+            handleKeyDown: (view, event) => {
+                if (!menuRef.current) return false;
+                if (event.key === 'Escape') { setMenu(null); return true; }
+                if (!resultsRef.current.length) return false;
+                if (event.key === 'ArrowDown') { setIdx((i) => Math.min(i + 1, resultsRef.current.length - 1)); return true; }
+                if (event.key === 'ArrowUp') { setIdx((i) => Math.max(i - 1, 0)); return true; }
+                if (event.key === 'Enter') { pickRef.current(resultsRef.current[idxRef.current]); return true; }
+                return false;
+            },
             handlePaste: (view, event) => {
                 const img = [...(event.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
                 if (!img) return false;
@@ -122,7 +136,9 @@ export default function NotesCanvas({ value, onCommit }) {
         }, 150);
     }, [menu?.query]);
 
+    const pickRef = useRef(() => {});
     const pick = (r) => {
+        if (!r) return;
         editor.chain().focus()
             .deleteRange({ from: menu.from, to: menu.to })
             .insertContentAt(menu.from, [
@@ -131,6 +147,7 @@ export default function NotesCanvas({ value, onCommit }) {
             ]).run();
         setMenu(null);
     };
+    pickRef.current = pick;
 
     return (
         <div className="relative">
@@ -138,11 +155,11 @@ export default function NotesCanvas({ value, onCommit }) {
             {menu && results.length > 0 && (
                 <div className="fixed z-[90] w-72 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl"
                     style={{ left: menu.x, top: menu.y + 4 }}>
-                    {results.slice(0, 6).map((r) => (
-                        <button key={`${r.type}-${r.id}`} onMouseDown={(e) => { e.preventDefault(); pick(r); }}
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50 dark:hover:bg-blue-500/15">
-                            <span className="font-medium text-gray-800 dark:text-gray-100">@{r.label}</span>
-                            <span className="truncate text-xs text-gray-400">{r.type}{r.sub ? ` · ${r.sub}` : ''}</span>
+                    {results.slice(0, 6).map((r, i) => (
+                        <button key={`${r.type}-${r.id}`} onMouseDown={(e) => { e.preventDefault(); pick(r); }} onMouseEnter={() => setIdx(i)}
+                            className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${i === idx ? 'bg-blue-50 dark:bg-blue-500/15' : ''}`}>
+                            <span className="shrink-0 whitespace-nowrap font-medium text-gray-800 dark:text-gray-100">@{r.label}</span>
+                            <span className="min-w-0 truncate text-xs text-gray-400">{r.sub || r.type}</span>
                         </button>
                     ))}
                 </div>
