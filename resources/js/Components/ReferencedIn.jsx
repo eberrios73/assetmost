@@ -23,7 +23,7 @@ export default function ReferencedIn({ type, id }) {
             <div className="flex flex-wrap gap-1.5">
                 {refs.map((r) => (
                     <button key={`${r.type}-${r.id}`}
-                        onClick={() => r.type === 'doc' && router.visit(`/docs?page=${r.id}`)}
+                        onClick={() => router.visit(r.type === 'doc' ? `/docs?page=${r.id}` : '/tasks')}
                         className="rounded-full border border-violet-200 dark:border-violet-900 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300 hover:border-violet-400">
                         {r.label}
                     </button>

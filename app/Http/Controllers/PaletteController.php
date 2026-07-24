@@ -116,6 +116,10 @@ class PaletteController extends Controller
         foreach (DocPage::query()->whereIn('id', $docIds)->get(['id', 'title', 'category']) as $doc) {
             $out[] = ['type' => 'doc', 'id' => $doc->id, 'label' => $doc->title, 'sub' => $doc->category ?: 'doc'];
         }
+        $taskIds = $edges->where('from_type', 'task')->pluck('from_id');
+        foreach (Task::query()->whereIn('id', $taskIds)->get(['id', 'title', 'kind']) as $t) {
+            $out[] = ['type' => 'task', 'id' => $t->id, 'label' => $t->title, 'sub' => $t->kind];
+        }
         return response()->json(['refs' => $out]);
     }
 

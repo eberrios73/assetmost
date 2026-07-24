@@ -58,6 +58,7 @@ class TaskController extends Controller
         $data['origin'] = $data['week'];                 // first week it appeared
         $data = $this->syncProgress($data, null);
         $task = Task::create($data + ['ord' => (int) (Task::query()->max('ord') + 1)]);
+        \App\Support\ObjectRefSync::sync('task', $task->id, $task->notes);
         return response()->json(['id' => $task->id], 201);
     }
 
@@ -66,12 +67,17 @@ class TaskController extends Controller
         abort_if(auth()->user()?->role === 'User', 403);
         $data = $this->validated($request, false);
         $task->update($this->syncProgress($data, $task));
+        // Notes are a canvas: @-mention pills in them are edges like a doc's.
+        if (array_key_exists('notes', $data)) {
+            \App\Support\ObjectRefSync::sync('task', $task->id, $task->notes);
+        }
         return response()->json(['ok' => true]);
     }
 
     public function destroy(Task $task): JsonResponse
     {
         abort_if(auth()->user()?->role === 'User', 403);
+        \App\Support\ObjectRefSync::forget('task', $task->id);
         $task->delete();
         return response()->json(['ok' => true]);
     }

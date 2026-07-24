@@ -111,6 +111,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/data/palette-search', [\App\Http\Controllers\PaletteController::class, 'search']);
     Route::get('/data/palette-render', [\App\Http\Controllers\PaletteController::class, 'render']);
     Route::get('/data/refs', [\App\Http\Controllers\PaletteController::class, 'refs']);
+    Route::post('/data/uploads', [\App\Http\Controllers\UploadController::class, 'store']);
 
     // JSON data endpoints (infinite scroll + detail)
     $dc = \App\Http\Controllers\DataController::class;

@@ -6,13 +6,16 @@ import { buildDocBody, templateCategory } from '@/docTemplates';
 import TemplateMenu from '@/Components/TemplateMenu';
 import SearchSelect from '@/Components/SearchSelect';
 import AddButton from '@/Components/ui/AddButton';
+import NotesCanvas from '@/Components/NotesCanvas';
 import { openRecordForm } from '@/lib/formBus';
 
 // A task stamped "Form: new|edit <kind> · co:<id>" (a /form token in its workflow
 // step) carries the record form — the button summons the app-wide drawer with
 // the workflow's company as context; the result is noted on the task.
 const taskForm = (notes) => {
-    const m = /(?:^|\n)Form: (?:(new|edit) )?(device|person|account|location) · co:(\d+)/.exec(notes || '');
+    // Notes are HTML now; the Form: token matches against the text they contain.
+    const text = (notes || '').replace(/<[^>]+>/g, '\n');
+    const m = /(?:^|\n)\s*Form: (?:(new|edit) )?(device|person|account|location) · co:(\d+)/.exec(text);
     return m ? { mode: m[1] || 'new', kind: m[2], companyId: Number(m[3]) } : null;
 };
 
@@ -384,7 +387,8 @@ function TaskRows({ t, people, patch, projects = [], milestones = [], allTasks =
         mode: form.mode, kind: form.kind, companyId: form.companyId,
         onSaved: (rec) => {
             const label = rec?.asset_tag || rec?.identifier || rec?.name || '';
-            patch(t.id, { notes: `${t.notes}\n✓ ${form.kind} ${form.mode === 'edit' ? 'updated' : 'recorded'}${label ? `: ${label}` : ''}` });
+            const receipt = `✓ ${form.kind} ${form.mode === 'edit' ? 'updated' : 'recorded'}${label ? `: ${label}` : ''}`;
+            patch(t.id, { notes: /^\s*</.test(t.notes || '') ? `${t.notes}<p>${receipt}</p>` : `${t.notes}\n${receipt}` });
         },
     });
     return (
@@ -442,10 +446,9 @@ function TaskRows({ t, people, patch, projects = [], milestones = [], allTasks =
                                 </div>
                             )}
                             <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Notes</span>
-                            <NotesArea value={t.notes} onCommit={(v) => patch(t.id, { notes: v }, { debounce: true })} />
-                            <div className="mt-3 grid grid-cols-2 gap-x-6">
+                            <NotesCanvas value={t.notes} onCommit={(v) => patch(t.id, { notes: v === '<p></p>' ? null : v })} />
+                            <div className="mt-3">
                                 <CommentsLog taskId={t.id} />
-                                <LinksBlock t={t} patch={patch} />
                             </div>
                             <div className="mt-3 flex flex-wrap items-end gap-3">
                                 <label className="block w-52">
@@ -550,35 +553,6 @@ function CommentsLog({ taskId }) {
                 </div>
             ))}
             <input placeholder="What happened? ⏎ — e.g. waiting on vendor"
-                onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { add(e.target.value.trim()); e.target.value = ''; } }}
-                className="mt-1 w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
-        </div>
-    );
-}
-
-/** Pasted URLs on a task — a PR, a ticket, a doc. GitHub/GitLab PRs label themselves. */
-function LinksBlock({ t, patch }) {
-    const links = t.links || [];
-    const add = async (url) => {
-        const link = await api(`/data/tasks/${t.id}/links`, 'POST', { url });
-        if (link?.id) patch(t.id, { links: [...links, link] });
-    };
-    const drop = async (id) => {
-        await api(`/data/tasks/${t.id}/links/${id}`, 'DELETE');
-        patch(t.id, { links: links.filter((l) => l.id !== id) });
-    };
-    return (
-        <div>
-            <span className="block text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Links</span>
-            {links.map((l) => (
-                <div key={l.id} className="group/lnk flex items-center gap-2 text-xs py-0.5">
-                    <a href={l.url} target="_blank" rel="noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline truncate max-w-md">
-                        {l.label || l.url.replace(/^https?:\/\//, '')}
-                    </a>
-                    <button onClick={() => drop(l.id)} className="text-gray-300 dark:text-gray-600 opacity-0 group-hover/lnk:opacity-100 hover:text-red-600">×</button>
-                </div>
-            ))}
-            <input placeholder="Paste a URL ⏎ (a PR, a ticket, a doc)"
                 onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { add(e.target.value.trim()); e.target.value = ''; } }}
                 className="mt-1 w-full rounded-md border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-xs py-1.5 focus:border-blue-500 focus:ring-blue-500" />
         </div>
