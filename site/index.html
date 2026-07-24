@@ -75,8 +75,8 @@
     color:var(--blue-deep);text-transform:uppercase;margin-bottom:20px;font-weight:600;
   }
   h1{
-    font-size:52px;line-height:1.04;letter-spacing:-.03em;font-weight:800;
-    margin-bottom:22px;
+    font-size:clamp(34px,4.5vw,50px);line-height:1.06;letter-spacing:-.03em;font-weight:800;
+    margin-bottom:22px;text-wrap:balance;
   }
   h1 .u{
     background:linear-gradient(transparent 62%, var(--blue-tint) 62%);
@@ -289,33 +289,6 @@
   .devnote p{color:var(--ink);font-size:16.5px;line-height:1.65;margin-bottom:18px}
   .devnote .sig{font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:26px}
 
-  /* ---------- what you get ---------- */
-  .whatyou{padding:76px 0 8px}
-  .whatyou .sec-head{text-align:center;margin:0 auto 34px}
-  .featgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .featcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;transition:.18s}
-  .featcard:hover{border-color:#CBD3DB;transform:translateY(-2px)}
-  .featcard h3{font-size:15.5px;letter-spacing:-.01em;margin-bottom:6px}
-  .featcard p{color:var(--muted);font-size:13.5px;line-height:1.55}
-  .featcard code{font-family:var(--mono);font-size:12px;color:var(--blue-deep)}
-  @media(max-width:860px){.featgrid{grid-template-columns:1fr 1fr}}
-  @media(max-width:560px){.featgrid{grid-template-columns:1fr}}
-
-  /* ---------- workspace ---------- */
-  .workspace{padding:84px 0 8px}
-  .workspace .sec-head{text-align:center;margin:0 auto 34px}
-
-  /* ---------- install ---------- */
-  .install{padding:76px 0 8px}
-  .install .sec-head{text-align:center;margin:0 auto 30px}
-  .install pre{
-    background:var(--ink);border-radius:14px;padding:22px 26px;overflow-x:auto;
-    max-width:720px;margin:0 auto;
-  }
-  .install pre code{font-family:var(--mono);font-size:13.5px;line-height:1.8;color:#D5DBE2}
-  .install .stackline{text-align:center;font-size:13px;color:var(--faint);margin-top:16px}
-  .install .stackline code{font-family:var(--mono);font-size:12px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--ink)}
-
   /* ---------- closing CTA ---------- */
   .closing{text-align:center;padding:84px 0}
   .closing h2{font-size:32px;letter-spacing:-.025em;font-weight:800;margin-bottom:12px}
@@ -389,7 +362,7 @@
   <div class="wrap">
     <div class="hero-copy">
       <div class="eyebrow">Four pillars, one system</div>
-      <h1>Manage tangible and intangible assets<br class="hb"> in the Most efficient way.</h1>
+      <h1>Manage tangible and intangible assets in the Most efficient way.</h1>
       <p class="lede">People, assets, docs, and projects.<br class="hb"> Every connection between them, in one place.</p>
       <div class="cta-row">
         <a href="https://github.com/eberrios73/assetmost" class="btn btn-primary">Download</a>
@@ -403,9 +376,70 @@
 <!-- HERO PANEL: the workspace, front and center -->
 <section class="hero-panel">
   <div class="wrap">
-    <div class="shot">
-      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
-      <img src="assets/people-profile.png" alt="AssetMost: a staff profile with the person's logins, licenses, and devices on one screen" loading="eager">
+    <div class="ws-panel">
+      <div class="ws-pill">
+        <div class="avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"/></svg></div>
+        <b>IT Team</b><span>one workspace</span>
+      </div>
+      <div class="ws-stage">
+        <svg class="ws-links" fill="none" aria-hidden="true"></svg>
+        <div class="ws-cards">
+          <div class="ws-card">
+            <h3>People</h3>
+            <div class="sub">devices · accounts · seats</div>
+            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
+              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
+              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
+              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
+              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
+              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="ws-card">
+            <h3>Assets</h3>
+            <div class="sub">tag · room · person</div>
+            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
+              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
+              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
+              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
+              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
+              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="ws-card">
+            <h3>Projects</h3>
+            <div class="sub">milestones · tasks · timeline</div>
+            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
+              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
+              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
+              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
+              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
+              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="ws-card">
+            <h3>Docs</h3>
+            <div class="sub">sops · runbooks · incidents</div>
+            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
+              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
+              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
+              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
+              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
+              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="ws-dock">
+        <div class="icons">
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></svg></div>
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></svg></div>
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></svg></div>
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></svg></div>
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M3 7l9 6 9-6"/></svg></div>
+        </div>
+        <div class="clock">9:41 AM</div>
+      </div>
     </div>
   </div>
 </section>
@@ -416,24 +450,6 @@
     <h2>IT tools are no longer one-size-fits-all.</h2>
     <p>IT tools are often not designed for the business context they land in. Accounts get shared. <span class="before">info@</span> is pooled between 20 employees instead of being a distribution list. Password rotations are next to impossible for local accounts. Ambiguous asset tags delay support.</p>
     <p class="kick">AssetMost turns ambiguity into precision.</p>
-  </div>
-</section>
-
-<!-- WHAT YOU GET -->
-<section class="whatyou">
-  <div class="wrap">
-    <div class="sec-head">
-      <div class="eyebrow">What you get</div>
-      <h2>Concrete, out of the box.</h2>
-    </div>
-    <div class="featgrid">
-      <div class="featcard"><h3>Device inventory</h3><p>Auto-issued asset tags like <code>PG-LT-1007</code>, specs, serials, rooms, and full lifecycle.</p></div>
-      <div class="featcard"><h3>People, fully connected</h3><p>Every login, license seat, and device on the person who holds it.</p></div>
-      <div class="featcard"><h3>Account registry</h3><p>Pooled seats, service accounts, break-glass credentials. Locked behind re-auth.</p></div>
-      <div class="featcard"><h3>Licenses that count</h3><p>Seats, annual costs, renewal dates, and who actually holds each one.</p></div>
-      <div class="featcard"><h3>Tasks and projects</h3><p>A weekly rolling sheet plus the Project &rsaquo; Milestone &rsaquo; Task ladder and a timeline.</p></div>
-      <div class="featcard"><h3>Executable SOPs</h3><p>Runbooks whose steps compile to scripts and forms; docs that reference real records.</p></div>
-    </div>
   </div>
 </section>
 
@@ -585,81 +601,6 @@
   </div>
 </section>
 
-<!-- ONE WORKSPACE -->
-<section class="workspace">
-  <div class="wrap">
-    <div class="sec-head">
-      <div class="eyebrow">One workspace</div>
-      <h2>Four cardinals, one desk.</h2>
-    </div>
-    <div class="ws-panel">
-      <div class="ws-pill">
-        <div class="avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-4 3.4-6.2 7.5-6.2s7.5 2.2 7.5 6.2"/></svg></div>
-        <b>IT Team</b><span>one workspace</span>
-      </div>
-      <div class="ws-stage">
-        <svg class="ws-links" fill="none" aria-hidden="true"></svg>
-        <div class="ws-cards">
-          <div class="ws-card">
-            <h3>People</h3>
-            <div class="sub">devices · accounts · seats</div>
-            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
-              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
-              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
-              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></g>
-              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
-              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
-            </svg>
-          </div>
-          <div class="ws-card">
-            <h3>Assets</h3>
-            <div class="sub">tag · room · person</div>
-            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
-              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
-              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
-              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></g>
-              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
-              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
-            </svg>
-          </div>
-          <div class="ws-card">
-            <h3>Projects</h3>
-            <div class="sub">milestones · tasks · timeline</div>
-            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
-              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
-              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
-              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></g>
-              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
-              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
-            </svg>
-          </div>
-          <div class="ws-card">
-            <h3>Docs</h3>
-            <div class="sub">sops · runbooks · incidents</div>
-            <svg viewBox="0 0 176 96" fill="none" aria-hidden="true">
-              <rect x="15" y="-1" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="2.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="6" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 11) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
-              <rect x="15" y="51" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="11.5" y="54.5" width="30" height="32" rx="5" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><rect x="8" y="58" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(12 63) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
-              <rect x="66" y="32" width="30" height="32" rx="5" stroke="#2F6BE5" stroke-width="1.2" fill="#f8fafc"/><g transform="translate(70 37) scale(0.92)" stroke="#2F6BE5" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></g>
-              <path d="M40 22 L53 22 L53 48 L64 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M40 74 L53 74 L53 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/><path d="M98 48 L122 48" stroke="rgba(47,107,229,0.45)" stroke-width="1.1" fill="none"/>
-              <rect x="124" y="12" width="46" height="52" rx="4" stroke="rgba(47,107,229,0.45)" stroke-width="1" fill="#fff"/><line x1="132" y1="22" x2="162" y2="22" stroke="#2F6BE5" stroke-width="1.6"/><line x1="132" y1="30" x2="154" y2="30" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="38" x2="166" y2="38" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="46" x2="150" y2="46" stroke="rgba(47,107,229,0.45)" stroke-width="1"/><line x1="132" y1="54" x2="158" y2="54" stroke="rgba(47,107,229,0.45)" stroke-width="1"/>
-            </svg>
-          </div>
-        </div>
-      </div>
-      <div class="ws-dock">
-        <div class="icons">
-          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8m-3.2 0a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0 M5 19.5c0-3.5 3-5.4 7-5.4s7 1.9 7 5.4"/></svg></div>
-          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H4z M9 20h6 M12 16v4"/></svg></div>
-          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11 M9 12h11 M9 18h11 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2"/></svg></div>
-          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h5 M10 16h5"/></svg></div>
-          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M3 7l9 6 9-6"/></svg></div>
-        </div>
-        <div class="clock">9:41 AM</div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- TICKETS -->
 <section class="tickets">
   <div class="wrap">
@@ -721,24 +662,6 @@
       <p>That&#39;s why I built AssetMost.</p>
       <p class="sig">&mdash; Enrique "Rick" Berrios</p>
     </div>
-  </div>
-</section>
-
-<!-- INSTALL -->
-<section class="install">
-  <div class="wrap">
-    <div class="sec-head">
-      <div class="eyebrow">Install</div>
-      <h2>Running in five minutes.</h2>
-    </div>
-    <pre><code>git clone https://github.com/eberrios73/assetmost.git &amp;&amp; cd assetmost
-composer install &amp;&amp; npm install
-cp .env.example .env &amp;&amp; php artisan key:generate
-# point .env at a PostgreSQL database, then:
-php artisan migrate
-npm run build
-php artisan serve</code></pre>
-    <p class="stackline">Laravel &middot; Inertia &middot; React &middot; Tailwind &middot; PostgreSQL. One company or many: <code>ASSETMOST_EDITION=single|multi</code>.</p>
   </div>
 </section>
 
@@ -950,7 +873,7 @@ php artisan serve</code></pre>
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (!('IntersectionObserver' in window)) return;
   var targets = document.querySelectorAll(
-    '.strip .wrap, .thesis .wrap, .whatyou .sec-head, .featgrid, .workspace .sec-head, .install .sec-head, .install pre, ' +
+    '.strip .wrap, .thesis .wrap, ' +
     '.intake .sec-head, .formshow, .formshow-dots, .tickets .wrap, .devnote .inner, .closing .wrap'
   );
   var io = new IntersectionObserver(function (entries) {
