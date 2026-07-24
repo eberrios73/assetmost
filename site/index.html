@@ -97,9 +97,10 @@
 
   /* ---------- problem strip ---------- */
   .strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
-  .strip .wrap{padding:34px 24px;display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
-  .strip h2{font-size:22px;letter-spacing:-.02em;font-weight:700}
-  .strip p{color:var(--muted);font-size:16px;max-width:52ch}
+  .strip .wrap{padding:48px 24px;text-align:center}
+  .strip h2{font-size:24px;letter-spacing:-.02em;font-weight:700;margin-bottom:12px}
+  .strip p{color:var(--muted);font-size:16px;max-width:62ch;margin:0 auto}
+  .strip .kick{color:var(--ink);font-weight:600;margin-top:10px}
   .strip .before{font-family:var(--mono);font-size:13px;color:var(--faint)}
 
   .sec-head{max-width:56ch}
@@ -447,7 +448,8 @@
 <section class="strip">
   <div class="wrap">
     <h2>Real IT doesn't fit the tools built for it.</h2>
-    <p>Ten people check <span class="before">info@</span>. <span class="before">Designer1@</span> gets passed between contractors. <span class="before">ITAdmin</span> lives on six servers. The sticker on the box has to mean something over the phone. AssetMost models IT the way it actually works.</p>
+    <p>IT tools are often not designed for the business context they land in. Accounts get shared. <span class="before">info@</span> is pooled between 20 employees instead of being a distribution list. Password rotations are next to impossible for local accounts. Ambiguous asset tags delay support.</p>
+    <p class="kick">Our model turns ambiguity into precision.</p>
   </div>
 </section>
 
