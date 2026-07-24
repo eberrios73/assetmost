@@ -254,26 +254,15 @@ export default function Index() {
                     ))}
                 </div>
             ) : navTab === 'templates' ? (
-                <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Every new page starts from one of these. Pick one to create a page in {space?.name || 'this space'}.</p>
+                <div className="flex-1 overflow-y-auto py-1">
+                    <p className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400">Every new page starts from one of these. Pick one to create a page in {space?.name || 'this space'}.</p>
                     {DOC_TEMPLATES.map((t) => (
                         <button key={t.key} onClick={() => { setNavTab('docs'); newPage(null, t.key); }}
-                            className="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <span className="flex items-center justify-between gap-2">
-                                <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{t.label}</span>
-                                <CategoryBadge category={t.category} />
-                            </span>
-                            <span className="block mt-0.5 text-xs text-gray-500 dark:text-gray-400">{t.hint}</span>
-                            {/* the template itself, shrunk: what "blank" actually seeds */}
-                            {t.body ? (
-                                <span className="pointer-events-none relative mt-2 block max-h-20 overflow-hidden rounded-md border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/40 px-2.5 py-1.5">
-                                    <span className="prose prose-xs dark:prose-invert block origin-top-left scale-[.8] text-[11px] leading-snug text-gray-600 dark:text-gray-300"
-                                        dangerouslySetInnerHTML={{ __html: buildDocBody(t.key, '', {}) }} />
-                                    <span className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white dark:from-gray-900 to-transparent" />
-                                </span>
-                            ) : (
-                                <span className="mt-2 block rounded-md border border-dashed border-gray-200 dark:border-gray-800 px-2.5 py-3 text-center text-[11px] text-gray-400">truly blank</span>
-                            )}
+                            title={t.hint}
+                            className="group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-blue-50/60 dark:hover:bg-gray-800">
+                            <DocIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                            <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{t.label}</span>
+                            <CategoryBadge category={t.category} />
                         </button>
                     ))}
                 </div>
