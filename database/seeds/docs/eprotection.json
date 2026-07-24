@@ -6,7 +6,7 @@
             "category": "other",
             "offset_days": 0,
             "why": "A machine the fleet monitor cannot see is where a compromise lives unnoticed.",
-            "instructions": "How: How: How: How: Install the current agent for this platform; point it at the manager. Update THIS runbook when the tooling changes - everything referencing /eprotection follows automatically.",
+            "instructions": "How: Install the current agent for this platform; point it at the manager. Update THIS runbook when the tooling changes - everything referencing /eprotection follows automatically.",
             "done_when": "The machine appears in the monitoring console and reports events.",
             "record": "",
             "automatable": false,

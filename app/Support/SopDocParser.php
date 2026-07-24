@@ -52,6 +52,9 @@ class SopDocParser
                 if ($lastStep !== null && isset($cells[0])
                     && preg_match('/^(why|how|notes|done when|done|record)\s*:?\s*$/i', trim($cells[0]), $fm)) {
                     $val = trim($cells[1] ?? '');
+                    // Same healing as the line variant: a value cell that begins
+                    // with stacked labels sheds them all on parse.
+                    $val = preg_replace('/^(?:(?:why|how|notes|done when|done|record)\s*[:—-]\s*)+/i', '', $val);
                     if ($val !== '') {
                         $key = match (strtolower($fm[1])) {
                             'why' => 'why', 'how', 'notes' => 'instructions',
@@ -156,6 +159,9 @@ class SopDocParser
 
             // Playbook field lines attach to the current step (or its last subtask).
             if (preg_match('/^(why|how|notes|done when|done|record)\s*[:—-]\s*(.+)$/i', $trim, $m)) {
+                // Heal stacked labels ("How: How: How: text") — scars from legacy
+                // imports must collapse on parse, never survive another round-trip.
+                $m[2] = preg_replace('/^(?:(?:why|how|notes|done when|done|record)\s*[:—-]\s*)+/i', '', $m[2]);
                 if ($lastStep === null) continue;   // stray field line — never a step
                 if (true) {
                     $key = match (strtolower($m[1])) {
