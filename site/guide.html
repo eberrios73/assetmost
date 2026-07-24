@@ -161,6 +161,17 @@
         <img src="assets/login.png" alt="The AssetMost sign-in screen" loading="lazy">
       </div>
       <div class="shot-caption">Sign in — email, password, optional remember-me.</div>
+
+      <h3>Objects, actions, targets</h3>
+      <p>Everything in AssetMost is an <b>object</b>: people, devices, logins, licenses, accounts, vendors, companies, docs. The grammar for working with them is two characters long: <b><code>/</code> acts and <code>@</code> targets</b>. Type <code>@</code> in any doc and the resolver offers your inventory; picking inserts a durable reference that survives renames, and the record itself learns where it's mentioned. Type <code>/</code> and you're issuing an action.</p>
+      <p>The same grammar is why SOPs can compile into scripts: an SOP's steps are actions written as commands, the <code>@</code> references bind them to real records, and the generated script assembles from exactly that. Commands run from step lines only; prose never executes.</p>
+      <p>Press <b>Cmd+K</b> (or <b>Ctrl+K</b>) anywhere for the power bar: universal search and command line in one. Type a name and jump to the record; type <code>/rdp @501</code> and you're acting on it.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/powerbar.png" alt="The power bar: a search for justin resolving to a person, with the /acts @targets grammar legend" loading="lazy">
+      </div>
+      <div class="shot-caption">One bar: search the inventory, or command it.</div>
+
     </section>
 
     <!-- ============================================================ -->
@@ -205,6 +216,12 @@
         <img src="assets/add-staff.png" alt="The Add Staff drawer with name, contact, company, and role fields" loading="lazy">
       </div>
       <div class="shot-caption">Add Staff — one drawer, everything about the person.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/person-devices.png" alt="The Devices tab on a person showing assigned hardware" loading="lazy">
+      </div>
+      <div class="shot-caption">The person's hardware, one tab over from their logins.</div>
+
       <div class="tip"><b>Tip:</b> hiring someone? Don't add them by hand — run an onboarding SOP instead and the person, their accounts, and the setup tasks are created together. See <a href="#onboarding" style="text-decoration:underline">Onboarding</a>.</div>
     </section>
 
@@ -218,6 +235,12 @@
         <li>Use the row icons to <b>copy</b> the credential, <b>reveal</b> it, <b>edit</b>, comment, or delete it.</li>
       </ol>
       <div class="tip"><b>Reading a row:</b> "Workstation — PG-WS-1004 · PLUTONIC\jsudo · Domain" means Justin's domain account on that workstation — the login connects the person to the machine.</div>
+
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/add-login.png" alt="The Add login drawer on a person" loading="lazy">
+      </div>
+      <div class="shot-caption">One drawer adds any login: service, ID, type, URL.</div>
 
       <h3>What is a credential for?</h3>
       <p>Every login answers that question exactly one way: it points at a <b>device</b> (the admin account on <code>PG-SR-1031</code>), at a <b>product</b> (a seat in Creative Cloud), at a <b>vendor</b> (the domain-registrar account, no seats involved), or at <b>nothing</b>, which is what a person's own directory identity looks like (<code>PLUTONIC\jsudo</code>). Keeping that answer in a real column is what makes everything countable later. The alternative is what old inventories do: invent fake vendors named "Servers" and "Wifi" to hold credentials that never had a home.</p>
@@ -253,6 +276,12 @@
         <li>Assign it to the person currently holding it; reassign when it changes hands.</li>
       </ol>
 
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/registry.png" alt="The unlocked account registry: pooled artist seats and a service account, passwords never shown in lists" loading="lazy">
+      </div>
+      <div class="shot-caption">Unlocked: floating seats and service accounts, sharing mode on every row.</div>
+
       <h3>Personal, pooled, shared</h3>
       <p>Every account carries a sharing mode. <b>Personal</b> belongs to one person. <b>Pooled</b> is a floating seat like <code>artist003</code>: one holder at a time, and reassigning it is a swap, not a rename. <b>Shared</b> is genuinely plural: a support mailbox with ten people attached is correct, not a mess to clean up.</p>
       <p>The modes make compliance checkable instead of tribal. A license-consuming seat with more than one holder is a violation; a shared mailbox with ten is fine. AssetMost can tell the difference because the difference lives in a column.</p>
@@ -270,6 +299,12 @@
         <img src="assets/vendors.png" alt="A vendor record with Overview, Products, Logins, and Licenses tabs" loading="lazy">
       </div>
       <div class="shot-caption">Vendor → products → logins → licenses, in one place.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/vendor-products.png" alt="Adobe vendor with its product catalog: Creative Cloud All Apps and Substance 3D with annual amounts" loading="lazy">
+      </div>
+      <div class="shot-caption">The catalog: what a vendor sells, with what it costs annually.</div>
+
     </section>
 
     <!-- ============================================================ -->
@@ -296,6 +331,12 @@
         <img src="assets/sop-editor.png" alt="The SOP editor: numbered steps with Why, How, and Done-when rows" loading="lazy">
       </div>
       <div class="shot-caption">Every step says why it exists and how you know it's done.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/sop-steps.png" alt="The SOP tab of employee onboarding: steps and substeps for creating each account" loading="lazy">
+      </div>
+      <div class="shot-caption">Steps and substeps compile to tasks and the script.</div>
+
     </section>
 
     <!-- ============================================================ -->
@@ -312,6 +353,28 @@
         <li>Click <b>+ Add Device</b> to intake hardware; <b>Edit</b> to update specs or move it.</li>
         <li>Under <b>Locations</b>, each site lists its rooms — assign devices to a room so "what's in 104B?" has an answer.</li>
       </ol>
+
+      <h3>Around the device</h3>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/device-users.png" alt="A device record showing its assigned users" loading="lazy">
+      </div>
+      <div class="shot-caption">Assigned Users: who holds the machine.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/add-device.png" alt="The Add Device modal" loading="lazy">
+      </div>
+      <div class="shot-caption">Intake in one modal; the tag is issued automatically.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/location-rooms.png" alt="A location record with its rooms" loading="lazy">
+      </div>
+      <div class="shot-caption">A location and its rooms; devices assign to a room.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/machine-onboarding.png" alt="The Assets Onboarding tab: machine intake workflows" loading="lazy">
+      </div>
+      <div class="shot-caption">Machine onboarding: intake runs as a workflow, like people do.</div>
 
       <h3>How asset tags work</h3>
       <p><code>PG-LT-1007</code> reads: company prefix, type code, number. The tag doubles as the hostname wherever the machine has one, so the sticker and the network agree. Numbers come from one per-company counter that starts at 1001 and <b>never reuses a number</b>: a sticker on a shelf can never collide with a new machine. Gaps are normal and meaningless.</p>
@@ -336,6 +399,20 @@
         <li>Tick the checkbox when done — it moves into that week's <b>Completed</b> section with the date.</li>
         <li>Use <b>‹ Prev / This week / Next ›</b> to move between weeks, and the <b>Projects</b> and <b>Timeline</b> tabs when work outgrows a single week.</li>
       </ol>
+
+      <h3>Projects and the timeline</h3>
+      <p>When work outgrows the week, it climbs the ladder: <b>Project → Subproject → Milestone → Task → Subtask</b>. The Projects tab holds the ladder; the Timeline lays the same work across weeks, and clicking a bar opens its project.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/tasks-projects.png" alt="The Projects tab with the project ladder" loading="lazy">
+      </div>
+      <div class="shot-caption">The ladder: projects, milestones, and their tasks.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/tasks-timeline.png" alt="The Timeline tab: work laid across weeks" loading="lazy">
+      </div>
+      <div class="shot-caption">The same work, laid across weeks.</div>
+
     </section>
 
     <!-- ============================================================ -->
@@ -347,6 +424,25 @@
         <li>Click <b>+ New</b> to write a page; tag it as an SOP if it should be runnable.</li>
         <li>Keep one doc per procedure — a solved problem becomes a runbook, and next year it's a search away.</li>
       </ol>
+
+      <h3>Incidents, Templates, Commands</h3>
+      <p>Docs has three siblings: <b>Incidents</b> is the log of what broke and what fixed it (next year's search result), <b>Templates</b> holds the reusable page shapes, and <b>Commands</b> is the reference for every <code>/</code> action the grammar understands.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/docs-incidents.png" alt="The Incidents tab in Docs" loading="lazy">
+      </div>
+      <div class="shot-caption">Incidents: what broke, what fixed it.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/docs-templates.png" alt="The Templates tab in Docs" loading="lazy">
+      </div>
+      <div class="shot-caption">Templates: reusable page shapes.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/docs-commands.png" alt="The Commands tab in Docs: the reference for slash actions" loading="lazy">
+      </div>
+      <div class="shot-caption">Commands: the /action reference.</div>
+
     </section>
 
     <!-- ============================================================ -->
@@ -358,6 +454,23 @@
         <img src="assets/settings.png" alt="Settings → Companies: each company with its tag prefix, domain, and status" loading="lazy">
       </div>
       <div class="shot-caption">Every record belongs to a company; the tag prefix names its hardware.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/company-detail.png" alt="A company record opened in Settings" loading="lazy">
+      </div>
+      <div class="shot-caption">One company: prefix, domain, location, status.</div>
+      <p>The rest of Settings covers the install itself: <b>Identity &amp; integrations</b> (directory and M365 hookups), <b>Email &amp; signatures</b>, <b>Backups</b>, <b>Roles &amp; access</b>, and <b>Organization</b>.</p>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/settings-identity.png" alt="Settings: Identity and integrations" loading="lazy">
+      </div>
+      <div class="shot-caption">Identity &amp; integrations: where the directory plugs in.</div>
+      <div class="shot">
+        <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <img src="assets/settings-roles.png" alt="Settings: Roles and access" loading="lazy">
+      </div>
+      <div class="shot-caption">Roles &amp; access: who can see and do what.</div>
+
     </section>
 
   </article>
