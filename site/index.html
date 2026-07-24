@@ -123,12 +123,11 @@
     font-size:22px;font-weight:800;letter-spacing:-.015em;color:var(--ink);
     transition:color .6s ease;
   }
-  .story-title .eyebrow{display:block;margin-bottom:6px}
   .night .story-title{color:#fff}
   .scene{
-    position:absolute;inset:0;
+    position:absolute;inset:0;top:clamp(96px,11vh,140px);
     display:grid;grid-template-columns:.72fr 1.28fr;gap:52px;align-items:center;
-    max-width:1080px;margin:0 auto;padding:0 24px clamp(48px,14vh,140px);
+    max-width:1080px;margin:0 auto;padding:0 24px 40px;
     opacity:0;visibility:hidden;pointer-events:none;
     transition:opacity .5s ease,visibility 0s linear .5s;
   }
@@ -276,6 +275,13 @@
   .formshow-dots{display:flex;gap:8px;justify-content:center;margin-top:20px}
   .formshow-dots button{width:8px;height:8px;border-radius:50%;border:0;background:var(--line);cursor:pointer;padding:0;transition:.25s}
   .formshow-dots button.on{background:var(--blue);transform:scale(1.3)}
+
+  /* ---------- note from the developer ---------- */
+  .devnote{padding:84px 0 8px}
+  .devnote .inner{max-width:620px;margin:0 auto}
+  .devnote .eyebrow{text-align:center}
+  .devnote p{color:var(--ink);font-size:16.5px;line-height:1.65;margin-bottom:18px}
+  .devnote .sig{font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:26px}
 
   /* ---------- closing CTA ---------- */
   .closing{text-align:center;padding:84px 0}
@@ -445,7 +451,7 @@
   <div class="story-pin">
     <div class="story-stage">
 
-      <div class="story-title"><span class="eyebrow">A tour in seven screens</span>Calm &amp; logical UI.</div>
+      <div class="story-title">Calm &amp; logical UI.</div>
 
       <div class="scene active">
         <div class="s-copy">
@@ -633,6 +639,19 @@
   </div>
 </section>
 
+<!-- NOTE FROM THE DEVELOPER -->
+<section class="devnote">
+  <div class="wrap">
+    <div class="inner">
+      <div class="eyebrow">A note from the developer</div>
+      <p>I've run IT for small companies for a long time. Every tool I tried wanted to be my whole world: six tabs, six logins, six subscriptions, and the real answers still lived in a spreadsheet and in my head.</p>
+      <p>The big suites are great if you have 200 seats and a team to babysit them. I don't, and neither do the companies I work with. So I built AssetMost: the four things IT actually juggles, connected, in one calm app. Email stays email. Tickets stay in the inbox. A new hire is a form that fills itself into the system.</p>
+      <p>It's open source because tools like this should be. Download it, break it, and tell me what's missing.</p>
+      <p class="sig">&mdash; Enrique "Rick" Berrios</p>
+    </div>
+  </div>
+</section>
+
 <!-- CLOSING CTA -->
 <section class="closing">
   <div class="wrap">
@@ -648,7 +667,7 @@
 <footer>
   <div class="wrap foot-grid">
     <div class="foot-brand">
-      <div class="brand">Asset<b style="color:var(--blue)">Most</b></div>
+      <div class="brand"><span>Asset<b style="color:var(--blue)">Most</b></span></div>
       <p>The four cardinals of IT, unified. Self-hosted, unbloated, open source.</p>
       <span class="oss-pill">AGPL &middot; open source</span>
     </div>
@@ -667,7 +686,7 @@
   </div>
   <div class="foot-bottom">
     <div class="wrap">
-      <span>&copy; 2026 AssetMost</span>
+      <span>&copy; 2026 Enrique Berrios</span>
       <span class="tag">Chaos in, order out.</span>
     </div>
   </div>
@@ -842,7 +861,7 @@
   if (!('IntersectionObserver' in window)) return;
   var targets = document.querySelectorAll(
     '.strip .wrap, .thesis .wrap, ' +
-    '.intake .sec-head, .formshow, .formshow-dots, .tickets .wrap, .closing .wrap'
+    '.intake .sec-head, .formshow, .formshow-dots, .tickets .wrap, .devnote .inner, .closing .wrap'
   );
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (e) {
