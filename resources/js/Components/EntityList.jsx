@@ -37,7 +37,11 @@ export default function EntityList({
         if (filter && filterVal) params.set(filter.key, filterVal);
         if (sortKey) { params.set('sort', sortKey); params.set('dir', sortDir); }
         const res = await fetch(`${endpoint}?${params}`, { headers: { Accept: 'application/json' } });
+        // A 423 (locked) or any error body must never reach .length — the guard
+        // above this list handles locked; a crash here whites out the whole app.
+        if (!res.ok) return;
         const data = await res.json();
+        if (!Array.isArray(data.items)) return;
         setItems((prev) => {
             const next = reset ? data.items : [...prev, ...data.items];
             onStats?.({ shown: next.length, total: data.total });

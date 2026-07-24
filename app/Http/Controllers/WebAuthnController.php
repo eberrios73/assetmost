@@ -160,9 +160,10 @@ class WebAuthnController extends Controller
         $row->update(['sign_count' => $source->counter, 'last_used_at' => now()]);
 
         if ($request->boolean('gate')) {
-            // The sudo gate: same session flag the password path sets.
+            // The sudo gate: the SAME session flag the password unlock sets —
+            // ConfirmAccountsAccess checks accounts_confirmed_at, nothing else.
             abort_unless(Auth::id() === $user->id, 403);
-            $request->session()->put('auth.password_confirmed_at', time());
+            $request->session()->put('accounts_confirmed_at', time());
         } else {
             Auth::login($user, remember: true);
             $request->session()->regenerate();
